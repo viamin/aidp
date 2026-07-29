@@ -385,8 +385,27 @@ module Aidp
         save!
       end
 
+      def issue_dependencies(issue_number)
+        Array(hierarchies[issue_number.to_s]&.dig("dependencies"))
+      end
+
+      def record_issue_dependencies(issue_number, dependency_numbers)
+        hierarchies[issue_number.to_s] ||= {}
+        hierarchies[issue_number.to_s]["dependencies"] = Array(dependency_numbers)
+        hierarchies[issue_number.to_s]["dependencies_updated_at"] = Time.now.utc.iso8601
+        save!
+      end
+
       def blocking_status(issue_number)
-        # Check if this issue is blocked by any open sub-issues
+        dependency_numbers = issue_dependencies(issue_number)
+        if dependency_numbers.any?
+          return {
+            blocked: true,
+            blockers: dependency_numbers,
+            blocker_count: dependency_numbers.size
+          }
+        end
+
         sub_issue_numbers = sub_issues(issue_number)
         return {blocked: false, blockers: []} if sub_issue_numbers.empty?
 

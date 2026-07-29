@@ -284,4 +284,17 @@ RSpec.describe Aidp::Watch::StateStore do
       expect(store.round_robin_last_processed_at).to be_nil
     end
   end
+
+  describe "hierarchy dependency tracking" do
+    it "records and retrieves issue dependencies" do
+      store.record_issue_dependencies(600, [601, 602])
+
+      expect(store.issue_dependencies(600)).to eq([601, 602])
+      expect(store.blocking_status(600)).to eq(
+        blocked: true,
+        blockers: [601, 602],
+        blocker_count: 2
+      )
+    end
+  end
 end

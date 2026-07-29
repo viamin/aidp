@@ -4,6 +4,8 @@ require_relative "../message_display"
 require_relative "plan_generator"
 require_relative "state_store"
 require_relative "feedback_collector"
+require_relative "projects_processor"
+require_relative "sub_issue_creator"
 
 module Aidp
   module Watch
@@ -14,37 +16,44 @@ module Aidp
 
       # Default label names
       DEFAULT_PLAN_LABEL = "aidp-plan"
+      DEFAULT_PROJECT_LABEL = "aidp-project"
       DEFAULT_NEEDS_INPUT_LABEL = "aidp-needs-input"
       DEFAULT_READY_LABEL = "aidp-ready"
       DEFAULT_BUILD_LABEL = "aidp-build"
+      DEFAULT_BLOCKED_LABEL = "aidp-blocked"
 
       COMMENT_HEADER = "## 🤖 AIDP Plan Proposal"
 
-      attr_reader :plan_label, :needs_input_label, :ready_label, :build_label
+      attr_reader :plan_label, :project_label, :needs_input_label, :ready_label, :build_label, :blocked_label
 
-      def initialize(repository_client:, state_store:, plan_generator:, label_config: {})
+      def initialize(repository_client:, state_store:, plan_generator:, label_config: {}, project_config: {})
         @repository_client = repository_client
         @state_store = state_store
         @plan_generator = plan_generator
+        @project_config = project_config
 
         # Load label configuration with defaults
         @plan_label = label_config[:plan_trigger] || label_config["plan_trigger"] || DEFAULT_PLAN_LABEL
+        @project_label = label_config[:project_trigger] || label_config["project_trigger"] || DEFAULT_PROJECT_LABEL
         @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || DEFAULT_NEEDS_INPUT_LABEL
         @ready_label = label_config[:ready_to_build] || label_config["ready_to_build"] || DEFAULT_READY_LABEL
         @build_label = label_config[:build_trigger] || label_config["build_trigger"] || DEFAULT_BUILD_LABEL
+        @blocked_label = label_config[:blocked_trigger] || label_config["blocked_trigger"] || DEFAULT_BLOCKED_LABEL
       end
 
-      def process(issue)
+      def process(issue, trigger_label: @plan_label)
         number = issue[:number]
         existing_plan = @state_store.plan_data(number)
+        project_mode = trigger_label.to_s.casecmp(@project_label).zero?
 
         if existing_plan
           display_message("🔄 Re-planning for issue ##{number} (iteration #{@state_store.plan_iteration_count(number) + 1})", type: :info)
         else
-          display_message("🧠 Generating plan for issue ##{number} (#{issue[:title]})", type: :info)
+          prefix = project_mode ? "🗂️  Generating project plan" : "🧠 Generating plan"
+          display_message("#{prefix} for issue ##{number} (#{issue[:title]})", type: :info)
         end
 
-        plan_data = @plan_generator.generate(issue)
+        plan_data = @plan_generator.generate(issue, hierarchical: project_mode)
 
         # If plan generation failed (all providers unavailable), silently skip
         unless plan_data
@@ -91,8 +100,10 @@ module Aidp
         plan_data = plan_data.merge(comment_id: comment_id) if comment_id
         @state_store.record_plan(number, plan_data.merge(comment_body: comment_body, comment_hint: COMMENT_HEADER))
 
+        process_project_plan(issue, plan_data) if project_mode
+
         # Update labels: remove plan trigger, add appropriate status label
-        update_labels_after_plan(number, plan_data)
+        update_labels_after_plan(number, plan_data, trigger_label: trigger_label, project_mode: project_mode)
       end
 
       private
@@ -122,21 +133,28 @@ module Aidp
         archived_parts.join("\n")
       end
 
-      def update_labels_after_plan(number, plan_data)
+      def update_labels_after_plan(number, plan_data, trigger_label:, project_mode:)
         questions = Array(plan_data[:questions])
         has_questions = questions.any? && !questions.all? { |q| q.to_s.strip.empty? }
 
         # Determine which label to add based on whether there are questions
-        new_label = has_questions ? @needs_input_label : @ready_label
+        new_label = if has_questions
+          @needs_input_label
+        elsif project_mode
+          @project_label
+        else
+          @ready_label
+        end
         status_text = has_questions ? "needs input" : "ready to build"
+        status_text = "project initialized" if project_mode && !has_questions
 
         begin
           @repository_client.replace_labels(
             number,
-            old_labels: [@plan_label],
+            old_labels: [trigger_label],
             new_labels: [new_label]
           )
-          display_message("🏷️  Updated labels: removed '#{@plan_label}', added '#{new_label}' (#{status_text})", type: :info)
+          display_message("🏷️  Updated labels: removed '#{trigger_label}', added '#{new_label}' (#{status_text})", type: :info)
         rescue => e
           display_message("⚠️  Failed to update labels for issue ##{number}: #{e.message}", type: :warn)
           # Don't fail the whole process if label update fails
@@ -188,11 +206,67 @@ module Aidp
         # Add instructions based on whether there are questions
         parts << if has_questions
           "**Next Steps**: Please reply with answers to the questions above. Once resolved, remove the `#{@needs_input_label}` label and add the `#{@build_label}` label to begin implementation."
+        elsif plan[:should_create_sub_issues]
+          "**Next Steps**: AIDP will create project sub-issues, place them on the active GitHub Project, and dispatch dependency-ready work with `#{@build_label}` while blocked work is held under `#{@blocked_label}`."
         else
           "**Next Steps**: This plan is ready for implementation. Add the `#{@build_label}` label to begin."
         end
 
         parts.join("\n")
+      end
+
+      def process_project_plan(issue, plan_data)
+        return unless plan_data[:should_create_sub_issues]
+        return if Array(plan_data[:sub_issues]).empty?
+
+        project_id = resolve_project_id(issue)
+        return unless project_id
+
+        projects_processor = ProjectsProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          project_id: project_id,
+          config: @project_config
+        )
+        projects_processor.ensure_project_fields
+
+        creator = SubIssueCreator.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          project_id: project_id,
+          build_label: @build_label,
+          blocked_label: @blocked_label
+        )
+        created_issues = creator.create_sub_issues(issue, plan_data[:sub_issues])
+
+        sync_project_issue_statuses(issue[:number], created_issues, projects_processor)
+      end
+
+      def resolve_project_id(issue)
+        configured_project_id = @project_config[:default_project_id] || @project_config["default_project_id"]
+        return configured_project_id if configured_project_id
+
+        saved_project_id = @state_store.project_sync_data(issue[:number])["project_id"]
+        return saved_project_id if saved_project_id
+
+        title = "AIDP Project ##{issue[:number]}: #{issue[:title]}".slice(0, 100)
+        project = @repository_client.create_project(title: title)
+        @state_store.record_project_sync(issue[:number], project_id: project[:id], project_url: project[:url], project_title: project[:title])
+        display_message("📊 Created GitHub Project '#{project[:title]}'", type: :success)
+        project[:id]
+      rescue => e
+        Aidp.log_error("plan_processor", "project_resolution_failed", issue: issue[:number], error: e.message)
+        display_message("⚠️  Failed to resolve GitHub Project for issue ##{issue[:number]}: #{e.message}", type: :warn)
+        nil
+      end
+
+      def sync_project_issue_statuses(parent_number, created_issues, projects_processor)
+        projects_processor.sync_issue_to_project(parent_number, status: ProjectsProcessor::STATUS_VALUES[:blocked])
+
+        created_issues.each do |created_issue|
+          status = created_issue[:dependencies].any? ? ProjectsProcessor::STATUS_VALUES[:blocked] : ProjectsProcessor::STATUS_VALUES[:todo]
+          projects_processor.sync_issue_to_project(created_issue[:number], status: status)
+        end
       end
 
       def format_bullets(items, placeholder:)

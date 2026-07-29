@@ -36,13 +36,14 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
       allow(repository_client).to receive(:post_comment)
       allow(state_store).to receive(:record_project_item_id)
       allow(state_store).to receive(:record_sub_issues)
+      allow(state_store).to receive(:record_issue_dependencies)
     end
 
     it "creates sub-issues with correct attributes" do
       expect(repository_client).to receive(:create_issue).with(
         hash_including(
           title: "Sub task 1",
-          labels: include("aidp-auto")
+          labels: include("aidp-blocked")
         )
       )
       creator.create_sub_issues(parent_issue, sub_issues_data)
@@ -171,9 +172,9 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
     context "with custom labels" do
       let(:sub_issues_data) { [{title: "Task", labels: ["custom-label", "priority-high"]}] }
 
-      it "includes custom labels along with aidp-auto" do
+      it "includes custom labels along with aidp-build" do
         expect(repository_client).to receive(:create_issue).with(
-          hash_including(labels: include("aidp-auto", "custom-label", "priority-high"))
+          hash_including(labels: include("aidp-build", "custom-label", "priority-high"))
         )
         creator.create_sub_issues(parent_issue, sub_issues_data)
       end
@@ -211,9 +212,9 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
     context "with only dependencies metadata" do
       let(:sub_issues_data) { [{title: "Task", dependencies: ["#10", "#11"]}] }
 
-      it "includes dependencies in the created issue data" do
+      it "includes resolved dependencies in the created issue data" do
         result = creator.create_sub_issues(parent_issue, sub_issues_data)
-        expect(result.first[:dependencies]).to eq(["#10", "#11"])
+        expect(result.first[:dependencies]).to eq([10, 11])
       end
     end
 

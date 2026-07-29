@@ -58,7 +58,8 @@ module Aidp
           repository_client: @repository_client,
           state_store: @state_store,
           plan_generator: PlanGenerator.new(provider_name: provider_name, verbose: verbose),
-          label_config: label_config
+          label_config: label_config,
+          project_config: safety_config[:projects] || safety_config["projects"] || {}
         )
         @build_processor = BuildProcessor.new(
           repository_client: @repository_client,
@@ -269,7 +270,7 @@ module Aidp
         # Dispatch to processor
         case item.processor_type
         when :plan
-          @plan_processor.process(detailed)
+          @plan_processor.process(detailed, trigger_label: item.label)
         when :build
           # Check build completion at dispatch time (moved from collection for API efficiency)
           if @state_extractor.build_completed?(detailed)
@@ -336,6 +337,7 @@ module Aidp
         items = []
 
         items.concat(collect_plan_work_items)
+        items.concat(collect_project_work_items)
         items.concat(collect_build_work_items)
         items.concat(collect_auto_issue_work_items)
         items.concat(collect_review_work_items)
@@ -371,9 +373,31 @@ module Aidp
         []
       end
 
+      def collect_project_work_items
+        label = @plan_processor.project_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+
+          WorkItem.new(
+            number: issue[:number],
+            item_type: :issue,
+            processor_type: :plan,
+            label: label,
+            data: issue
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_project_items_failed", error: e.message)
+        []
+      end
+
       # Collect work items for build triggers.
       # @return [Array<WorkItem>]
       def collect_build_work_items
+        unblock_dependency_ready_items
+
         label = @build_processor.build_label
         issues = @repository_client.list_issues(labels: [label], state: "open")
 
@@ -393,6 +417,24 @@ module Aidp
       rescue => e
         Aidp.log_error("watch_runner", "collect_build_items_failed", error: e.message)
         []
+      end
+
+      def unblock_dependency_ready_items
+        blocked_label = @plan_processor.blocked_label
+        blocked_issues = @repository_client.list_issues(labels: [blocked_label], state: "open")
+
+        blocked_issues.each do |issue|
+          next unless issue_has_label?(issue, blocked_label)
+          next unless dependencies_met_for_issue?(issue[:number])
+
+          @repository_client.replace_labels(
+            issue[:number],
+            old_labels: [blocked_label],
+            new_labels: [@build_processor.build_label]
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "unblock_dependency_ready_items_failed", error: e.message)
       end
 
       # Collect work items for auto issue triggers.
@@ -527,6 +569,20 @@ module Aidp
           name = (issue_label.is_a?(Hash) ? issue_label["name"] : issue_label.to_s)
           name.casecmp(label).zero?
         end
+      end
+
+      def dependencies_met_for_issue?(issue_number)
+        dependency_numbers = @state_store.issue_dependencies(issue_number)
+        return false if dependency_numbers.empty?
+
+        dependency_numbers.all? do |dependency_number|
+          dependency = @repository_client.fetch_issue(dependency_number)
+          dependency[:state].to_s.casecmp("closed").zero?
+        end
+      rescue => e
+        Aidp.log_warn("watch_runner", "dependency_check_failed",
+          issue: issue_number, error: e.message)
+        false
       end
 
       # Restore from checkpoint if one exists (after auto-update)

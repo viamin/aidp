@@ -5,9 +5,17 @@ require "spec_helper"
 RSpec.describe Aidp::Watch::Runner do
   let(:repo_client) { instance_double("RepositoryClient", full_repo: "o/r") }
   let(:safety_checker) { instance_double("RepositorySafetyChecker", validate_watch_mode_safety!: true) }
-  let(:state_store) { instance_double("StateStore", state: {}, round_robin_last_key: nil, record_round_robin_position: nil) }
+  let(:state_store) do
+    instance_double(
+      "StateStore",
+      state: {},
+      round_robin_last_key: nil,
+      record_round_robin_position: nil,
+      issue_dependencies: []
+    )
+  end
   let(:state_extractor) { instance_double("GitHubStateExtractor") }
-  let(:plan_processor) { instance_double("PlanProcessor", plan_label: "plan", process: nil) }
+  let(:plan_processor) { instance_double("PlanProcessor", plan_label: "plan", project_label: "project", blocked_label: "blocked", process: nil) }
   let(:build_processor) { instance_double("BuildProcessor", build_label: "build", process: nil) }
   let(:auto_processor) { instance_double("AutoProcessor", process: nil) }
   let(:review_processor) { instance_double("ReviewProcessor", process: nil) }
@@ -132,6 +140,16 @@ RSpec.describe Aidp::Watch::Runner do
       expect(items.first.number).to eq(1)
     end
 
+    it "collects project work items" do
+      allow(repo_client).to receive(:list_issues).and_return([{number: 8, labels: ["project"]}])
+
+      items = runner.send(:collect_project_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:plan)
+      expect(items.first.label).to eq("project")
+    end
+
     it "returns empty array when plan poll fails" do
       allow(repo_client).to receive(:list_issues).and_raise(StandardError.new("boom"))
 
@@ -141,7 +159,7 @@ RSpec.describe Aidp::Watch::Runner do
     end
 
     it "collects build work items" do
-      allow(repo_client).to receive(:list_issues).and_return([{number: 2, labels: ["build"]}])
+      allow(repo_client).to receive(:list_issues).and_return([], [{number: 2, labels: ["build"]}])
 
       items = runner.send(:collect_build_work_items)
 
@@ -223,7 +241,7 @@ RSpec.describe Aidp::Watch::Runner do
 
       runner.send(:dispatch_work_item, work_item)
 
-      expect(plan_processor).to have_received(:process).with(issue_detail)
+      expect(plan_processor).to have_received(:process).with(issue_detail, trigger_label: "aidp-plan")
     end
 
     it "dispatches build work item to build processor" do
@@ -254,6 +272,26 @@ RSpec.describe Aidp::Watch::Runner do
       runner.send(:dispatch_work_item, work_item)
 
       expect(review_processor).to have_received(:process)
+    end
+  end
+
+  describe "dependency unblocking" do
+    it "promotes blocked issues to build when dependencies are closed" do
+      runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
+
+      allow(state_store).to receive(:issue_dependencies).with(10).and_return([11])
+      allow(repo_client).to receive(:list_issues).and_return([{number: 10, labels: ["blocked"]}])
+      allow(repo_client).to receive(:fetch_issue).with(11).and_return({state: "closed"})
+      allow(repo_client).to receive(:replace_labels)
+
+      runner.send(:unblock_dependency_ready_items)
+
+      expect(repo_client).to have_received(:replace_labels).with(
+        10,
+        old_labels: ["blocked"],
+        new_labels: ["build"]
+      )
     end
   end
 

@@ -197,7 +197,9 @@ module Aidp
         polling_interval: 30,
         labels: {
           plan_trigger: "aidp-plan",
+          project_trigger: "aidp-project",
           build_trigger: "aidp-build",
+          blocked_trigger: "aidp-blocked",
           review_trigger: "aidp-review",
           fix_ci_trigger: "aidp-fix-ci",
           change_request_trigger: "aidp-request-changes",

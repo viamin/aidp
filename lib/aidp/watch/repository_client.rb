@@ -303,6 +303,16 @@ module Aidp
         create_project_field_via_gh(project_id, name, field_type, options: options)
       end
 
+      def create_project(title:, repository_id: nil)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        create_project_via_gh(title: title, repository_id: repository_id)
+      end
+
+      def repository_node_data
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        repository_node_data_via_gh
+      end
+
       def create_issue(title:, body:, labels: [], assignees: [])
         raise "GitHub CLI not available - cannot create issue" unless gh_available?
         create_issue_via_gh(title: title, body: body, labels: labels, assignees: assignees)
@@ -1713,6 +1723,77 @@ module Aidp
         field
       rescue => e
         Aidp.log_error("repository_client", "Failed to create project field", project_id: project_id, name: name, error: e.message)
+        raise
+      end
+
+      def repository_node_data_via_gh
+        Aidp.log_debug("repository_client", "repository_node_data", repo: full_repo)
+
+        query = <<~GRAPHQL
+          query($owner: String!, $repo: String!) {
+            repository(owner: $owner, name: $repo) {
+              id
+              owner {
+                __typename
+                login
+                ... on Organization {
+                  id
+                }
+                ... on User {
+                  id
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, owner: owner, repo: repo)
+        repo_data = result.dig("data", "repository")
+        raise "Repository not found: #{full_repo}" unless repo_data
+
+        {
+          repository_id: repo_data["id"],
+          owner_id: repo_data.dig("owner", "id"),
+          owner_login: repo_data.dig("owner", "login"),
+          owner_type: repo_data.dig("owner", "__typename")
+        }
+      rescue => e
+        Aidp.log_error("repository_client", "repository_node_data_failed", repo: full_repo, error: e.message)
+        raise
+      end
+
+      def create_project_via_gh(title:, repository_id: nil)
+        owner_data = repository_node_data_via_gh
+
+        mutation = <<~GRAPHQL
+          mutation($ownerId: ID!, $title: String!, $repositoryId: ID) {
+            createProjectV2(input: {
+              ownerId: $ownerId
+              title: $title
+              repositoryId: $repositoryId
+            }) {
+              projectV2 {
+                id
+                title
+                number
+                url
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(
+          mutation,
+          ownerId: owner_data[:owner_id],
+          title: title,
+          repositoryId: repository_id || owner_data[:repository_id]
+        )
+        project_data = result.dig("data", "createProjectV2", "projectV2")
+        raise "Failed to create project: #{title}" unless project_data
+
+        normalize_project(project_data)
+      rescue => e
+        Aidp.log_error("repository_client", "create_project_failed", repo: full_repo, title: title, error: e.message)
         raise
       end
 

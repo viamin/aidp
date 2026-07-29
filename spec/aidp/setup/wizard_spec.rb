@@ -1337,9 +1337,11 @@ RSpec.describe Aidp::Setup::Wizard do
       # Set up watch labels configuration
       wizard.send(:set, [:watch, :labels], {
         plan_trigger: "aidp-plan",
+        project_trigger: "aidp-project",
         needs_input: "aidp-needs-input",
         ready_to_build: "aidp-ready",
         build_trigger: "aidp-build",
+        blocked_trigger: "aidp-blocked",
         review_trigger: "aidp-review",
         ci_fix_trigger: "aidp-fix-ci",
         change_request_trigger: "aidp-request-changes"
@@ -1421,7 +1423,8 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:set, [:watch, :labels], {
           plan_trigger: "aidp-plan",
-          build_trigger: "aidp-build"
+          build_trigger: "aidp-build",
+          blocked_trigger: "aidp-blocked"
         })
 
         allow(wizard).to receive(:gh_cli_available?).and_return(true)
@@ -1431,8 +1434,8 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(wizard).to receive(:create_labels) do |owner, repo, labels|
           expect(owner).to eq("owner")
           expect(repo).to eq("repo")
-          expect(labels.size).to eq(1)  # aidp-build only
-          expect(labels.map { |l| l[:name] }).to include("aidp-build")
+          expect(labels.size).to eq(2)
+          expect(labels.map { |l| l[:name] }).to include("aidp-build", "aidp-blocked")
         end
 
         wizard.send(:configure_watch_label_creation)
@@ -1559,15 +1562,21 @@ RSpec.describe Aidp::Setup::Wizard do
     it "collects labels with default colors" do
       labels_config = {
         plan_trigger: "aidp-plan",
-        build_trigger: "aidp-build"
+        project_trigger: "aidp-project",
+        build_trigger: "aidp-build",
+        blocked_trigger: "aidp-blocked"
       }
       result = wizard.send(:collect_required_labels, labels_config)
 
-      expect(result.size).to eq(2)
+      expect(result.size).to eq(4)
       expect(result[0][:name]).to eq("aidp-plan")
       expect(result[0][:color]).to eq("0E8A16")
-      expect(result[1][:name]).to eq("aidp-build")
-      expect(result[1][:color]).to eq("5319E7")
+      expect(result[1][:name]).to eq("aidp-project")
+      expect(result[1][:color]).to eq("0052CC")
+      expect(result[2][:name]).to eq("aidp-build")
+      expect(result[2][:color]).to eq("5319E7")
+      expect(result[3][:name]).to eq("aidp-blocked")
+      expect(result[3][:color]).to eq("B60205")
     end
 
     it "skips nil or empty label names" do
