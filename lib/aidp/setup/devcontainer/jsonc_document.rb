@@ -25,7 +25,7 @@ module Aidp
 
         def parse
           root_comments = consume_comments
-          store_comments([], root_comments) if root_comments.any?
+          store_comments([], root_comments, position: :leading) if root_comments.any?
 
           value = parse_value([])
           skip_trivia
@@ -80,8 +80,11 @@ module Aidp
 
             value_path = path + [key]
             value = parse_value(value_path)
+            inline_comments = consume_inline_comments
             trailing_comments = consume_comments
-            store_comments(value_path, leading_comments + trailing_comments, value: value)
+            store_comments(value_path, leading_comments, position: :leading, value: value)
+            store_comments(value_path, inline_comments, position: :inline, value: value)
+            store_comments(value_path, trailing_comments, position: :trailing, value: value)
             result[key] = value
 
             skip_trivia
@@ -104,8 +107,11 @@ module Aidp
             leading_comments = consume_comments
             value_path = path + [index]
             value = parse_value(value_path)
+            inline_comments = consume_inline_comments
             trailing_comments = consume_comments
-            store_comments(value_path, leading_comments + trailing_comments, value: value)
+            store_comments(value_path, leading_comments, position: :leading, value: value)
+            store_comments(value_path, inline_comments, position: :inline, value: value)
+            store_comments(value_path, trailing_comments, position: :trailing, value: value)
             result << value
 
             index += 1
@@ -230,11 +236,24 @@ module Aidp
           comments
         end
 
-        def store_comments(path, comments, value: nil)
+        def consume_inline_comments
+          start_index = @index
+          advance while horizontal_whitespace?(current_char)
+
+          return [] unless remaining.start_with?("//", "/*")
+
+          comments = consume_comments
+          return comments if comments.any?
+
+          @index = start_index
+          []
+        end
+
+        def store_comments(path, comments, position:, value: nil)
           return if comments.empty?
 
-          append_comments(path_key(path), comments)
-          store_array_value_comments(path, value, comments)
+          append_comments(comment_key(path, position), comments)
+          store_array_value_comments(path, value, comments, position)
         end
 
         def path_key(path)
@@ -250,13 +269,18 @@ module Aidp
           @comments[key].concat(comments)
         end
 
-        def store_array_value_comments(path, value, comments)
-          return unless path.last.instance_of?(Integer)
-          append_comments(array_value_key(path[0...-1], value), comments)
+        def comment_key(path, position)
+          "#{path_key(path)}\u0000c:#{position}"
         end
 
-        def array_value_key(path, value)
-          "#{path_key(path)}\u0000a:#{JSON.generate(value)}"
+        def store_array_value_comments(path, value, comments, position)
+          return unless path.last.instance_of?(Integer)
+
+          append_comments(array_value_key(path[0...-1], value, position), comments)
+        end
+
+        def array_value_key(path, value, position)
+          "#{path_key(path)}\u0000a:#{JSON.generate(value)}\u0000c:#{position}"
         end
 
         def consume_if(char)
@@ -313,6 +337,10 @@ module Aidp
           char&.match?(/\s/)
         end
 
+        def horizontal_whitespace?(char)
+          char == " " || char == "\t"
+        end
+
         # Serializes JSON while re-inserting preserved comments before values.
         class Writer
           def initialize(data, comments)
@@ -323,7 +351,7 @@ module Aidp
           end
 
           def dump
-            write_comments([], 0)
+            write_comments([], 0, position: :leading)
             write_value(@data, [])
             @output
           end
@@ -352,13 +380,15 @@ module Aidp
 
             entries.each_with_index do |(key, value), index|
               child_path = path + [key]
-              write_comments(child_path, indent + 2)
+              write_comments(child_path, indent + 2, position: :leading)
               @output << (" " * (indent + 2))
               @output << JSON.generate(key)
               @output << ": "
               write_value(value, child_path, indent + 2)
-              @output << ",\n" if index < entries.length - 1
-              @output << "\n" if index == entries.length - 1
+              write_inline_comments(child_path)
+              @output << "," if index < entries.length - 1
+              @output << "\n"
+              write_comments(child_path, indent + 2, position: :trailing)
             end
 
             @output << (" " * indent) << "}"
@@ -373,28 +403,36 @@ module Aidp
             @output << "[\n"
             array.each_with_index do |value, index|
               child_path = path + [index]
-              write_comments(child_path, indent + 2)
+              write_comments(child_path, indent + 2, position: :leading)
               @output << (" " * (indent + 2))
               write_value(value, child_path, indent + 2)
-              @output << ",\n" if index < array.length - 1
-              @output << "\n" if index == array.length - 1
+              write_inline_comments(child_path)
+              @output << "," if index < array.length - 1
+              @output << "\n"
+              write_comments(child_path, indent + 2, position: :trailing)
             end
 
             @output << (" " * indent) << "]"
           end
 
-          def write_comments(path, indent)
-            comments_for(path).each do |comment|
+          def write_comments(path, indent, position:)
+            comments_for(path, position).each do |comment|
               comment.each_line do |line|
                 @output << (" " * indent) << line.rstrip << "\n"
               end
             end
           end
 
-          def comments_for(path)
-            return array_comments_for(path) if path.last.instance_of?(Integer)
+          def write_inline_comments(path)
+            comments_for(path, :inline).each do |comment|
+              @output << " " << comment
+            end
+          end
 
-            @comments[path_key(path)] || []
+          def comments_for(path, position)
+            return array_comments_for(path, position) if path.last.instance_of?(Integer)
+
+            @comments[comment_key(path, position)] || []
           end
 
           def path_key(path)
@@ -405,12 +443,16 @@ module Aidp
             part.instance_of?(Integer) ? "i" : "s"
           end
 
-          def array_comments_for(path)
+          def comment_key(path, position)
+            "#{path_key(path)}\u0000c:#{position}"
+          end
+
+          def array_comments_for(path, position)
             parent_path = path[0...-1]
             array = @data.dig(*parent_path)
             return [] unless array.is_a?(Array)
 
-            key = array_value_key(parent_path, array[path.last])
+            key = array_value_key(parent_path, array[path.last], position)
             comments = @comments[key]
             return [] if comments.nil? || comments.empty?
 
@@ -421,8 +463,8 @@ module Aidp
             [comments[offset]]
           end
 
-          def array_value_key(path, value)
-            "#{path_key(path)}\u0000a:#{JSON.generate(value)}"
+          def array_value_key(path, value, position)
+            "#{path_key(path)}\u0000a:#{JSON.generate(value)}\u0000c:#{position}"
           end
         end
       end
