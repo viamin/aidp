@@ -95,6 +95,16 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       expect(job_id).not_to be_nil
       expect(File.exist?(File.join(project_dir, ".aidp", "jobs", job_id, "metadata.yml"))).to be true
     end
+
+    it "raises a start error when the jobs directory is unavailable" do
+      unavailable_jobs_dir = File.join(project_dir, ".aidp", "jobs")
+
+      allow(runner).to receive(:safe_mkdir_p).and_return(unavailable_jobs_dir)
+      allow(Dir).to receive(:exist?).with(unavailable_jobs_dir).and_return(false)
+
+      expect { runner.start(:execute, foo: "bar") }
+        .to raise_error(Aidp::Jobs::BackgroundRunner::StartError, /Unable to create or access background job directory/)
+    end
   end
 
   describe "job metadata helpers" do

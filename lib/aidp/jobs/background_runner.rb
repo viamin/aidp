@@ -13,6 +13,8 @@ module Aidp
     # Manages background execution of work loops
     # Runs harness in daemon process and tracks job metadata
     class BackgroundRunner
+      StartError = Class.new(StandardError)
+
       include Aidp::MessageDisplay
       include Aidp::RescueLogging
       include Aidp::SafeDirectory
@@ -38,7 +40,7 @@ module Aidp
         job_id = generate_job_id
         log_file = job_file_path(job_id, "output.log")
         pid_file = job_file_path(job_id, "job.pid")
-        return unless log_file && pid_file
+        raise_start_error unless log_file && pid_file
 
         # Create job directory
         FileUtils.mkdir_p(File.dirname(log_file))
@@ -199,6 +201,10 @@ module Aidp
 
       def ensure_jobs_directory
         @jobs_dir = safe_mkdir_p(@jobs_dir, component_name: "BackgroundRunner")
+      end
+
+      def raise_start_error
+        raise StartError, "Unable to create or access background job directory: #{@jobs_dir}"
       end
 
       def generate_job_id
