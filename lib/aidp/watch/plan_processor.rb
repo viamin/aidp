@@ -230,7 +230,8 @@ module Aidp
       def process_project_plan(issue, plan_data)
         return {status: :not_required} unless plan_data[:should_create_sub_issues]
 
-        if Array(plan_data[:sub_issues]).empty?
+        sub_issues = Array(plan_data[:sub_issues])
+        if sub_issues.empty?
           return record_project_setup_failure(issue[:number], "no sub-issues were generated for project planning")
         end
 
@@ -254,13 +255,16 @@ module Aidp
           build_label: @build_label,
           blocked_label: @blocked_label
         )
-        created_issues = existing_sub_issues_for(issue[:number])
-        created_issues = creator.create_sub_issues(issue, plan_data[:sub_issues]) if created_issues.empty?
+        created_issues = existing_sub_issues_for(issue[:number], sub_issues: sub_issues)
+        created_issues = creator.create_sub_issues(issue, sub_issues) if created_issues.empty?
         if created_issues.empty?
           return record_project_setup_failure(issue[:number], "unable to create project sub-issues")
         end
 
-        sync_project_issue_statuses(issue[:number], created_issues, projects_processor)
+        unless sync_project_issue_statuses(issue[:number], created_issues, projects_processor)
+          return record_project_setup_failure(issue[:number], "unable to sync project issues to the GitHub Project")
+        end
+
         @state_store.record_project_sync(issue[:number], setup_status: "ready", setup_error: nil, setup_failed_at: nil)
         {status: :ready}
       rescue SubIssueCreator::UnresolvedDependenciesError => e
@@ -300,25 +304,23 @@ module Aidp
       end
 
       def sync_project_issue_statuses(parent_number, created_issues, projects_processor)
-        projects_processor.sync_issue_to_project(parent_number, status: ProjectsProcessor::STATUS_VALUES[:blocked])
+        return false unless projects_processor.sync_issue_to_project(parent_number, status: ProjectsProcessor::STATUS_VALUES[:blocked])
 
         created_issues.each do |created_issue|
           status = created_issue[:dependencies].any? ? ProjectsProcessor::STATUS_VALUES[:blocked] : ProjectsProcessor::STATUS_VALUES[:todo]
-          projects_processor.sync_issue_to_project(created_issue[:number], status: status)
+          return false unless projects_processor.sync_issue_to_project(created_issue[:number], status: status)
         end
+
+        true
       end
 
-      def existing_sub_issues_for(parent_number)
+      def existing_sub_issues_for(parent_number, sub_issues:)
         existing_numbers = @state_store.sub_issues(parent_number)
         return [] if existing_numbers.empty?
+        return [] unless reconciliable_sub_issues?(existing_numbers, sub_issues)
 
         display_message("🔁 Reusing #{existing_numbers.size} tracked sub-issues for ##{parent_number}", type: :info)
-        existing_numbers.map do |number|
-          {
-            number: number,
-            dependencies: @state_store.issue_dependencies(number)
-          }
-        end
+        reconcile_existing_sub_issues(existing_numbers, sub_issues)
       end
 
       def next_label_for(plan_data, trigger_label:, project_mode:, project_setup:)
@@ -364,6 +366,50 @@ module Aidp
           placeholder
         else
           items.each_with_index.map { |item, index| "#{index + 1}. #{item}" }.join("\n")
+        end
+      end
+
+      def reconciliable_sub_issues?(existing_numbers, sub_issues)
+        return true if existing_numbers.size == sub_issues.size
+
+        display_message(
+          "⚠️  Tracked sub-issues no longer match the regenerated plan (#{existing_numbers.size} tracked, #{sub_issues.size} planned); regenerating them",
+          type: :warn
+        )
+        false
+      end
+
+      def reconcile_existing_sub_issues(existing_numbers, sub_issues)
+        issue_numbers_by_title = {}
+
+        sub_issues.each_with_index.map do |sub_issue, index|
+          number = existing_numbers.fetch(index)
+          title = sub_issue[:title].to_s.strip
+          issue_numbers_by_title[title.downcase] = number unless title.empty?
+          {number: number, title: title, dependencies: Array(sub_issue[:dependencies])}
+        end.then do |tracked_issues|
+          tracked_issues.each do |tracked_issue|
+            dependencies, unresolved_dependencies = resolve_tracked_dependencies(
+              tracked_issue[:dependencies],
+              issue_numbers_by_title
+            )
+            if unresolved_dependencies.any?
+              raise SubIssueCreator::UnresolvedDependenciesError,
+                "Unable to resolve dependencies for sub-issue ##{tracked_issue[:number]} (#{tracked_issue[:title]}): #{unresolved_dependencies.join(", ")}"
+            end
+
+            @state_store.record_issue_dependencies(tracked_issue[:number], dependencies)
+            tracked_issue[:dependencies] = dependencies
+          end
+        end
+      end
+
+      def resolve_tracked_dependencies(dependencies, issue_numbers_by_title)
+        Array(dependencies).each_with_object([[], []]) do |dependency, (resolved, unresolved)|
+          text = dependency.to_s.strip
+          match = text.match(/\A#(\d+)\z/)
+          resolved_dependency = match ? match[1].to_i : issue_numbers_by_title[text.downcase]
+          resolved_dependency ? resolved << resolved_dependency : unresolved << dependency
         end
       end
     end
