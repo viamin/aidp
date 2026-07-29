@@ -323,6 +323,11 @@ module Aidp
         create_issue_via_gh(title: title, body: body, labels: labels, assignees: assignees)
       end
 
+      def close_issue(number)
+        raise "GitHub CLI not available - cannot close issue" unless gh_available?
+        close_issue_via_gh(number)
+      end
+
       def merge_pull_request(number, merge_method: "squash")
         raise "GitHub CLI not available - cannot merge PR" unless gh_available?
         merge_pull_request_via_gh(number, merge_method: merge_method)
@@ -1848,6 +1853,19 @@ module Aidp
         {number: issue_number, url: issue_url}
       rescue => e
         Aidp.log_error("repository_client", "Failed to create issue", title: title, error: e.message)
+        raise
+      end
+
+      def close_issue_via_gh(number)
+        Aidp.log_debug("repository_client", "close_issue", issue_number: number)
+
+        cmd = ["gh", "issue", "close", number.to_s, "--repo", full_repo]
+        _stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to close issue via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug("repository_client", "close_issue_complete", issue_number: number)
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to close issue", issue_number: number, error: e.message)
         raise
       end
 

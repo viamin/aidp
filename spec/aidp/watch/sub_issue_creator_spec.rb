@@ -33,6 +33,7 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
     before do
       allow(repository_client).to receive(:create_issue).and_return({number: 43, url: "https://github.com/test/repo/issues/43"})
       allow(repository_client).to receive(:link_issue_to_project).and_return("PVTI_abc")
+      allow(repository_client).to receive(:close_issue)
       allow(repository_client).to receive(:post_comment)
       allow(state_store).to receive(:record_project_item_id)
       allow(state_store).to receive(:record_sub_issues)
@@ -66,11 +67,24 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
     end
 
     context "when issue creation fails" do
-      before do
-        allow(repository_client).to receive(:create_issue).and_raise(StandardError, "API error")
+      let(:sub_issues_data) do
+        [
+          {title: "Sub task 1"},
+          {title: "Sub task 2"}
+        ]
       end
 
-      it "continues with other sub-issues" do
+      before do
+        allow(repository_client).to receive(:create_issue).and_return(
+          {number: 43, url: "https://github.com/test/repo/issues/43"}
+        )
+        allow(repository_client).to receive(:create_issue).with(hash_including(title: "Sub task 2")).and_raise(StandardError, "API error")
+      end
+
+      it "cleans up created issues and returns an empty batch" do
+        expect(repository_client).to receive(:close_issue).with(43)
+        expect(state_store).not_to receive(:record_sub_issues)
+
         result = creator.create_sub_issues(parent_issue, sub_issues_data)
         expect(result).to eq([])
       end
@@ -221,7 +235,10 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
     context "when a dependency cannot be resolved" do
       let(:sub_issues_data) { [{title: "Task", dependencies: ["Missing task"]}] }
 
-      it "raises instead of dropping the dependency" do
+      it "raises instead of dropping the dependency and cleans up the created issue" do
+        expect(repository_client).to receive(:close_issue).with(43)
+        expect(state_store).not_to receive(:record_sub_issues)
+
         expect do
           creator.create_sub_issues(parent_issue, sub_issues_data)
         end.to raise_error(
@@ -280,6 +297,32 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
       it "records empty sub-issues array" do
         expect(state_store).to receive(:record_sub_issues).with(42, [])
         creator.create_sub_issues(parent_issue, sub_issues_data)
+      end
+    end
+
+    context "when dependency resolution fails after multiple issues are created" do
+      let(:sub_issues_data) do
+        [
+          {title: "Task 1"},
+          {title: "Task 2", dependencies: ["Missing task"]}
+        ]
+      end
+
+      before do
+        allow(repository_client).to receive(:create_issue).and_return(
+          {number: 43, url: "https://github.com/test/repo/issues/43"},
+          {number: 44, url: "https://github.com/test/repo/issues/44"}
+        )
+      end
+
+      it "cleans up every created issue before re-raising" do
+        expect(repository_client).to receive(:close_issue).with(43)
+        expect(repository_client).to receive(:close_issue).with(44)
+        expect(repository_client).not_to receive(:post_comment)
+
+        expect do
+          creator.create_sub_issues(parent_issue, sub_issues_data)
+        end.to raise_error(Aidp::Watch::SubIssueCreator::UnresolvedDependenciesError)
       end
     end
   end

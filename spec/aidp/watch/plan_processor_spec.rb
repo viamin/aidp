@@ -262,6 +262,8 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
     allow(repository_client).to receive(:post_comment)
     allow(repository_client).to receive(:replace_labels)
+    allow(repository_client).to receive(:fetch_issue).with(43).and_return({number: 43, title: "Backend slice"})
+    allow(repository_client).to receive(:fetch_issue).with(44).and_return({number: 44, title: "Frontend slice"})
     allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
     allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
     allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
@@ -274,6 +276,46 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     expect(projects_processor).to have_received(:sync_issue_to_project).with(43, status: Aidp::Watch::ProjectsProcessor::STATUS_VALUES[:todo])
     expect(projects_processor).to have_received(:sync_issue_to_project).with(44, status: Aidp::Watch::ProjectsProcessor::STATUS_VALUES[:blocked])
     expect(state_store.issue_dependencies(44)).to eq([43])
+  end
+
+  it "regenerates project sub-issues when tracked issue titles drift from the new plan" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint", "Write tests"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [
+        {title: "Backend slice", tasks: ["Ship API"], dependencies: []},
+        {title: "Frontend slice", tasks: ["Ship UI"], dependencies: ["Backend slice"]}
+      ]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+    projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, ensure_project_fields: true, sync_issue_to_project: true)
+    creator = instance_double(Aidp::Watch::SubIssueCreator, create_sub_issues: [{number: 45, dependencies: []}, {number: 46, dependencies: [45]}])
+
+    state_store.record_sub_issues(42, [43, 44])
+    state_store.record_issue_dependencies(43, [])
+    state_store.record_issue_dependencies(44, [])
+
+    allow(project_generator).to receive(:generate).with(issue, hierarchical: true).and_return(project_plan)
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:replace_labels)
+    allow(repository_client).to receive(:fetch_issue).with(43).and_return({number: 43, title: "Frontend slice"})
+    allow(repository_client).to receive(:fetch_issue).with(44).and_return({number: 44, title: "Backend slice"})
+    allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
+    allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+
+    expect(creator).to have_received(:create_sub_issues).with(issue, project_plan[:sub_issues])
+    expect(state_store.issue_dependencies(44)).to eq([])
   end
 
   it "regenerates project sub-issues when tracked hierarchy no longer matches the new plan" do

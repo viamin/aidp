@@ -32,30 +32,39 @@ module Aidp
         display_message("🔨 Creating #{sub_issues_data.size} sub-issues for ##{parent_number}", type: :info)
 
         created_issues = []
+        creation_failed = false
 
         sub_issues_data.each_with_index do |sub_data, index|
           issue = create_single_sub_issue(parent_issue, sub_data, index + 1)
           created_issues << issue
           display_message("  ✓ Created sub-issue ##{issue[:number]}: #{sub_data[:title]}", type: :success)
         rescue => e
+          creation_failed = true
           Aidp.log_error("sub_issue_creator", "Failed to create sub-issue", parent: parent_number, index: index, error: e.message)
           display_message("  ✗ Failed to create sub-issue #{index + 1}: #{e.message}", type: :error)
+          break
         end
+
+        return handle_partial_creation_failure(parent_number, created_issues) if creation_failed
+
+        record_dependencies(created_issues)
 
         # Link all created issues to project if project_id is configured
         if @project_id && created_issues.any?
           link_issues_to_project(parent_number, created_issues.map { |i| i[:number] })
         end
 
-        # Update state store with parent-child relationships
+        # Persist the hierarchy only after creation and dependency resolution succeed.
         @state_store.record_sub_issues(parent_number, created_issues.map { |i| i[:number] })
-        record_dependencies(created_issues)
 
         # Post summary comment on parent issue
         post_sub_issues_summary(parent_issue, created_issues)
 
         Aidp.log_debug("sub_issue_creator", "create_sub_issues_complete", parent: parent_number, created: created_issues.size)
         created_issues
+      rescue UnresolvedDependenciesError
+        cleanup_created_issues(parent_number, created_issues)
+        raise
       end
 
       private
@@ -260,6 +269,28 @@ module Aidp
 
       def sub_issue_dependencies(sub_data)
         Array(sub_data[:dependencies]).map(&:to_s).reject(&:empty?)
+      end
+
+      def handle_partial_creation_failure(parent_number, created_issues)
+        cleanup_created_issues(parent_number, created_issues)
+        []
+      end
+
+      def cleanup_created_issues(parent_number, created_issues)
+        return if created_issues.empty?
+
+        Aidp.log_warn("sub_issue_creator", "cleanup_created_sub_issues",
+          parent: parent_number,
+          sub_issue_numbers: created_issues.map { |issue| issue[:number] })
+        display_message("🧹 Cleaning up #{created_issues.size} partially created sub-issues for ##{parent_number}", type: :warn)
+
+        created_issues.each do |issue|
+          @repository_client.close_issue(issue[:number])
+          display_message("  ✓ Closed sub-issue ##{issue[:number]}", type: :success)
+        rescue => e
+          Aidp.log_error("sub_issue_creator", "Failed to clean up sub-issue", issue: issue[:number], error: e.message)
+          display_message("  ✗ Failed to close sub-issue ##{issue[:number]}: #{e.message}", type: :warn)
+        end
       end
     end
   end

@@ -370,6 +370,17 @@ module Aidp
       end
 
       def reconciliable_sub_issues?(existing_numbers, sub_issues)
+        return false unless sub_issue_count_matches?(existing_numbers, sub_issues)
+        return true if tracked_sub_issues_match_plan?(existing_numbers, sub_issues)
+
+        display_message(
+          "⚠️  Tracked sub-issues no longer match the regenerated plan; regenerating them",
+          type: :warn
+        )
+        false
+      end
+
+      def sub_issue_count_matches?(existing_numbers, sub_issues)
         return true if existing_numbers.size == sub_issues.size
 
         display_message(
@@ -377,6 +388,26 @@ module Aidp
           type: :warn
         )
         false
+      end
+
+      def tracked_sub_issues_match_plan?(existing_numbers, sub_issues)
+        tracked_titles = existing_numbers.map { |number| normalize_sub_issue_title(fetch_tracked_sub_issue_title(number)) }
+        planned_titles = sub_issues.map { |sub_issue| normalize_sub_issue_title(sub_issue[:title]) }
+
+        tracked_titles == planned_titles
+      rescue => e
+        Aidp.log_warn("plan_processor", "tracked_sub_issue_validation_failed",
+          error: e.message,
+          tracked_issue_numbers: existing_numbers)
+        false
+      end
+
+      def fetch_tracked_sub_issue_title(number)
+        @repository_client.fetch_issue(number).fetch(:title)
+      end
+
+      def normalize_sub_issue_title(title)
+        title.to_s.strip.downcase
       end
 
       def reconcile_existing_sub_issues(existing_numbers, sub_issues)
