@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.44.0](https://github.com/viamin/aidp/compare/aidp/v0.43.0...aidp/v0.44.0) (2026-07-29)
+
+
+### Features
+
+* Add an aidp-project label ([#548](https://github.com/viamin/aidp/issues/548)) ([1f1a5bc](https://github.com/viamin/aidp/commit/1f1a5bcbcdd05b1e4540f44f2c0c313e86380902))
+
 ## [0.43.0](https://github.com/viamin/aidp/compare/aidp/v0.42.0...aidp/v0.43.0) (2026-07-29)
 
 
