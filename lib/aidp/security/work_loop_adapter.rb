@@ -17,7 +17,8 @@ module Aidp
     #   adapter.check_agent_call_allowed!(operation: :git_push)
     #   adapter.end_work_unit
     class WorkLoopAdapter
-      attr_reader :project_dir, :config, :current_work_unit_id, :current_state
+      attr_reader :project_dir, :config, :current_work_unit_id, :current_state, :mcp_risk_profile
+      MCP_CONSERVATIVE_FLAGS = %i[untrusted_input private_data egress].freeze
 
       # Sources of untrusted input that trigger the untrusted_input flag
       UNTRUSTED_SOURCES = %w[
@@ -42,11 +43,13 @@ module Aidp
         issue_comment
       ].freeze
 
-      def initialize(project_dir:, config: nil, enforcer: nil, secrets_proxy: nil)
+      def initialize(project_dir:, config: nil, enforcer: nil, secrets_proxy: nil, provider_info_class: nil)
         @project_dir = project_dir
         @config = config || load_security_config
         @enforcer = enforcer || Aidp::Security.enforcer
         @secrets_proxy = secrets_proxy || Aidp::Security.secrets_proxy
+        @provider_info_class = provider_info_class || Aidp::Harness::ProviderInfo
+        @mcp_risk_profile = load_mcp_risk_profile
         @current_work_unit_id = nil
         @current_state = nil
       end
@@ -129,6 +132,40 @@ module Aidp
         end
 
         @current_state
+      end
+
+      # Apply deterministic MCP tool risk flags generated during configuration.
+      # This uses the stored profile and does not perform any AI calls at runtime.
+      def apply_mcp_tool_risk!(tool_name)
+        return @current_state unless enabled? && @current_state
+
+        tool_profile = @mcp_risk_profile.tool(tool_name)
+        return apply_unclassified_mcp_tool_risk!(tool_name) unless tool_profile
+
+        enable_mcp_tool_flags(tool_name, tool_profile[:flags])
+      end
+
+      # Apply deterministic MCP tool risk flags for all MCP servers configured on
+      # the selected provider. This reads only persisted provider metadata so the
+      # work loop never re-introspects provider CLIs at runtime.
+      def apply_provider_mcp_tool_risk!(provider_name, force_refresh: false)
+        return @current_state unless enabled? && @current_state
+
+        if force_refresh
+          Aidp.log_debug("security.adapter", "ignored_provider_mcp_refresh_request",
+            provider: provider_name)
+        end
+
+        provider_mcp_server_names(provider_name).each do |tool_name|
+          apply_mcp_tool_risk!(tool_name)
+        end
+
+        @current_state
+      rescue => e
+        Aidp.log_warn("security.adapter", "mcp_provider_lookup_failed",
+          provider: provider_name,
+          error: e.message)
+        apply_unknown_mcp_risk!(provider_name)
       end
 
       # Request credentials through the secrets proxy
@@ -217,6 +254,60 @@ module Aidp
         Aidp::Config.security_config(@project_dir)
       rescue
         {} # Fallback to empty config
+      end
+
+      def load_mcp_risk_profile
+        Aidp::Security::McpRiskProfile.load(@project_dir)
+      rescue
+        Aidp::Security::McpRiskProfile.new(tools: {})
+      end
+
+      def provider_mcp_server_names(provider_name)
+        provider_info = @provider_info_class.new(provider_name, project_dir)
+        info = provider_info.load_info
+        raise "Provider metadata unavailable for #{provider_name}" unless info
+
+        return [] unless info&.dig(:mcp_support)
+        raise "MCP server metadata unavailable for #{provider_name}" unless info.key?(:mcp_servers)
+
+        enabled_mcp_servers(info).filter_map do |server|
+          name = server_name(server)
+          name unless name.empty?
+        end.uniq
+      end
+
+      def enabled_mcp_servers(info)
+        Array(info[:mcp_servers]).select { |server| server_enabled?(server) }
+      end
+
+      def server_enabled?(server)
+        server[:enabled] != false
+      end
+
+      def server_name(server)
+        server[:name].to_s.strip
+      end
+
+      def apply_unknown_mcp_risk!(provider_name)
+        MCP_CONSERVATIVE_FLAGS.each do |flag|
+          @current_state.enable(flag, source: "mcp_provider:#{provider_name}:unknown_tools")
+        end
+
+        @current_state
+      end
+
+      def apply_unclassified_mcp_tool_risk!(tool_name)
+        Aidp.log_warn("security.adapter", "mcp_tool_unclassified",
+          tool_name: tool_name)
+        enable_mcp_tool_flags(tool_name, MCP_CONSERVATIVE_FLAGS, source_suffix: ":unclassified")
+      end
+
+      def enable_mcp_tool_flags(tool_name, flags, source_suffix: "")
+        Array(flags).each do |flag|
+          @current_state.enable(flag.to_sym, source: "mcp_tool:#{tool_name}#{source_suffix}")
+        end
+
+        @current_state
       end
 
       # Detect untrusted input sources in the context

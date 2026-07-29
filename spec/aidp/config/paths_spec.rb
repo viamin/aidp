@@ -79,6 +79,12 @@ RSpec.describe Aidp::ConfigPaths do
     end
   end
 
+  describe ".mcp_risk_profile_file" do
+    it "returns the MCP risk profile path" do
+      expect(described_class.mcp_risk_profile_file(project_dir)).to eq(File.join(project_dir, ".aidp", "security", "mcp_risk_profile.yml"))
+    end
+  end
+
   describe ".jobs_dir" do
     it "returns the jobs directory path" do
       expect(described_class.jobs_dir(project_dir)).to eq(File.join(project_dir, ".aidp", "jobs"))

@@ -8,6 +8,9 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
   let(:mock_enforcer) { instance_double(Aidp::Security::RuleOfTwoEnforcer) }
   let(:mock_proxy) { instance_double(Aidp::Security::SecretsProxy) }
   let(:mock_state) { instance_double(Aidp::Security::TrifectaState) }
+  let(:mock_mcp_risk_profile) { instance_double(Aidp::Security::McpRiskProfile, tool: nil) }
+  let(:provider_info_class) { class_double(Aidp::Harness::ProviderInfo) }
+  let(:provider_info) { instance_double(Aidp::Harness::ProviderInfo) }
   let(:config) { {rule_of_two: {enabled: true}} }
 
   subject(:adapter) do
@@ -15,12 +18,19 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
       project_dir: project_dir,
       config: config,
       enforcer: mock_enforcer,
-      secrets_proxy: mock_proxy
+      secrets_proxy: mock_proxy,
+      provider_info_class: provider_info_class
     )
   end
 
   after do
     FileUtils.rm_rf(project_dir) if project_dir && Dir.exist?(project_dir)
+  end
+
+  before do
+    allow(Aidp::Security::McpRiskProfile).to receive(:load).and_return(mock_mcp_risk_profile)
+    allow(provider_info_class).to receive(:new).and_return(provider_info)
+    allow(provider_info).to receive(:load_info).and_return({mcp_support: false, mcp_servers: []})
   end
 
   describe "#initialize" do
@@ -269,6 +279,131 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
         result = adapter.check_agent_call_allowed!(operation: :git_push)
         expect(result).to be_nil
       end
+    end
+  end
+
+  describe "#apply_mcp_tool_risk!" do
+    before do
+      allow(mock_enforcer).to receive(:begin_work_unit).and_return(mock_state)
+      allow(mock_state).to receive(:to_h).and_return({})
+      adapter.begin_work_unit(work_unit_id: "unit_1")
+    end
+
+    it "enables all flags from the stored tool profile" do
+      allow(mock_mcp_risk_profile).to receive(:tool).with("filesystem").and_return({
+        flags: %w[private_data egress],
+        risk_level: "high",
+        rationale: "Can read files and communicate externally."
+      })
+
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:filesystem")
+
+      adapter.apply_mcp_tool_risk!("filesystem")
+    end
+
+    it "falls back to a conservative classification when the tool is not in the profile" do
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_tool:unknown:unclassified")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:unknown:unclassified")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:unknown:unclassified")
+
+      adapter.apply_mcp_tool_risk!("unknown")
+    end
+  end
+
+  describe "#apply_provider_mcp_tool_risk!" do
+    before do
+      allow(mock_enforcer).to receive(:begin_work_unit).and_return(mock_state)
+      allow(mock_state).to receive(:to_h).and_return({})
+      adapter.begin_work_unit(work_unit_id: "unit_1")
+    end
+
+    it "applies stored risk flags for each configured MCP server on the provider" do
+      allow(provider_info).to receive(:load_info).and_return({
+        mcp_support: true,
+        mcp_servers: [
+          {name: "filesystem", enabled: true},
+          {name: "web", enabled: true},
+          {name: "filesystem", enabled: true},
+          {name: "disabled-tool", enabled: false}
+        ]
+      })
+      allow(mock_mcp_risk_profile).to receive(:tool).with("filesystem").and_return({
+        flags: %w[private_data]
+      })
+      allow(mock_mcp_risk_profile).to receive(:tool).with("web").and_return({
+        flags: %w[egress]
+      })
+
+      expect(mock_mcp_risk_profile).not_to receive(:tool).with("disabled-tool")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:web")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
+    end
+
+    it "falls back to a conservative classification when a configured MCP server is unclassified" do
+      allow(provider_info).to receive(:load_info).and_return({
+        mcp_support: true,
+        mcp_servers: [{name: "filesystem", enabled: true}]
+      })
+
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_tool:filesystem:unclassified")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem:unclassified")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:filesystem:unclassified")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
+    end
+
+    it "does nothing when the provider has no MCP servers" do
+      expect(mock_state).not_to receive(:enable)
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
+    end
+
+    it "falls back to a conservative classification when provider lookup fails" do
+      allow(provider_info).to receive(:load_info).and_raise("boom")
+
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_provider:anthropic:unknown_tools")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
+    end
+
+    it "does not refresh provider metadata when runtime callers request a refresh" do
+      allow(provider_info).to receive(:load_info).and_return({
+        mcp_support: true,
+        mcp_servers: [{name: "filesystem", enabled: true}]
+      })
+      allow(mock_mcp_risk_profile).to receive(:tool).with("filesystem").and_return({
+        flags: %w[private_data]
+      })
+
+      expect(provider_info).not_to receive(:info)
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic", force_refresh: true)
+    end
+
+    it "falls back to a conservative classification when stored metadata is unavailable" do
+      allow(provider_info).to receive(:load_info).and_return(nil)
+
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_provider:anthropic:unknown_tools")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
+    end
+
+    it "falls back to a conservative classification when MCP server metadata is unavailable" do
+      allow(provider_info).to receive(:load_info).and_return({mcp_support: true})
+
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_provider:anthropic:unknown_tools")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
     end
   end
 

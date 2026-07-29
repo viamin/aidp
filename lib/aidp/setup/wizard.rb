@@ -9,6 +9,7 @@ require "json"
 require "ostruct"
 require_relative "in_memory_config_adapter"
 require_relative "in_memory_config_manager"
+require_relative "../security"
 
 module Aidp
   module Setup
@@ -1993,9 +1994,21 @@ module Aidp
       def save_config(yaml_content)
         Aidp::ConfigPaths.ensure_config_dir(project_dir)
         File.write(config_path, yaml_content)
+        generate_mcp_risk_profile
 
         # Generate devcontainer if managed
         generate_devcontainer_file
+      end
+
+      def generate_mcp_risk_profile
+        classifier = Aidp::Security::McpToolRiskClassifier.new(
+          build_in_memory_config_adapter,
+          project_dir: project_dir
+        )
+        classifier.generate!
+      rescue => e
+        @warnings << "Failed to generate MCP risk profile: #{e.message}"
+        Aidp.log_warn("setup_wizard", "mcp_risk_profile_generation_failed", error: e.message)
       end
 
       def display_warnings

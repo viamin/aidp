@@ -108,6 +108,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
     allow(config).to receive(:models_for_tier).and_return([])
     allow(config).to receive(:configured_tiers).and_return([])
+    allow_any_instance_of(Aidp::Security::WorkLoopAdapter)
+      .to receive(:apply_provider_mcp_tool_risk!)
+      .and_return(nil)
     allow(prompt_template_manager).to receive(:render) do |template_id, **variables|
       case template_id
       when "work_loop/initial_prompt"
@@ -1304,6 +1307,47 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           unknown_runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
       end
+    end
+  end
+
+  describe "#send_to_agent" do
+    it "applies provider MCP risk before executing the provider call" do
+      security_adapter = instance_double("Aidp::Security::WorkLoopAdapter",
+        enabled?: true,
+        apply_provider_mcp_tool_risk!: nil)
+      allow(security_adapter).to receive(:with_sanitized_environment) { |&block| block.call }
+
+      local_runner = described_class.new(
+        project_dir,
+        provider_manager,
+        config,
+        prompt: test_prompt,
+        prompt_template_manager: prompt_template_manager,
+        security_adapter: security_adapter
+      )
+      prompt_manager = instance_double("PromptManager", read: "Implement the fix")
+      allow(local_runner).to receive(:build_work_loop_header).and_return("Header")
+      allow(local_runner).to receive(:select_model_for_current_tier).and_return(["anthropic", "claude-3-5-sonnet", {}])
+      local_runner.instance_variable_set(:@prompt_manager, prompt_manager)
+      local_runner.step_name = "security_step"
+      local_runner.iteration_count = 2
+
+      expect(security_adapter).to receive(:apply_provider_mcp_tool_risk!).with("anthropic").ordered
+      expect(provider_manager).to receive(:execute_with_provider).with(
+        "anthropic",
+        "Header\n\nImplement the fix",
+        hash_including(
+          step_name: "security_step",
+          iteration: 2,
+          project_dir: project_dir,
+          model: "claude-3-5-sonnet",
+          tier: "standard"
+        )
+      ).ordered.and_return({status: "completed", output: "done"})
+
+      result = local_runner.send(:send_to_agent)
+
+      expect(result[:status]).to eq("completed")
     end
   end
 

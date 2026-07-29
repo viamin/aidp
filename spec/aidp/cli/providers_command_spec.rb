@@ -31,6 +31,12 @@ RSpec.describe Aidp::CLI::ProvidersCommand do
       allow(klass).to receive(:new).and_return(config_manager_double)
     end
   end
+  let(:classifier_double) { instance_double(Aidp::Security::McpToolRiskClassifier, generate!: true) }
+  let(:classifier_class) do
+    class_double(Aidp::Security::McpToolRiskClassifier).tap do |klass|
+      allow(klass).to receive(:new).and_return(classifier_double)
+    end
+  end
 
   let(:command) do
     described_class.new(
@@ -38,7 +44,8 @@ RSpec.describe Aidp::CLI::ProvidersCommand do
       provider_info_class: provider_info_class,
       capability_registry_class: capability_registry_class,
       config_manager_class: config_manager_class,
-      project_dir: temp_dir
+      project_dir: temp_dir,
+      mcp_tool_risk_classifier_class: classifier_class
     )
   end
 
@@ -194,6 +201,10 @@ RSpec.describe Aidp::CLI::ProvidersCommand do
 
       it "refreshes the specified provider" do
         expect(provider_info_double).to receive(:info).with(force_refresh: true)
+        expect(classifier_double).to receive(:generate!).with(
+          providers: %w[anthropic cursor],
+          force_refresh_providers: [provider_name]
+        )
         allow(prompt).to receive(:say)
 
         command.run([provider_name], subcommand: "refresh")
@@ -220,6 +231,10 @@ RSpec.describe Aidp::CLI::ProvidersCommand do
 
       it "refreshes all configured providers" do
         expect(provider_info_double).to receive(:info).with(force_refresh: true).twice
+        expect(classifier_double).to receive(:generate!).with(
+          providers: %w[anthropic cursor],
+          force_refresh_providers: %w[anthropic cursor]
+        )
         allow(prompt).to receive(:say)
 
         command.run([], subcommand: "refresh")
