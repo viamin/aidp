@@ -158,7 +158,7 @@ module Aidp
 
       def feature_path_identifier(affected_files)
         feature_files = affected_files.select { |file| feature_path?(file) }
-        segments = feature_files.map { |file| file.to_s.split("/") }
+        segments = feature_files.map { |file| trimmed_feature_segments(file) }
         return "" if segments.empty?
 
         shared_segments = meaningful_segments(common_path_segments(segments))
@@ -192,8 +192,15 @@ module Aidp
           .reject(&:empty?)
       end
 
+      def trimmed_feature_segments(file)
+        segments = file.to_s.split("/")
+        return segments unless generic_path_segment?(segments.first)
+
+        segments.drop(1)
+      end
+
       def generic_path_segment?(segment)
-        %w[app lib spec test docs].include?(segment)
+        %w[app client docs lib packages server spec src test].include?(segment)
       end
 
       def normalize_id(value)
@@ -231,20 +238,53 @@ module Aidp
       def tool_identifier(command)
         raw_command = command.to_s.strip
         tokens = Shellwords.split(raw_command)
-        executable = unwrap_tool_command(tokens)
+        executable = unwrap_tool_command(strip_env_assignments(tokens))
         normalize_id(executable)
       rescue ArgumentError
         normalize_id(raw_command.split(/\s+/).first)
       end
 
       def unwrap_tool_command(tokens)
-        normalized = tokens.drop_while { |token| token.include?("=") && !token.start_with?("/", "./", "../") }
-        return "" if normalized.empty?
+        command_tokens = tokens.dup
 
-        return File.basename(normalized[2]) if normalized[0] == "bundle" && normalized[1] == "exec" && normalized[2]
-        return File.basename(normalized[1], ".rb") if normalized[0] == "ruby" && normalized[1]
+        loop do
+          return "" if command_tokens.empty?
 
-        File.basename(normalized.first, ".rb")
+          case command_tokens.first
+          when "mise"
+            command_tokens = unwrap_mise_exec(command_tokens)
+          when "env", "/usr/bin/env"
+            command_tokens = unwrap_env(command_tokens)
+          when "bundle"
+            return File.basename(command_tokens.first, ".rb") unless command_tokens[1] == "exec"
+
+            command_tokens = command_tokens.drop(2)
+          when "ruby"
+            return File.basename(command_tokens[1], ".rb") if command_tokens[1]
+
+            command_tokens = []
+          else
+            return File.basename(command_tokens.first, ".rb")
+          end
+        end
+      end
+
+      def strip_env_assignments(tokens)
+        tokens.drop_while { |token| token.include?("=") && !token.start_with?("/", "./", "../") }
+      end
+
+      def unwrap_mise_exec(tokens)
+        return tokens unless tokens[1] == "exec"
+
+        separator_index = tokens.index("--")
+        remaining = separator_index ? tokens.drop(separator_index + 1) : tokens.drop(2)
+        strip_env_assignments(remaining)
+      end
+
+      def unwrap_env(tokens)
+        remaining = tokens.drop(1)
+        remaining = remaining.drop_while { |token| token.start_with?("-") }
+        strip_env_assignments(remaining)
       end
 
       def humanize(value)

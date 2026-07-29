@@ -45,6 +45,18 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
     expect(feature_note).to include("<authentication_session_manager:lib/authentication/session_manager.rb>")
   end
 
+  it "does not collapse feature notes to a generic container directory" do
+    manager.sync!(
+      step_name: "99_SIMPLE_TASK",
+      task_description: "Update frontend components and hooks",
+      affected_files: ["src/components/Button.tsx", "src/hooks/useAuth.ts"],
+      tool_commands: []
+    )
+
+    expect(File).to exist(File.join(temp_dir, "docs", "features", "components_button.md"))
+    expect(File).not_to exist(File.join(temp_dir, "docs", "features", "src.md"))
+  end
+
   it "does not create a feature note from docs and spec paths alone" do
     manager.sync!(
       step_name: "99_SIMPLE_TASK",
@@ -134,5 +146,25 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
     expect(tool_note).to include("<rspec:spec/models/user_spec.rb>")
     expect(tool_note).to include("`bundle exec rspec spec/models/user_spec.rb`")
     expect(tool_note).to include("`bundle exec rspec spec/services/auth_spec.rb`")
+  end
+
+  it "unwraps launcher commands before deriving the tool identifier" do
+    manager.sync!(
+      step_name: "tooling_updates",
+      task_description: "Run test and maintenance commands",
+      affected_files: ["bin/update-firewall-config", "spec/models/user_spec.rb"],
+      tool_commands: [
+        "mise exec -- bundle exec rspec spec/models/user_spec.rb",
+        "/usr/bin/env RUBYOPT=-W0 bundle exec ruby bin/update-firewall-config"
+      ]
+    )
+
+    rspec_note = File.read(File.join(temp_dir, "docs", "tools", "rspec.md"))
+    firewall_note = File.read(File.join(temp_dir, "docs", "tools", "update_firewall_config.md"))
+
+    expect(rspec_note).to include("`mise exec -- bundle exec rspec spec/models/user_spec.rb`")
+    expect(firewall_note).to include("`/usr/bin/env RUBYOPT=-W0 bundle exec ruby bin/update-firewall-config`")
+    expect(File).not_to exist(File.join(temp_dir, "docs", "tools", "mise.md"))
+    expect(File).not_to exist(File.join(temp_dir, "docs", "tools", "ruby.md"))
   end
 end
