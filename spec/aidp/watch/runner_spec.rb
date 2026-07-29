@@ -151,6 +151,14 @@ RSpec.describe Aidp::Watch::Runner do
       expect(items.first.number).to eq(1)
     end
 
+    it "skips plan work items that also carry the project label" do
+      allow(repo_client).to receive(:list_issues).and_return([{number: 1, labels: ["plan", "project"]}])
+
+      items = runner.send(:collect_plan_work_items)
+
+      expect(items).to eq([])
+    end
+
     it "collects project work items" do
       allow(repo_client).to receive(:list_issues).and_return([{number: 8, labels: ["project"]}])
 
@@ -158,6 +166,24 @@ RSpec.describe Aidp::Watch::Runner do
 
       expect(items.size).to eq(1)
       expect(items.first.processor_type).to eq(:plan)
+      expect(items.first.label).to eq("project")
+    end
+
+    it "collects mixed-label issues only from the project path" do
+      allow(repo_client).to receive(:list_issues).and_return([])
+      allow(repo_client).to receive(:list_issues).with(labels: ["plan"], state: "open").and_return([{number: 8, labels: ["plan", "project"]}])
+      allow(repo_client).to receive(:list_issues).with(labels: ["project"], state: "open").and_return([{number: 8, labels: ["plan", "project"]}])
+      allow(auto_processor).to receive(:auto_label).and_return("auto")
+      allow(review_processor).to receive(:review_label).and_return("review")
+      allow(auto_pr_processor).to receive(:auto_label).and_return("auto-pr")
+      allow(ci_fix_processor).to receive(:ci_fix_label).and_return("ci-fix")
+      allow(change_request_processor).to receive(:change_request_label).and_return("cr")
+      allow(repo_client).to receive(:list_pull_requests).and_return([])
+
+      items = runner.send(:collect_all_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.number).to eq(8)
       expect(items.first.label).to eq("project")
     end
 

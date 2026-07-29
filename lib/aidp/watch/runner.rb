@@ -355,10 +355,12 @@ module Aidp
       # @return [Array<WorkItem>]
       def collect_plan_work_items
         label = @plan_processor.plan_label
+        project_label = @plan_processor.project_label
         issues = @repository_client.list_issues(labels: [label], state: "open")
 
         issues.filter_map do |issue|
           next unless issue_has_label?(issue, label)
+          next if issue_has_label?(issue, project_label)
 
           WorkItem.new(
             number: issue[:number],

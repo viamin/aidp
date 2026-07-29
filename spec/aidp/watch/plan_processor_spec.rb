@@ -165,7 +165,7 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     expect(creator).to have_received(:create_sub_issues).with(issue, project_plan[:sub_issues])
   end
 
-  it "keeps the project trigger label when project resolution fails" do
+  it "moves project issues to needs-input when project resolution fails" do
     project_plan = {
       summary: "Implement the requested feature",
       tasks: ["Add API endpoint"],
@@ -184,12 +184,21 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     allow(repository_client).to receive(:post_comment)
     allow(repository_client).to receive(:find_active_project).and_raise(StandardError, "project lookup failed")
 
-    expect(repository_client).not_to receive(:replace_labels)
+    expect(repository_client).to receive(:replace_labels).with(
+      42,
+      old_labels: ["aidp-project"],
+      new_labels: ["aidp-needs-input"]
+    )
 
     project_processor.process(issue, trigger_label: "aidp-project")
+
+    project_sync = state_store.project_sync_data(42)
+    expect(project_sync["setup_status"]).to eq("failed")
+    expect(project_sync["setup_error"]).to eq("unable to resolve a GitHub Project")
+    expect(project_sync["setup_failed_at"]).not_to be_nil
   end
 
-  it "keeps the project trigger label when no sub-issues are created" do
+  it "moves project issues to needs-input when no sub-issues are created" do
     project_plan = {
       summary: "Implement the requested feature",
       tasks: ["Add API endpoint"],
@@ -212,9 +221,17 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
     allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
 
-    expect(repository_client).not_to receive(:replace_labels)
+    expect(repository_client).to receive(:replace_labels).with(
+      42,
+      old_labels: ["aidp-project"],
+      new_labels: ["aidp-needs-input"]
+    )
 
     project_processor.process(issue, trigger_label: "aidp-project")
+
+    project_sync = state_store.project_sync_data(42)
+    expect(project_sync["setup_status"]).to eq("failed")
+    expect(project_sync["setup_error"]).to eq("unable to create project sub-issues")
   end
 
   it "routes aidp-project clarification follow-up back through the project trigger" do

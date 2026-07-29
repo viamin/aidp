@@ -106,7 +106,7 @@ module Aidp
         plan_data = plan_data.merge(comment_id: comment_id) if comment_id
         @state_store.record_plan(number, plan_data.merge(comment_body: comment_body, comment_hint: COMMENT_HEADER))
 
-        project_plan_ready = project_mode && process_project_plan(issue, plan_data)
+        project_setup = project_mode ? process_project_plan(issue, plan_data) : {status: :not_applicable}
 
         # Update labels: remove plan trigger, add appropriate status label
         update_labels_after_plan(
@@ -114,7 +114,7 @@ module Aidp
           plan_data,
           trigger_label: trigger_label,
           project_mode: project_mode,
-          project_plan_ready: project_plan_ready
+          project_setup: project_setup
         )
       end
 
@@ -145,12 +145,12 @@ module Aidp
         archived_parts.join("\n")
       end
 
-      def update_labels_after_plan(number, plan_data, trigger_label:, project_mode:, project_plan_ready:)
+      def update_labels_after_plan(number, plan_data, trigger_label:, project_mode:, project_setup:)
         new_label, status_text = next_label_for(
           plan_data,
           trigger_label: trigger_label,
           project_mode: project_mode,
-          project_plan_ready: project_plan_ready
+          project_setup: project_setup
         )
 
         if new_label == trigger_label
@@ -227,11 +227,14 @@ module Aidp
       end
 
       def process_project_plan(issue, plan_data)
-        return unless plan_data[:should_create_sub_issues]
-        return if Array(plan_data[:sub_issues]).empty?
+        return {status: :not_required} unless plan_data[:should_create_sub_issues]
+
+        if Array(plan_data[:sub_issues]).empty?
+          return record_project_setup_failure(issue[:number], "no sub-issues were generated for project planning")
+        end
 
         project_id = resolve_project_id(issue)
-        return unless project_id
+        return record_project_setup_failure(issue[:number], "unable to resolve a GitHub Project") unless project_id
 
         projects_processor = ProjectsProcessor.new(
           repository_client: @repository_client,
@@ -239,7 +242,9 @@ module Aidp
           project_id: project_id,
           config: @project_config
         )
-        return false unless projects_processor.ensure_project_fields
+        unless projects_processor.ensure_project_fields
+          return record_project_setup_failure(issue[:number], "unable to configure required GitHub Project fields")
+        end
 
         creator = SubIssueCreator.new(
           repository_client: @repository_client,
@@ -249,10 +254,13 @@ module Aidp
           blocked_label: @blocked_label
         )
         created_issues = creator.create_sub_issues(issue, plan_data[:sub_issues])
-        return false if created_issues.empty?
+        if created_issues.empty?
+          return record_project_setup_failure(issue[:number], "unable to create project sub-issues")
+        end
 
         sync_project_issue_statuses(issue[:number], created_issues, projects_processor)
-        true
+        @state_store.record_project_sync(issue[:number], setup_status: "ready", setup_error: nil, setup_failed_at: nil)
+        {status: :ready}
       end
 
       def resolve_project_id(issue)
@@ -294,18 +302,28 @@ module Aidp
         end
       end
 
-      def next_label_for(plan_data, trigger_label:, project_mode:, project_plan_ready:)
+      def next_label_for(plan_data, trigger_label:, project_mode:, project_setup:)
         questions = Array(plan_data[:questions])
         has_questions = questions.any? && !questions.all? { |q| q.to_s.strip.empty? }
 
         return [@needs_input_label, "needs input"] if has_questions
         if project_mode && plan_data[:should_create_sub_issues]
-          return [@blocked_label, "project initialized"] if project_plan_ready
+          return [@blocked_label, "project initialized"] if project_setup[:status] == :ready
 
-          return [trigger_label, "project setup incomplete; retrying on project trigger"]
+          return [@needs_input_label, "project setup failed: #{project_setup[:reason]}"]
         end
 
         [@ready_label, "ready to build"]
+      end
+
+      def record_project_setup_failure(issue_number, reason)
+        @state_store.record_project_sync(
+          issue_number,
+          setup_status: "failed",
+          setup_error: reason,
+          setup_failed_at: Time.now.utc.iso8601
+        )
+        {status: :failed, reason: reason}
       end
 
       def format_bullets(items, placeholder:)
