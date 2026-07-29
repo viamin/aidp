@@ -64,7 +64,16 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
   end
 
   let(:test_prompt) { TestPrompt.new }
-  let(:runner) { described_class.new(project_dir, provider_manager, config, prompt: test_prompt) }
+  let(:prompt_template_manager) { instance_double("Aidp::Prompts::PromptTemplateManager") }
+  let(:runner) do
+    described_class.new(
+      project_dir,
+      provider_manager,
+      config,
+      prompt: test_prompt,
+      prompt_template_manager: prompt_template_manager
+    )
+  end
 
   before do
     allow(Dir).to receive(:exist?).and_return(true)
@@ -99,6 +108,50 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
     allow(config).to receive(:models_for_tier).and_return([])
     allow(config).to receive(:configured_tiers).and_return([])
+    allow(prompt_template_manager).to receive(:render) do |template_id, **variables|
+      case template_id
+      when "work_loop/initial_prompt"
+        [
+          "# Work Loop: #{variables[:STEP_NAME]}",
+          "Edit this `.aidp/PROMPT.md` file",
+          variables[:USER_INPUT_SECTION],
+          variables[:PREVIOUS_AGENT_SUMMARY_SECTION],
+          variables[:DETERMINISTIC_OUTPUTS_SECTION],
+          variables[:STYLE_GUIDE_SECTION],
+          variables[:PRD_SECTION],
+          "## Task Template",
+          variables[:TASK_TEMPLATE]
+        ].join("\n")
+      when "work_loop/header"
+        <<~TEXT
+          # Work Loop: #{variables[:STEP_NAME]} (Iteration #{variables[:ITERATION]})
+
+          #{variables[:TASK_FILING_SECTION]}## Completion Criteria
+          Mark this step COMPLETE by adding these lines to `.aidp/PROMPT.md`:
+          ```
+          STATUS: COMPLETE
+          #{variables[:TASK_COMPLETION_LINE]}```
+        TEXT
+      when "work_loop/task_completion_requirement"
+        <<~TEXT
+          ## Task Completion Requirement
+
+          **CRITICAL**: #{variables[:MESSAGE]}
+
+          **Action Required**: Review the current task list and update status for all tasks.
+        TEXT
+      when "work_loop/task_filing"
+        <<~TEXT
+          ## Task Filing (REQUIRED - DO THIS FIRST)
+          **CRITICAL**: This work loop requires task tracking. You MUST file tasks before implementation.
+
+          File task: "Implement [feature/fix description]" priority: high tags: implementation
+          File task: "Implement user authentication" priority: high tags: security,auth
+        TEXT
+      else
+        raise "Unexpected template #{template_id}"
+      end
+    end
   end
 
   describe "Fix-Forward State Machine" do
@@ -1342,6 +1395,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
       expect(content).to include("Do the thing")
       expect(content).to include("- extra: yes")
+      expect(content).to include(".aidp/PROMPT.md")
       expect(content).not_to include("{{task_description}}")
       expect(content).not_to include("{{additional_context}}")
     end
