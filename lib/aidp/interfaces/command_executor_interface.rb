@@ -128,6 +128,8 @@ module Aidp
     class TtyCommandExecutor
       include CommandExecutorInterface
 
+      TERMINATION_GRACE_PERIOD = 0.1
+
       # @param logger [LoggerInterface] optional logger for debug output
       # @param component_name [String] component name for logging
       def initialize(logger: nil, component_name: "command_executor")
@@ -218,9 +220,22 @@ module Aidp
 
         return wait_thread.value if wait_thread.join(timeout)
 
-        Process.kill("TERM", wait_thread.pid)
-        wait_thread.join
+        terminate_process(wait_thread)
         raise CommandTimeoutError.new(command: command, timeout: timeout)
+      end
+
+      def terminate_process(wait_thread)
+        signal_process(wait_thread.pid, "TERM")
+        return if wait_thread.join(TERMINATION_GRACE_PERIOD)
+
+        signal_process(wait_thread.pid, "KILL")
+        wait_thread.join
+      end
+
+      def signal_process(pid, signal)
+        Process.kill(signal, pid)
+      rescue Errno::ESRCH
+        nil
       end
 
       def read_stream(stream)

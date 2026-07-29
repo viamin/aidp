@@ -276,6 +276,17 @@ RSpec.describe Aidp::Interfaces::TtyCommandExecutor do
           expect(error.timeout).to eq(0.1)
         end
       end
+
+      it "kills commands that ignore TERM after a short grace period" do
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        expect {
+          executor.execute("ruby", args: ["-e", "trap(\"TERM\") { }; sleep 10"], timeout: 0.2)
+        }.to raise_error(Aidp::Interfaces::CommandTimeoutError)
+
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+        expect(elapsed).to be < 2
+      end
     end
 
     context "when command does not exist" do
