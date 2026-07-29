@@ -8,6 +8,7 @@ require_relative "guard_policy"
 require_relative "work_loop_unit_scheduler"
 require_relative "deterministic_unit"
 require_relative "agent_signal_parser"
+require_relative "project_knowledge_manager"
 require_relative "steps"
 require_relative "../harness/test_runner"
 require_relative "../errors"
@@ -61,7 +62,10 @@ module Aidp
         @checkpoint = Checkpoint.new(project_dir)
         @checkpoint_display = CheckpointDisplay.new(prompt: @prompt)
         @guard_policy = GuardPolicy.new(project_dir, config.guards_config)
+        @project_knowledge_manager = options[:project_knowledge_manager] || ProjectKnowledgeManager.new(project_dir)
         @work_context = {}
+        @executed_tool_commands = []
+        @agentic_execution_results = []
         @persistent_tasklist = PersistentTasklist.new(project_dir)
         @iteration_count = 0
         @step_name = nil
@@ -100,6 +104,8 @@ module Aidp
       def execute_step(step_name, step_spec, context = {})
         @step_name = step_name
         @work_context = context
+        @executed_tool_commands = []
+        @agentic_execution_results = []
         @iteration_count = 0
         transition_to(:ready)
 
@@ -572,6 +578,7 @@ module Aidp
             tier: @thinking_depth_manager.current_tier
           }
         )
+        record_agentic_execution_result(agent_result)
 
         requested = AgentSignalParser.extract_next_unit(agent_result[:output])
 
@@ -605,6 +612,7 @@ module Aidp
             tier: @thinking_depth_manager.current_tier
           }
         )
+        record_agentic_execution_result(agent_result)
 
         requested = AgentSignalParser.extract_next_unit(agent_result[:output])
 
@@ -778,11 +786,13 @@ module Aidp
         if @config.respond_to?(:commands) && @config.commands.any?
           # New phase-based execution
           each_unit_results = @test_runner.run_commands_for_phase(:each_unit)
+          record_phase_commands(:each_unit, each_unit_results)
           all_results[:each_unit] = each_unit_results
 
           # Run on_completion commands only if agent marked work complete
           if agent_marked_complete?(agent_result)
             on_completion_results = @test_runner.run_commands_for_phase(:on_completion)
+            record_phase_commands(:on_completion, on_completion_results)
             all_results[:on_completion] = on_completion_results
           else
             all_results[:on_completion] = {
@@ -810,6 +820,7 @@ module Aidp
         return {success: true, output: "", failures: [], required_failures: []} unless @config.respond_to?(:commands)
 
         full_loop_results = @test_runner.run_commands_for_phase(:full_loop)
+        record_phase_commands(:full_loop, full_loop_results)
 
         Aidp.log_debug("work_loop", "ran_full_loop_commands",
           success: full_loop_results[:success],
@@ -821,13 +832,17 @@ module Aidp
       # Run commands using legacy category-based approach (backwards compatibility)
       def run_legacy_category_commands(agent_result)
         test_results = @test_runner.run_tests
+        record_legacy_category_commands(:tests)
         lint_results = @test_runner.run_linters
+        record_legacy_category_commands(:lints)
         build_results = @test_runner.run_builds
+        record_legacy_category_commands(:builds)
         doc_results = @test_runner.run_documentation
+        record_legacy_category_commands(:docs)
 
         # Run formatters only if agent marked work complete (per issue #234)
         formatter_results = if agent_marked_complete?(agent_result)
-          @test_runner.run_formatters
+          @test_runner.run_formatters.tap { record_legacy_category_commands(:formatters) }
         else
           {success: true, output: "Formatters: Skipped (work not complete)", failures: [], required_failures: []}
         end
@@ -959,20 +974,8 @@ module Aidp
 
       # Extract files that will be affected by this work
       def extract_affected_files(context, user_input)
-        files = []
-
-        # From user input (e.g., "update lib/user.rb")
-        user_input&.scan(/[\w\/]+\.rb/)&.each do |file|
-          files << file
-        end
-
-        # From deterministic outputs
-        context[:deterministic_outputs]&.each do |output|
-          if output[:output_path]&.end_with?(".rb")
-            files << output[:output_path]
-          end
-        end
-
+        files = extract_paths_from_text(user_input)
+        files.concat(extract_output_paths(context[:deterministic_outputs]))
         files.uniq
       end
 
@@ -1110,6 +1113,7 @@ module Aidp
             execute_block.call
           end
         end
+          .tap { |result| record_agentic_execution_result(result) }
       end
 
       def display_iteration_overview(provider_name, model_name, prompt_length, checks_summary = nil)
@@ -1515,8 +1519,281 @@ module Aidp
       end
 
       def archive_and_cleanup
+        sync_project_knowledge
         @prompt_manager.archive(@step_name)
         @prompt_manager.delete
+      end
+
+      def sync_project_knowledge
+        affected_files = knowledge_affected_files
+        return if affected_files.empty?
+
+        @project_knowledge_manager.sync!(
+          step_name: @step_name,
+          feature_identifier: knowledge_feature_identifier,
+          task_description: build_task_description(format_user_input(@work_context[:user_input]), @work_context),
+          affected_files: affected_files,
+          tool_commands: knowledge_tool_commands
+        )
+      rescue => e
+        Aidp.logger.warn("work_loop", "project_knowledge_sync_failed",
+          step: @step_name,
+          error: e.message)
+      end
+
+      def knowledge_affected_files
+        files = Array(@work_context[:affected_files])
+        files.concat(extract_affected_files(@work_context, format_user_input(@work_context[:user_input])))
+        files.concat(metadata_affected_files)
+        files.concat(get_changed_files) if files.empty?
+        files.map(&:to_s).select { |path| knowledge_path_candidate?(path) }.uniq
+      end
+
+      def extract_paths_from_text(text)
+        return [] if text.nil?
+
+        text.to_s.split.filter_map do |token|
+          path = trim_path_token(token)
+          path if valid_path_candidate?(path)
+        end
+      end
+
+      def extract_output_paths(outputs)
+        Array(outputs).filter_map do |output|
+          path = output[:output_path].to_s.strip
+          path unless path.empty?
+        end
+      end
+
+      def knowledge_tool_commands
+        metadata_tool_commands.concat(@executed_tool_commands).uniq
+      end
+
+      def record_agentic_execution_result(result)
+        return unless result.is_a?(Hash)
+
+        @agentic_execution_results << result
+      end
+
+      def knowledge_feature_identifier
+        user_input = @work_context[:user_input]
+
+        @work_context[:feature_identifier] ||
+          @work_context[:feature_id] ||
+          extract_feature_identifier(user_input)
+      end
+
+      def record_phase_commands(phase, results)
+        commands_by_name = Array(@config.commands_for_phase(phase)).each_with_object({}) do |entry, indexed|
+          indexed[entry[:name]] = entry
+        end
+        executed = results.fetch(:results_by_command, {}).keys.filter_map do |name|
+          commands_by_name[name]&.fetch(:command, nil)
+        end
+        executed = commands_by_name.values.map { |entry| entry[:command] } if executed.empty? && commands_by_name.any?
+        @executed_tool_commands.concat(executed.compact)
+      end
+
+      def record_legacy_category_commands(category)
+        return unless @test_runner.respond_to?(:planned_commands)
+
+        commands = Array(@test_runner.planned_commands[category]).filter_map do |entry|
+          entry.is_a?(String) ? entry : entry[:command]
+        end
+        @executed_tool_commands.concat(commands)
+      end
+
+      def extract_feature_identifier(user_input)
+        return unless user_input.is_a?(Hash)
+
+        user_input["feature_identifier"] ||
+          user_input[:feature_identifier] ||
+          user_input["feature_id"] ||
+          user_input[:feature_id]
+      end
+
+      def metadata_affected_files
+        metadata_entries = metadata_value_objects
+        files = extract_file_entries(metadata_entries, :affected_files)
+        files.concat(extract_file_entries(metadata_entries, :changed_files))
+        files.concat(extract_file_entries(metadata_entries, :edited_files))
+        files.concat(extract_file_entries(metadata_entries, :files_changed))
+        files.concat(extract_file_entries(metadata_entries, :modified_files))
+        files.concat(extract_file_entries(metadata_entries, :touched_files))
+        files.uniq
+      end
+
+      def metadata_tool_commands
+        metadata_entries = metadata_value_objects
+        commands = extract_command_entries(metadata_entries, :tool_commands)
+        commands.concat(extract_command_entries(metadata_entries, :tool_usage))
+        commands.concat(extract_command_entries(metadata_entries, :tool_calls))
+        commands.concat(extract_command_entries(metadata_entries, :tools_used))
+        commands.concat(extract_command_entries(metadata_entries, :commands))
+        commands.uniq
+      end
+
+      def metadata_value_objects
+        Array(@agentic_execution_results).flat_map do |result|
+          [
+            result,
+            indifferent_hash_value(result, :metadata),
+            indifferent_hash_value(result, :output)
+          ]
+        end.compact.select { |entry| entry.is_a?(Hash) }
+      end
+
+      def extract_file_entries(entries, key)
+        entries.flat_map do |entry|
+          Array(indifferent_hash_value(entry, key)).flat_map do |value|
+            case value
+            when String
+              [value]
+            when Hash
+              candidate = file_candidate_from_hash(value)
+              candidate ? [candidate] : []
+            else
+              []
+            end
+          end
+        end
+      end
+
+      def extract_command_entries(entries, key)
+        entries.flat_map do |entry|
+          Array(indifferent_hash_value(entry, key)).flat_map do |value|
+            case value
+            when String
+              [value]
+            when Hash
+              candidate = command_candidate_from_hash(value)
+              candidate ? [candidate] : []
+            else
+              []
+            end
+          end
+        end.reject(&:empty?)
+      end
+
+      def indifferent_hash_value(hash, key)
+        hash[key] || hash[key.to_s]
+      end
+
+      def file_candidate_from_hash(hash)
+        %i[path file file_path output_path relative_path].each do |key|
+          candidate = indifferent_hash_value(hash, key).to_s.strip
+          return candidate unless candidate.empty?
+        end
+
+        nil
+      end
+
+      def command_candidate_from_hash(hash)
+        %i[command tool name identifier].each do |key|
+          candidate = indifferent_hash_value(hash, key).to_s.strip
+          return candidate unless candidate.empty?
+        end
+
+        nil
+      end
+
+      def trim_path_token(token)
+        text = token.to_s
+        start_index = 0
+        end_index = text.length - 1
+
+        start_index += 1 while start_index <= end_index && !path_character?(text[start_index])
+        end_index -= 1 while end_index >= start_index && !path_character?(text[end_index])
+
+        return "" if start_index > end_index
+
+        text[start_index..end_index]
+      end
+
+      def knowledge_path_candidate?(path)
+        return false if path.empty?
+        return false if internal_generated_path?(path)
+
+        true
+      end
+
+      def internal_generated_path?(path)
+        path == ".aidp" || path.start_with?(".aidp/")
+      end
+
+      def path_character?(char)
+        alphanumeric_character?(char) || ["_", ".", "/", "-"].include?(char)
+      end
+
+      def valid_path_candidate?(path)
+        return false if path.empty?
+        return false if standalone_version_token?(path)
+
+        segments = path.split("/")
+        return false if segments.empty? || segments.any?(&:empty?)
+
+        filename = segments.last
+        return false unless valid_filename_candidate?(filename, path.include?("/"))
+
+        segments.all? { |segment| valid_path_segment?(segment) }
+      end
+
+      def standalone_version_token?(path)
+        return false if path.include?("/")
+
+        components = path.split(".")
+        return false if components.length < 2
+
+        components.all? { |component| version_component?(component) }
+      end
+
+      def version_component?(component)
+        component.match?(/\Av?\d+\z/i)
+      end
+
+      def valid_path_segment?(segment)
+        return false if segment == "." || segment == ".."
+
+        segment.each_char.all? do |char|
+          alphanumeric_character?(char) || ["_", ".", "-"].include?(char)
+        end
+      end
+
+      def valid_filename_candidate?(filename, nested_path)
+        return valid_extension_filename?(filename) if filename.include?(".")
+
+        return true if nested_path
+
+        known_extensionless_filename?(filename)
+      end
+
+      def valid_extension_filename?(filename)
+        name, _separator, extension = filename.rpartition(".")
+        return false if name.to_s.empty? || extension.to_s.empty?
+
+        extension.each_char.all? { |char| alphanumeric_character?(char) }
+      end
+
+      def known_extensionless_filename?(filename)
+        %w[
+          Dockerfile
+          Gemfile
+          Procfile
+          Rakefile
+          Makefile
+          Brewfile
+          Podfile
+          Fastfile
+          Appfile
+          Guardfile
+          Vagrantfile
+        ].include?(filename)
+      end
+
+      def alphanumeric_character?(char)
+        char.between?("a", "z") ||
+          char.between?("A", "Z") ||
+          char.between?("0", "9")
       end
 
       def load_template(template_name)

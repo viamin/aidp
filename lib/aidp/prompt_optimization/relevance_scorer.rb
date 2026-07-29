@@ -105,6 +105,13 @@ module Aidp
       def score_file_location_match(fragment, context)
         return 0.5 unless context.affected_files && !context.affected_files.empty?
 
+        if fragment.respond_to?(:linked_paths) && fragment.linked_paths.any?
+          matches_affected_file = context.affected_files.any? do |affected_file|
+            knowledge_path_match?(fragment.linked_paths, affected_file)
+          end
+          return matches_affected_file ? 1.0 : 0.1
+        end
+
         # Only code fragments have file_path
         return 0.5 unless fragment.respond_to?(:file_path)
 
@@ -112,6 +119,16 @@ module Aidp
         (context.affected_files.any? do |affected_file|
           fragment.file_path.include?(affected_file)
         end) ? 1.0 : 0.1
+      end
+
+      def knowledge_path_match?(linked_paths, affected_file)
+        linked_paths.any? do |linked_path|
+          normalized_link = linked_path.sub(%r{\A\./}, "")
+          normalized_file = affected_file.to_s.sub(%r{\A\./}, "")
+          normalized_file == normalized_link ||
+            normalized_file.start_with?("#{normalized_link}/") ||
+            normalized_link.start_with?("#{normalized_file}/")
+        end
       end
 
       # Score based on work loop step

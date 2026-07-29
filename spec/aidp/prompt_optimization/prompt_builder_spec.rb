@@ -9,6 +9,7 @@ require_relative "../../../lib/aidp/prompt_optimization/relevance_scorer"
 require_relative "../../../lib/aidp/prompt_optimization/style_guide_indexer"
 require_relative "../../../lib/aidp/prompt_optimization/template_indexer"
 require_relative "../../../lib/aidp/prompt_optimization/source_code_fragmenter"
+require_relative "../../../lib/aidp/prompt_optimization/project_knowledge_indexer"
 
 RSpec.describe Aidp::PromptOptimization::PromptBuilder do
   let(:builder) { described_class.new }
@@ -45,6 +46,18 @@ RSpec.describe Aidp::PromptOptimization::PromptBuilder do
         )
       end
 
+      let(:knowledge_fragment) do
+        Aidp::PromptOptimization::ProjectKnowledgeFragment.new(
+          id: "authentication",
+          title: "Authentication Feature",
+          note_type: :feature,
+          file_path: "/project/docs/features/authentication.md",
+          content: "# Authentication Feature\n\n<authentication:lib/user.rb>\n\nUse for auth flows.",
+          linked_paths: ["lib/user.rb"],
+          tags: ["feature", "security"]
+        )
+      end
+
       let(:code_fragment) do
         Aidp::PromptOptimization::CodeFragment.new(
           id: "lib/user.rb:User",
@@ -61,6 +74,7 @@ RSpec.describe Aidp::PromptOptimization::PromptBuilder do
         Aidp::PromptOptimization::CompositionResult.new(
           selected_fragments: [
             {fragment: style_fragment, score: 0.95, breakdown: {}},
+            {fragment: knowledge_fragment, score: 0.91, breakdown: {}},
             {fragment: template_fragment, score: 0.85, breakdown: {}},
             {fragment: code_fragment, score: 0.90, breakdown: {}}
           ],
@@ -110,6 +124,13 @@ RSpec.describe Aidp::PromptOptimization::PromptBuilder do
         expect(result.content).to include("**Category**: implementation")
       end
 
+      it "includes project knowledge section" do
+        result = builder.build(task_context, composition_result)
+        expect(result.content).to include("# Project Knowledge")
+        expect(result.content).to include("Authentication Feature")
+        expect(result.content).to include("**Type**: feature")
+      end
+
       it "includes code section" do
         result = builder.build(task_context, composition_result)
         expect(result.content).to include("# Code Context")
@@ -130,8 +151,9 @@ RSpec.describe Aidp::PromptOptimization::PromptBuilder do
         result = builder.build(task_context, composition_result, include_metadata: true)
         expect(result.content).to include("# Prompt Optimization Metadata")
         expect(result.content).to include("## Selection Statistics")
-        expect(result.content).to include("**Fragments Selected**: 3")
+        expect(result.content).to include("**Fragments Selected**: 4")
         expect(result.content).to include("**Fragments Excluded**: 2")
+        expect(result.content).to include("**Project Knowledge Notes**: 1")
       end
     end
 

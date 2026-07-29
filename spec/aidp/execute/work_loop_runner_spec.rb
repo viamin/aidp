@@ -155,6 +155,221 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
   end
 
   describe "Fix-Forward State Machine" do
+    describe "#archive_and_cleanup" do
+      let(:knowledge_manager) { instance_double("Aidp::Execute::ProjectKnowledgeManager", sync!: true) }
+      let(:prompt_manager) { instance_double("PromptManager", archive: true, delete: true) }
+      let(:knowledge_runner) do
+        described_class.new(
+          project_dir,
+          provider_manager,
+          config,
+          prompt: test_prompt,
+          project_knowledge_manager: knowledge_manager
+        )
+      end
+
+      it "syncs project knowledge before removing the prompt" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "authentication_flow"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          affected_files: ["lib/user.rb"],
+          feature_identifier: "authentication_flow",
+          user_input: {"task" => "Update authentication flow"}
+        })
+        knowledge_runner.instance_variable_set(:@executed_tool_commands, ["bundle exec rspec"])
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            step_name: "authentication_flow",
+            feature_identifier: "authentication_flow",
+            affected_files: ["lib/user.rb"],
+            tool_commands: ["bundle exec rspec"]
+          )
+        )
+        expect(prompt_manager).to have_received(:archive).with("authentication_flow")
+        expect(prompt_manager).to have_received(:delete)
+      end
+
+      it "syncs non-Ruby paths discovered from user input and deterministic outputs" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Update aidp.yml and docs/guide.md for the new flow"
+          },
+          deterministic_outputs: [
+            {output_path: "src/feature.ts"},
+            {output_path: "docs/guide.md"}
+          ]
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("aidp.yml", "docs/guide.md", "src/feature.ts")
+          )
+        )
+      end
+
+      it "ignores standalone version numbers when extracting affected files from user input" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Bump release notes to v1.2.3 and document 1.2 in docs/releases.md"
+          },
+          deterministic_outputs: []
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("docs/releases.md")
+          )
+        )
+      end
+
+      it "still keeps nested repository paths that include version directories" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Update changelog in releases/v1.2.3/notes.md"
+          },
+          deterministic_outputs: []
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("releases/v1.2.3/notes.md")
+          )
+        )
+      end
+
+      it "excludes internal deterministic output paths from knowledge sync" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          affected_files: [".aidp/out/tests.log", "docs/guide.md"],
+          user_input: {
+            "task" => "Update docs/guide.md"
+          },
+          deterministic_outputs: [
+            {output_path: ".aidp/out/tests.log"},
+            {output_path: "src/feature.ts"}
+          ]
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("docs/guide.md", "src/feature.ts")
+          )
+        )
+      end
+
+      it "extracts paths without matching surrounding punctuation" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Update (docs/guide.md), src/feature.ts, and ./invalid plus ../escape.rb."
+          }
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("docs/guide.md", "src/feature.ts")
+          )
+        )
+      end
+
+      it "extracts extensionless file paths used in task text" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Update Dockerfile, Gemfile, and bin/setup while ignoring plain words like deployment"
+          }
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("Dockerfile", "Gemfile", "bin/setup")
+          )
+        )
+      end
+
+      it "falls back to changed worktree files when the task description is generic" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {"task" => "Fix issue #123"}
+        })
+        allow(knowledge_runner).to receive(:get_changed_files).and_return([
+          ".aidp/out/tests.log",
+          "lib/aidp/execute/work_loop_runner.rb",
+          "spec/aidp/execute/work_loop_runner_spec.rb"
+        ])
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly(
+              "lib/aidp/execute/work_loop_runner.rb",
+              "spec/aidp/execute/work_loop_runner_spec.rb"
+            )
+          )
+        )
+      end
+
+      it "captures tool usage and edited files from agent execution metadata" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {"task" => "Fix issue #123"}
+        })
+        knowledge_runner.instance_variable_set(:@agentic_execution_results, [
+          {
+            metadata: {
+              edited_files: [
+                {path: "lib/aidp/execute/work_loop_runner.rb"},
+                {path: "spec/aidp/execute/work_loop_runner_spec.rb"}
+              ],
+              tool_calls: [
+                {tool: "filesystem.read"},
+                {tool: "web.search"}
+              ]
+            }
+          }
+        ])
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly(
+              "lib/aidp/execute/work_loop_runner.rb",
+              "spec/aidp/execute/work_loop_runner_spec.rb"
+            ),
+            tool_commands: contain_exactly("filesystem.read", "web.search")
+          )
+        )
+      end
+    end
+
     describe "STATES constant" do
       it "defines all required states" do
         expect(described_class::STATES).to include(
@@ -1502,12 +1717,16 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     describe "#run_phase_based_commands" do
       context "when config has generic commands" do
+        let(:each_unit_commands) do
+          [{name: "test", command: "rspec", run_after: :each_unit, category: :test, required: true}]
+        end
+        let(:on_completion_commands) do
+          [{name: "format", command: "rubocop -A", run_after: :on_completion, category: :formatter, required: true}]
+        end
         let(:config_with_commands) do
           instance_double(
             "Configuration",
-            commands: [
-              {name: "test", command: "rspec", run_after: :each_unit, category: :test, required: true}
-            ],
+            commands: each_unit_commands + on_completion_commands,
             test_commands: [],
             lint_commands: [],
             formatter_commands: [],
@@ -1539,11 +1758,25 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(config_with_commands).to receive(:respond_to?).and_return(false)
           allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
           allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+          allow(config_with_commands).to receive(:commands_for_phase).with(:each_unit).and_return(each_unit_commands)
+          allow(config_with_commands).to receive(:commands_for_phase).with(:on_completion).and_return(on_completion_commands)
         end
 
-        it "uses phase-based execution when config has commands" do
-          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
-          on_completion_results = {success: true, output: "passed", failures: [], required_failures: []}
+        it "uses phase-based execution when config has commands and records executed commands" do
+          each_unit_results = {
+            success: true,
+            output: "passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"test" => {success: true}}
+          }
+          on_completion_results = {
+            success: true,
+            output: "passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"format" => {success: true}}
+          }
 
           allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
           allow(test_runner).to receive(:run_commands_for_phase).with(:on_completion).and_return(on_completion_results)
@@ -1555,10 +1788,17 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
           expect(result[:each_unit]).to eq(each_unit_results)
           expect(result[:on_completion]).to eq(on_completion_results)
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec", "rubocop -A"])
         end
 
         it "skips on_completion when work is not complete" do
-          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
+          each_unit_results = {
+            success: true,
+            output: "passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"test" => {success: true}}
+          }
           allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
 
           agent_result = {status: "in_progress", output: "working"}
@@ -1569,11 +1809,12 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           expect(result[:each_unit]).to eq(each_unit_results)
           expect(result[:on_completion][:success]).to be true
           expect(result[:on_completion][:output]).to include("Skipped")
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec"])
         end
       end
 
       context "when config has no generic commands" do
-        it "falls back to legacy category-based execution" do
+        it "falls back to legacy category-based execution and records only invoked categories" do
           test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
           lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
           formatter_results = {success: true, output: "Format passed", failures: [], required_failures: []}
@@ -1585,6 +1826,13 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(test_runner).to receive(:run_formatters).and_return(formatter_results)
           allow(test_runner).to receive(:run_builds).and_return(build_results)
           allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+          allow(test_runner).to receive(:planned_commands).and_return(
+            tests: [{command: "bundle exec rspec"}],
+            lints: [{command: "bundle exec standardrb"}],
+            formatters: [{command: "bundle exec rubocop -A"}],
+            builds: [{command: "bundle exec rake build"}],
+            docs: [{command: "bundle exec yard"}]
+          )
 
           agent_result = {status: "completed", output: "done"}
           allow(runner).to receive(:agent_marked_complete?).and_return(true)
@@ -1596,16 +1844,26 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           expect(result[:formatters]).to eq(formatter_results)
           expect(result[:builds]).to eq(build_results)
           expect(result[:docs]).to eq(doc_results)
+          expect(runner.send(:knowledge_tool_commands)).to eq([
+            "bundle exec rspec",
+            "bundle exec standardrb",
+            "bundle exec rake build",
+            "bundle exec yard",
+            "bundle exec rubocop -A"
+          ])
         end
       end
     end
 
     describe "#run_full_loop_commands" do
       context "when config has commands method" do
+        let(:full_loop_commands) do
+          [{name: "full_suite", command: "rspec --all", run_after: :full_loop, category: :test, required: true}]
+        end
         let(:config_with_commands) do
           instance_double(
             "Configuration",
-            commands: [{name: "full_suite", command: "rspec --all", run_after: :full_loop, category: :test, required: true}],
+            commands: full_loop_commands,
             test_commands: [],
             lint_commands: [],
             formatter_commands: [],
@@ -1637,9 +1895,10 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(config_with_commands).to receive(:respond_to?).and_return(false)
           allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
           allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+          allow(config_with_commands).to receive(:commands_for_phase).with(:full_loop).and_return(full_loop_commands)
         end
 
-        it "runs full_loop phase commands" do
+        it "runs full_loop phase commands and records them as executed" do
           full_loop_results = {
             success: true,
             output: "Full suite passed",
@@ -1653,6 +1912,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
           expect(result[:success]).to be true
           expect(result[:output]).to eq("Full suite passed")
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec --all"])
         end
 
         it "returns failure when full_loop commands fail" do
@@ -1668,6 +1928,27 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           result = runner_with_commands.send(:run_full_loop_commands)
 
           expect(result[:success]).to be false
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec --all"])
+        end
+      end
+
+      describe "#knowledge_tool_commands" do
+        it "prefers agent metadata tool usage and keeps validation commands as a supplement" do
+          runner.instance_variable_set(:@agentic_execution_results, [
+            {
+              metadata: {
+                tool_usage: ["filesystem.read"],
+                tool_calls: [{tool: "web.search"}]
+              }
+            }
+          ])
+          runner.instance_variable_set(:@executed_tool_commands, ["bundle exec rspec"])
+
+          expect(runner.send(:knowledge_tool_commands)).to eq([
+            "filesystem.read",
+            "web.search",
+            "bundle exec rspec"
+          ])
         end
       end
 
