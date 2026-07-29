@@ -79,10 +79,10 @@ module Aidp
             expect(":")
 
             value_path = path + [key]
-            store_comments(value_path, leading_comments) if leading_comments.any?
-            result[key] = parse_value(value_path)
+            value = parse_value(value_path)
             trailing_comments = consume_comments
-            store_comments(value_path, trailing_comments) if trailing_comments.any?
+            store_comments(value_path, leading_comments + trailing_comments, value: value)
+            result[key] = value
 
             skip_trivia
             break if consume_if("}")
@@ -103,10 +103,10 @@ module Aidp
           loop do
             leading_comments = consume_comments
             value_path = path + [index]
-            store_comments(value_path, leading_comments) if leading_comments.any?
-            result << parse_value(value_path)
+            value = parse_value(value_path)
             trailing_comments = consume_comments
-            store_comments(value_path, trailing_comments) if trailing_comments.any?
+            store_comments(value_path, leading_comments + trailing_comments, value: value)
+            result << value
 
             index += 1
             skip_trivia
@@ -230,12 +230,11 @@ module Aidp
           comments
         end
 
-        def store_comments(path, comments)
+        def store_comments(path, comments, value: nil)
           return if comments.empty?
 
-          key = path_key(path)
-          @comments[key] ||= []
-          @comments[key].concat(comments)
+          append_comments(path_key(path), comments)
+          store_array_value_comments(path, value, comments)
         end
 
         def path_key(path)
@@ -244,6 +243,20 @@ module Aidp
 
         def path_prefix(part)
           part.instance_of?(Integer) ? "i" : "s"
+        end
+
+        def append_comments(key, comments)
+          @comments[key] ||= []
+          @comments[key].concat(comments)
+        end
+
+        def store_array_value_comments(path, value, comments)
+          return unless path.last.instance_of?(Integer)
+          append_comments(array_value_key(path[0...-1], value), comments)
+        end
+
+        def array_value_key(path, value)
+          "#{path_key(path)}\u0000a:#{JSON.generate(value)}"
         end
 
         def consume_if(char)
@@ -306,6 +319,7 @@ module Aidp
             @data = data
             @comments = comments
             @output = +""
+            @array_comment_offsets = Hash.new(0)
           end
 
           def dump
@@ -378,6 +392,8 @@ module Aidp
           end
 
           def comments_for(path)
+            return array_comments_for(path) if path.last.instance_of?(Integer)
+
             @comments[path_key(path)] || []
           end
 
@@ -387,6 +403,26 @@ module Aidp
 
           def path_prefix(part)
             part.instance_of?(Integer) ? "i" : "s"
+          end
+
+          def array_comments_for(path)
+            parent_path = path[0...-1]
+            array = @data.dig(*parent_path)
+            return [] unless array.is_a?(Array)
+
+            key = array_value_key(parent_path, array[path.last])
+            comments = @comments[key]
+            return [] if comments.nil? || comments.empty?
+
+            offset = @array_comment_offsets[key]
+            return [] if offset >= comments.length
+
+            @array_comment_offsets[key] += 1
+            [comments[offset]]
+          end
+
+          def array_value_key(path, value)
+            "#{path_key(path)}\u0000a:#{JSON.generate(value)}"
           end
         end
       end
