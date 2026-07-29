@@ -29,6 +29,14 @@ RSpec.describe Aidp::Harness::ConfigLoader do
   describe "configuration loading" do
     let(:valid_config) do
       {
+        prd_generation: {
+          interaction_style: "quick_sketch",
+          max_question_rounds: {
+            detailed: 30,
+            balanced: 10,
+            quick_sketch: 2
+          }
+        },
         harness: {
           default_provider: "cursor",
           max_retries: 3,
@@ -1120,6 +1128,14 @@ RSpec.describe Aidp::Harness::ConfigManager do
   describe "configuration access" do
     let(:test_config) do
       {
+        prd_generation: {
+          interaction_style: "quick_sketch",
+          max_question_rounds: {
+            detailed: 30,
+            balanced: 10,
+            quick_sketch: 2
+          }
+        },
         harness: {
           default_provider: "cursor",
           max_retries: 3,
@@ -1228,6 +1244,13 @@ RSpec.describe Aidp::Harness::ConfigManager do
 
       expect(harness_config[:default_provider]).to eq("cursor")
       expect(harness_config[:max_retries]).to eq(3)
+    end
+
+    it "gets prd generation configuration" do
+      prd_config = manager.prd_generation_config
+
+      expect(prd_config[:interaction_style]).to eq("quick_sketch")
+      expect(prd_config[:max_question_rounds][:quick_sketch]).to eq(2)
     end
 
     it "gets provider configuration" do

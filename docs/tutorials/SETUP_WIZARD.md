@@ -26,6 +26,7 @@ aidp config --interactive --dry-run
 - Unit / integration / end-to-end test commands
 - Lint and formatter commands (with optional autofix)
 - Deterministic unit catalog (commands, wait policies, and fallbacks)
+- PRD interaction style (`detailed`, `balanced`, or `quick_sketch`)
 - Guard rails (include/exclude patterns, protected paths, confirmation rules,
   max lines per commit)
 - Watch patterns for test reruns and default timeouts
@@ -83,5 +84,18 @@ These fields help future migrations understand the format that was written.
 The wizard writes `.aidp/aidp.yml`. The directory is created automatically if
 missing. Manual edits are fine—just re-run the wizard when you need to adjust
 settings or use `--dry-run` to preview changes first.
+
+## PRD Style Prompt
+
+The wizard now asks:
+
+```text
+Choose PRD interaction style:
+[1] Detailed - deep questioning, longer sessions
+[2] Balanced - moderate questioning (recommended)
+[3] Quick Sketch - minimal questions, Aidp fills gaps automatically
+```
+
+That choice is written to `prd_generation.interaction_style` and becomes the default for future guided planning sessions.
 
 For a full schema reference, see [CONFIGURATION.md](../reference/CONFIGURATION.md).

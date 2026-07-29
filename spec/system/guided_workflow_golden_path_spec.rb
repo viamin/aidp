@@ -12,6 +12,14 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
 
   let(:system_test_config) do
     {
+      prd_generation: {
+        interaction_style: "balanced",
+        max_question_rounds: {
+          detailed: 30,
+          balanced: 10,
+          quick_sketch: 3
+        }
+      },
       harness: {enabled: true, default_provider: "cursor", fallback_providers: ["claude"]},
       providers: {
         cursor: {type: "passthrough", models: ["cursor-default"]},
@@ -21,7 +29,11 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
   end
 
   let(:system_test_config_manager) do
-    instance_double(Aidp::Harness::ConfigManager, config: system_test_config)
+    instance_double(
+      Aidp::Harness::ConfigManager,
+      config: system_test_config,
+      prd_generation_config: system_test_config[:prd_generation]
+    )
   end
 
   let(:golden_path_cursor_provider) do

@@ -23,6 +23,16 @@ module Aidp
       LEGACY_TIER_ALIASES = {
         advanced: :pro
       }.freeze
+      PRD_STYLE_OPTIONS = {
+        "Detailed - deep questioning, longer sessions" => "detailed",
+        "Balanced - moderate questioning (recommended)" => "balanced",
+        "Quick Sketch - minimal questions, Aidp fills gaps automatically" => "quick_sketch"
+      }.freeze
+      DEFAULT_PRD_QUESTION_ROUNDS = {
+        detailed: 30,
+        balanced: 10,
+        quick_sketch: 3
+      }.freeze
 
       attr_reader :project_dir, :prompt, :dry_run
       # Expose state for testability
@@ -49,6 +59,7 @@ module Aidp
         configure_harness_settings
         configure_thinking_tiers
         configure_work_loop
+        configure_prd_generation
         configure_branching
         configure_artifacts
         configure_nfrs
@@ -490,6 +501,27 @@ module Aidp
         configure_coverage
         configure_interactive_testing
         configure_vcs_behavior
+      end
+
+      def configure_prd_generation
+        prompt.say("\n🧭 PRD generation style")
+        prompt.say("-" * 40)
+
+        existing = get(%i[prd_generation]) || {}
+        current_style = existing[:interaction_style] || existing[:default_style] || "balanced"
+        default_label = PRD_STYLE_OPTIONS.key(current_style) || PRD_STYLE_OPTIONS.key("balanced")
+
+        selected_style = prompt.select("Choose PRD interaction style:", default: default_label) do |menu|
+          PRD_STYLE_OPTIONS.each do |label, value|
+            menu.choice label, value
+          end
+        end
+
+        set(%i[prd_generation], {
+          interaction_style: selected_style,
+          default_style: selected_style,
+          max_question_rounds: DEFAULT_PRD_QUESTION_ROUNDS
+        })
       end
 
       # Configure generic deterministic commands for work loop
@@ -1913,6 +1945,7 @@ module Aidp
           .sub(/^schema_version:/, "# Tracks configuration migrations\nschema_version:")
           .sub(/^providers:/, "# Provider configuration (no secrets stored)\nproviders:")
           .sub(/^work_loop:/, "# Work loop execution settings\nwork_loop:")
+          .sub(/^prd_generation:/, "# PRD questioning depth and autonomy\nprd_generation:")
           .sub(/^nfrs:/, "# Non-functional requirements to reference during planning\nnfrs:")
           .sub(/^logging:/, "# Logging configuration\nlogging:")
           .sub(/^modes:/, "# Defaults for background/watch/quick modes\nmodes:")

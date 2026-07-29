@@ -19,11 +19,32 @@ module Aidp
 
       class ConversationError < StandardError; end
 
+      PLANNING_STYLES = {
+        "detailed" => {
+          label: "Detailed",
+          max_question_rounds: 30,
+          autonomy: "low",
+          question_strategy: "Ask 1-2 sharply scoped questions per round. Avoid assumptions unless the user confirms them."
+        },
+        "balanced" => {
+          label: "Balanced",
+          max_question_rounds: 10,
+          autonomy: "medium",
+          question_strategy: "Ask 1-3 efficient questions per round. Make reasonable decisions when the context is already clear."
+        },
+        "quick_sketch" => {
+          label: "Quick Sketch",
+          max_question_rounds: 3,
+          autonomy: "high",
+          question_strategy: "Ask only the highest-leverage missing questions. Prefer inferring obvious MVP details from repository context and existing configuration."
+        }
+      }.freeze
+
       # Expose for testability
       attr_reader :project_dir, :conversation_history, :user_input, :config_manager
       attr_writer :provider_manager
 
-      def initialize(project_dir, prompt: nil, use_enhanced_input: true, verbose: false, config_manager: nil, provider_manager: nil)
+      def initialize(project_dir, prompt: nil, use_enhanced_input: true, verbose: false, interaction_style: nil, config_manager: nil, provider_manager: nil)
         @project_dir = project_dir
 
         # Use EnhancedInput with Reline for full readline-style key bindings
@@ -39,6 +60,7 @@ module Aidp
         @user_input = {}
         @verbose = verbose
         @debug_env = debug_level >= Aidp::DebugMixin::DEBUG_BASIC
+        @planning_preferences = resolve_planning_preferences(interaction_style)
       end
 
       # Main entry point for guided workflow selection
@@ -60,6 +82,7 @@ module Aidp
       # Plan-and-execute: iterative planning followed by execution
       def plan_and_execute_workflow
         display_message("\n📋 Plan Phase", type: :highlight)
+        display_message("PRD style: #{planning_style[:interaction_style]}", type: :info)
         display_message("I'll ask clarifying questions to understand your needs.\n", type: :info)
 
         # Step 1: Iterative planning conversation
@@ -77,11 +100,25 @@ module Aidp
 
       def iterative_planning
         goal = user_goal
-        plan = {goal: goal, scope: {}, users: {}, requirements: {}, constraints: {}, completion_criteria: []}
+        plan = {
+          goal: goal,
+          scope: {},
+          users: {},
+          requirements: {},
+          constraints: {},
+          completion_criteria: [],
+          assumptions: [],
+          metadata: {
+            interaction_style: planning_style[:interaction_style],
+            autonomy: planning_style[:autonomy],
+            max_question_rounds: planning_style[:max_question_rounds]
+          }
+        }
 
         @conversation_history << {role: "user", content: goal}
 
         iteration = 0
+        max_rounds = planning_style[:max_question_rounds]
         loop do
           iteration += 1
           # Ask AI for next question based on current plan
@@ -96,6 +133,7 @@ module Aidp
 
           # If AI says plan is complete, confirm with user
           if question_response[:complete]
+            plan[:assumptions].concat(Array(question_response[:assumptions])).uniq!
             display_message("\n✅ Plan Summary", type: :highlight)
             display_plan_summary(plan)
 
@@ -118,14 +156,14 @@ module Aidp
             update_plan_from_answer(plan, question, answer)
           end
 
-          # Guard: break loop after 10 iterations to avoid infinite loop
-          if iteration >= 10
-            display_message("[WARNING] Planning loop exceeded 10 iterations. Provider may be returning generic responses.", type: :warning)
+          if iteration >= max_rounds
+            display_message("[WARNING] Planning loop exceeded #{max_rounds} iterations for #{planning_style[:interaction_style]}.", type: :warning)
             display_message("Continuing with the plan information gathered so far...", type: :info)
             break
           end
         end
 
+        apply_style_assumptions(plan)
         plan
       end
 
@@ -142,6 +180,7 @@ module Aidp
 
         response = call_provider_for_analysis(system_prompt, user_prompt)
         parsed = parse_planning_response(response)
+        parsed[:assumptions] = Array(parsed[:assumptions]).compact
         # Attach raw response for debug
         parsed[:raw_response] = response
         emit_verbose_raw_prompt(system_prompt, user_prompt, response)
@@ -397,16 +436,19 @@ module Aidp
           You are a planning assistant helping gather requirements through clarifying questions.
 
           Your role:
-          1. Ask 1-3 targeted questions at a time based on what's known
+          1. #{planning_style[:question_strategy]}
           2. Build towards a complete understanding of: scope, users, requirements, constraints
           3. Determine when enough information has been gathered
           4. Be concise to preserve context window
+          5. Operate in "#{planning_style[:interaction_style]}" mode with #{planning_style[:autonomy]} autonomy
+          6. When you make an assumption, list it explicitly in "assumptions"
 
           Response Format (JSON):
           {
             "complete": true/false,
             "questions": ["question 1", "question 2"],
-            "reasoning": "brief explanation of what you're trying to learn"
+            "reasoning": "brief explanation of what you're trying to learn",
+            "assumptions": ["assumption 1"]
           }
 
           If complete is true, the plan is ready for execution.
@@ -467,6 +509,28 @@ module Aidp
         else
           plan[:additional_context] ||= []
           plan[:additional_context] << {question: question, answer: answer}
+        end
+      end
+
+      def apply_style_assumptions(plan)
+        inferred_assumptions = []
+
+        if plan[:users].empty?
+          plan[:users][:personas] = [default_persona_for_style]
+          inferred_assumptions << "Primary user persona inferred as #{default_persona_for_style}."
+        end
+
+        if plan[:completion_criteria].empty?
+          criterion = default_completion_criterion
+          plan[:completion_criteria] << criterion
+          inferred_assumptions << "Success metric inferred as #{criterion}"
+        end
+
+        inferred_assumptions.concat(repository_default_assumptions)
+        plan[:assumptions].concat(inferred_assumptions).uniq!
+
+        inferred_assumptions.each do |assumption|
+          display_message("Inferred missing detail: #{assumption}", type: :muted)
         end
       end
 
@@ -533,6 +597,10 @@ module Aidp
         prd_content = <<~PRD
           # Product Requirements Document
 
+          ## Planning Metadata
+          - PRD Style: #{plan.dig(:metadata, :interaction_style) || planning_style[:interaction_style]}
+          - Agent Autonomy: #{plan.dig(:metadata, :autonomy) || planning_style[:autonomy]}
+
           ## Goal
           #{plan[:goal]}
 
@@ -550,6 +618,9 @@ module Aidp
 
           ## Completion Criteria
           #{plan[:completion_criteria].map { |c| "- #{c}" }.join("\n")}
+
+          ## Assumptions & Inferred Details
+          #{plan[:assumptions]&.any? ? plan[:assumptions].map { |item| "- #{item}" }.join("\n") : "None"}
 
           ## Additional Context
           #{plan[:additional_context]&.map { |ctx| "**#{ctx[:question]}**: #{ctx[:answer]}" }&.join("\n\n")}
@@ -610,6 +681,64 @@ module Aidp
             "### #{key.to_s.capitalize}\n#{value}"
           end
         end.join("\n\n")
+      end
+
+      def planning_style
+        @planning_preferences
+      end
+
+      def resolve_planning_preferences(override_style)
+        config = @config_manager.respond_to?(:prd_generation_config) ? @config_manager.prd_generation_config : {}
+        configured_style = override_style || config[:interaction_style] || config["interaction_style"]
+        interaction_style = normalize_interaction_style(configured_style || "balanced")
+        configured_rounds = config[:max_question_rounds] || config["max_question_rounds"] || {}
+        defaults = PLANNING_STYLES.fetch(interaction_style)
+
+        defaults.merge(
+          interaction_style: interaction_style,
+          max_question_rounds: configured_rounds[interaction_style.to_sym] || configured_rounds[interaction_style] || defaults[:max_question_rounds]
+        )
+      end
+
+      def normalize_interaction_style(style)
+        normalized = style.to_s.strip.downcase.tr(" ", "_")
+        return normalized if PLANNING_STYLES.key?(normalized)
+
+        "balanced"
+      end
+
+      def default_persona_for_style
+        if planning_style[:interaction_style] == "quick_sketch"
+          "Prototype users validating the MVP flow"
+        else
+          "Primary end users for this feature"
+        end
+      end
+
+      def default_completion_criterion
+        if planning_style[:interaction_style] == "quick_sketch"
+          "A thin MVP slice is implemented and demoable end-to-end."
+        else
+          "The feature meets the documented requirements and is ready for implementation planning."
+        end
+      end
+
+      def repository_default_assumptions
+        config = @config_manager.respond_to?(:config) ? (@config_manager.config || {}) : {}
+        assumptions = []
+        commands = config.dig(:work_loop, :commands) || config.dig("work_loop", "commands")
+        nfrs = config.dig(:nfrs) || config.dig("nfrs")
+
+        if commands.is_a?(Array) && commands.any?
+          command_label = (commands.size == 1) ? "command" : "commands"
+          assumptions << "Validation will reuse #{commands.size} configured work loop #{command_label}."
+        end
+
+        if nfrs.is_a?(Hash) && nfrs.any?
+          assumptions << "Repository-level non-functional requirements from aidp.yml will apply."
+        end
+
+        assumptions
       end
     end
   end
