@@ -173,16 +173,17 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         knowledge_runner.step_name = "authentication_flow"
         knowledge_runner.instance_variable_set(:@work_context, {
           affected_files: ["lib/user.rb"],
+          feature_identifier: "authentication_flow",
           user_input: {"task" => "Update authentication flow"}
         })
-
-        allow(knowledge_runner).to receive(:knowledge_tool_commands).and_return(["bundle exec rspec"])
+        knowledge_runner.instance_variable_set(:@executed_tool_commands, ["bundle exec rspec"])
 
         knowledge_runner.send(:archive_and_cleanup)
 
         expect(knowledge_manager).to have_received(:sync!).with(
           hash_including(
             step_name: "authentication_flow",
+            feature_identifier: "authentication_flow",
             affected_files: ["lib/user.rb"],
             tool_commands: ["bundle exec rspec"]
           )
@@ -1539,12 +1540,16 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     describe "#run_phase_based_commands" do
       context "when config has generic commands" do
+        let(:each_unit_commands) do
+          [{name: "test", command: "rspec", run_after: :each_unit, category: :test, required: true}]
+        end
+        let(:on_completion_commands) do
+          [{name: "format", command: "rubocop -A", run_after: :on_completion, category: :formatter, required: true}]
+        end
         let(:config_with_commands) do
           instance_double(
             "Configuration",
-            commands: [
-              {name: "test", command: "rspec", run_after: :each_unit, category: :test, required: true}
-            ],
+            commands: each_unit_commands + on_completion_commands,
             test_commands: [],
             lint_commands: [],
             formatter_commands: [],
@@ -1576,11 +1581,25 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(config_with_commands).to receive(:respond_to?).and_return(false)
           allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
           allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+          allow(config_with_commands).to receive(:commands_for_phase).with(:each_unit).and_return(each_unit_commands)
+          allow(config_with_commands).to receive(:commands_for_phase).with(:on_completion).and_return(on_completion_commands)
         end
 
-        it "uses phase-based execution when config has commands" do
-          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
-          on_completion_results = {success: true, output: "passed", failures: [], required_failures: []}
+        it "uses phase-based execution when config has commands and records executed commands" do
+          each_unit_results = {
+            success: true,
+            output: "passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"test" => {success: true}}
+          }
+          on_completion_results = {
+            success: true,
+            output: "passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"format" => {success: true}}
+          }
 
           allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
           allow(test_runner).to receive(:run_commands_for_phase).with(:on_completion).and_return(on_completion_results)
@@ -1592,10 +1611,17 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
           expect(result[:each_unit]).to eq(each_unit_results)
           expect(result[:on_completion]).to eq(on_completion_results)
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec", "rubocop -A"])
         end
 
         it "skips on_completion when work is not complete" do
-          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
+          each_unit_results = {
+            success: true,
+            output: "passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"test" => {success: true}}
+          }
           allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
 
           agent_result = {status: "in_progress", output: "working"}
@@ -1606,11 +1632,12 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           expect(result[:each_unit]).to eq(each_unit_results)
           expect(result[:on_completion][:success]).to be true
           expect(result[:on_completion][:output]).to include("Skipped")
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec"])
         end
       end
 
       context "when config has no generic commands" do
-        it "falls back to legacy category-based execution" do
+        it "falls back to legacy category-based execution and records only invoked categories" do
           test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
           lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
           formatter_results = {success: true, output: "Format passed", failures: [], required_failures: []}
@@ -1622,6 +1649,13 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(test_runner).to receive(:run_formatters).and_return(formatter_results)
           allow(test_runner).to receive(:run_builds).and_return(build_results)
           allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+          allow(test_runner).to receive(:planned_commands).and_return(
+            tests: [{command: "bundle exec rspec"}],
+            lints: [{command: "bundle exec standardrb"}],
+            formatters: [{command: "bundle exec rubocop -A"}],
+            builds: [{command: "bundle exec rake build"}],
+            docs: [{command: "bundle exec yard"}]
+          )
 
           agent_result = {status: "completed", output: "done"}
           allow(runner).to receive(:agent_marked_complete?).and_return(true)
@@ -1633,16 +1667,26 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           expect(result[:formatters]).to eq(formatter_results)
           expect(result[:builds]).to eq(build_results)
           expect(result[:docs]).to eq(doc_results)
+          expect(runner.send(:knowledge_tool_commands)).to eq([
+            "bundle exec rspec",
+            "bundle exec standardrb",
+            "bundle exec rake build",
+            "bundle exec yard",
+            "bundle exec rubocop -A"
+          ])
         end
       end
     end
 
     describe "#run_full_loop_commands" do
       context "when config has commands method" do
+        let(:full_loop_commands) do
+          [{name: "full_suite", command: "rspec --all", run_after: :full_loop, category: :test, required: true}]
+        end
         let(:config_with_commands) do
           instance_double(
             "Configuration",
-            commands: [{name: "full_suite", command: "rspec --all", run_after: :full_loop, category: :test, required: true}],
+            commands: full_loop_commands,
             test_commands: [],
             lint_commands: [],
             formatter_commands: [],
@@ -1674,9 +1718,10 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(config_with_commands).to receive(:respond_to?).and_return(false)
           allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
           allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+          allow(config_with_commands).to receive(:commands_for_phase).with(:full_loop).and_return(full_loop_commands)
         end
 
-        it "runs full_loop phase commands" do
+        it "runs full_loop phase commands and records them as executed" do
           full_loop_results = {
             success: true,
             output: "Full suite passed",
@@ -1690,6 +1735,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
           expect(result[:success]).to be true
           expect(result[:output]).to eq("Full suite passed")
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec --all"])
         end
 
         it "returns failure when full_loop commands fail" do
@@ -1705,6 +1751,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           result = runner_with_commands.send(:run_full_loop_commands)
 
           expect(result[:success]).to be false
+          expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec --all"])
         end
       end
 
