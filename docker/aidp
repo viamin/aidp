@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_DIR="${AIDP_PROJECT_DIR:-$PWD}"
+IMAGE="${AIDP_DOCKER_IMAGE:-aidp:local}"
+ENV_FILE="${AIDP_ENV_FILE:-$PROJECT_DIR/.env}"
+
+if [[ ! -d "${PROJECT_DIR}" ]]; then
+  echo "Project directory not found: ${PROJECT_DIR}" >&2
+  exit 1
+fi
+
+mkdir -p "${PROJECT_DIR}/.aidp"
+
+docker_args=(run --rm)
+
+if [[ -t 0 && -t 1 ]]; then
+  docker_args+=(-it)
+else
+  docker_args+=(-i)
+fi
+
+if [[ -f "${ENV_FILE}" ]]; then
+  docker_args+=(--env-file "${ENV_FILE}")
+fi
+
+docker_args+=(
+  -v "${PROJECT_DIR}:/workspace"
+  -v "${PROJECT_DIR}/.aidp:/workspace/.aidp"
+  "${IMAGE}"
+  aidp
+)
+
+exec docker "${docker_args[@]}" "$@"

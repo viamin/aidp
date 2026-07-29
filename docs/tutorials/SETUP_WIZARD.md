@@ -85,3 +85,6 @@ missing. Manual edits are fine—just re-run the wizard when you need to adjust
 settings or use `--dry-run` to preview changes first.
 
 For a full schema reference, see [CONFIGURATION.md](../reference/CONFIGURATION.md).
+
+If you are skipping local Ruby entirely, pair the generated `.aidp/aidp.yml`
+with the standalone Docker workflow described in [DOCKER_QUICKSTART.md](../DOCKER_QUICKSTART.md).

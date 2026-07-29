@@ -203,6 +203,7 @@ The `devcontainer/` subfolder contains devcontainer-specific documentation:
 
 | Document | Description |
 | -------- | ----------- |
+| [Docker Quickstart](DOCKER_QUICKSTART.md) | Run Aidp with Docker only |
 | [Follow-Up Opportunities](FOLLOW_UP_OPPORTUNITIES.md) | Planned enhancements |
 
 ---

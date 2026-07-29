@@ -1,0 +1,15 @@
+.aidp
+.bundle
+.codegraph
+.git
+.github
+.rspec_status
+.vscode
+coverage
+docs
+mock_audit_full.txt
+mock_audit_report.json
+pkg
+spec
+tmp
+vendor/bundle
