@@ -64,6 +64,47 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       data = YAML.load_file(metadata_file, permitted_classes: [Symbol]) # times are stored as strings
       expect(data[:status]).to eq("completed")
     end
+
+    it "creates job metadata from a symlinked project path before the job directory exists" do
+      real_project_dir = Dir.mktmpdir("aidp-bg-real")
+      symlink_project_dir = "#{real_project_dir}-link"
+      File.symlink(real_project_dir, symlink_project_dir)
+
+      symlinked_runner = described_class.new(symlink_project_dir, suppress_display: true)
+      allow(symlinked_runner).to receive(:fork).and_return(12_346)
+      allow(Process).to receive(:daemon)
+      allow(Process).to receive(:detach)
+      allow($stdout).to receive(:reopen)
+      allow($stderr).to receive(:reopen)
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
+
+      job_id = symlinked_runner.start(:execute, foo: "bar")
+
+      expect(job_id).not_to be_nil
+      expect(File.exist?(File.join(real_project_dir, ".aidp", "jobs", job_id, "metadata.yml"))).to be true
+    ensure
+      FileUtils.rm_f(symlink_project_dir) if symlink_project_dir && File.exist?(symlink_project_dir)
+      FileUtils.rm_rf(real_project_dir) if real_project_dir && File.exist?(real_project_dir)
+    end
+
+    it "recreates the jobs directory when it was deleted after initialization" do
+      FileUtils.rm_rf(File.join(project_dir, ".aidp", "jobs"))
+
+      job_id = runner.start(:execute, foo: "bar")
+
+      expect(job_id).not_to be_nil
+      expect(File.exist?(File.join(project_dir, ".aidp", "jobs", job_id, "metadata.yml"))).to be true
+    end
+
+    it "raises a start error when the jobs directory is unavailable" do
+      unavailable_jobs_dir = File.join(project_dir, ".aidp", "jobs")
+
+      allow(runner).to receive(:safe_mkdir_p).and_return(unavailable_jobs_dir)
+      allow(Dir).to receive(:exist?).with(unavailable_jobs_dir).and_return(false)
+
+      expect { runner.start(:execute, foo: "bar") }
+        .to raise_error(Aidp::Jobs::BackgroundRunner::StartError, /Unable to create or access background job directory/)
+    end
   end
 
   describe "job metadata helpers" do
@@ -91,6 +132,14 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       expect(status[:status]).to match(/completed|running/)
       expect(status[:log_file]).to include("output.log")
     end
+
+    it "returns nil when job id escapes the jobs directory" do
+      outside_dir = File.join(project_dir, ".aidp", "outside_meta")
+      FileUtils.mkdir_p(outside_dir)
+      File.write(File.join(outside_dir, "metadata.yml"), {job_id: "outside", pid: Process.pid}.to_yaml)
+
+      expect(runner.job_status("../outside_meta")).to be_nil
+    end
   end
 
   describe "#stop_job" do
@@ -108,6 +157,15 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
     it "returns failure when job not found" do
       expect(runner.stop_job("missing")[:success]).to be false
+    end
+
+    it "does not load metadata outside the jobs directory" do
+      outside_dir = File.join(project_dir, ".aidp", "outside_meta")
+      FileUtils.mkdir_p(outside_dir)
+      File.write(File.join(outside_dir, "metadata.yml"), {job_id: "outside", pid: Process.pid}.to_yaml)
+
+      expect(Process).not_to receive(:kill)
+      expect(runner.stop_job("../outside_meta")).to eq({success: false, message: "Job not found"})
     end
 
     it "stops a running job (simulated)" do
@@ -131,6 +189,65 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
   describe "#job_logs" do
     it "returns nil when log file missing" do
       expect(runner.job_logs("missing")).to be_nil
+    end
+
+    it "returns nil when the jobs directory was deleted after initialization" do
+      FileUtils.rm_rf(File.join(project_dir, ".aidp", "jobs"))
+
+      expect(runner.job_logs("missing")).to be_nil
+    end
+
+    it "returns nil when job id escapes the jobs directory" do
+      expect(runner.job_logs("../outside")).to be_nil
+    end
+
+    it "returns nil when the job directory is a symlink outside the jobs directory" do
+      outside_dir = Dir.mktmpdir("aidp-outside-log")
+      runner
+      jobs_dir = File.join(project_dir, ".aidp", "jobs")
+      linked_job_dir = File.join(jobs_dir, "linked_job")
+      File.write(File.join(outside_dir, "output.log"), "outside log")
+      File.symlink(outside_dir, linked_job_dir)
+
+      expect(runner.job_logs("linked_job")).to be_nil
+    ensure
+      FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
+    end
+
+    it "returns nil when output.log is a symlink outside the jobs directory" do
+      outside_dir = Dir.mktmpdir("aidp-outside-log-file")
+      job_id = "linked_log_file"
+      job_dir = File.join(project_dir, ".aidp", "jobs", job_id)
+      FileUtils.mkdir_p(job_dir)
+      File.write(File.join(outside_dir, "output.log"), "outside log")
+      File.symlink(File.join(outside_dir, "output.log"), File.join(job_dir, "output.log"))
+
+      expect(runner.job_logs(job_id)).to be_nil
+      expect(runner.job_status(job_id)).to be_nil
+    ensure
+      FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
+    end
+
+    it "reads logs from a symlinked project path when the job stays inside the jobs directory" do
+      real_project_dir = Dir.mktmpdir("aidp-bg-real")
+      symlink_project_dir = "#{real_project_dir}-link"
+      File.symlink(real_project_dir, symlink_project_dir)
+
+      symlinked_runner = described_class.new(symlink_project_dir, suppress_display: true)
+      job_id = "job1"
+      job_dir = File.join(symlink_project_dir, ".aidp", "jobs", job_id)
+      FileUtils.mkdir_p(job_dir)
+      File.write(File.join(job_dir, "metadata.yml"), {job_id: job_id, pid: Process.pid, mode: :execute}.to_yaml)
+      File.write(File.join(job_dir, "output.log"), "hello from symlink\n")
+
+      expect(symlinked_runner.job_logs(job_id)).to eq("hello from symlink\n")
+      expect(symlinked_runner.job_status(job_id)).to include(
+        job_id: job_id,
+        log_file: File.join(File.realpath(job_dir), "output.log")
+      )
+    ensure
+      FileUtils.rm_f(symlink_project_dir) if symlink_project_dir && File.exist?(symlink_project_dir)
+      FileUtils.rm_rf(real_project_dir) if real_project_dir && File.exist?(real_project_dir)
     end
 
     it "returns log contents" do
@@ -166,10 +283,27 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       FileUtils.touch(log_file) unless File.exist?(log_file)
       File.open(log_file, "a") { |f| f.puts "line1\nline2\nline3" }
 
-      # Mock tail command
-      allow(runner).to receive(:`).and_return("line3")
       result = runner.job_logs(job_id, tail: true, lines: 1)
-      expect(result).to eq("line3")
+      expect(result).to eq("line3\n")
+    end
+
+    it "falls back to 50 lines when tail count is invalid" do
+      allow(runner).to receive(:fork).and_return(56_790)
+      allow(Process).to receive(:daemon)
+      allow(Process).to receive(:detach)
+      allow(runner).to receive(:sleep)
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
+      allow($stdout).to receive(:reopen)
+      allow($stderr).to receive(:reopen)
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
+
+      job_id = runner.start(:execute, {})
+      log_file = File.join(project_dir, ".aidp", "jobs", job_id, "output.log")
+      FileUtils.touch(log_file) unless File.exist?(log_file)
+      File.open(log_file, "a") { |f| f.puts "line1\nline2" }
+
+      result = runner.job_logs(job_id, tail: true, lines: "not-a-number")
+      expect(result).to include("line1", "line2")
     end
   end
 
@@ -278,6 +412,28 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
     describe "#load_job_metadata" do
       it "returns nil for missing metadata file" do
         expect(runner.send(:load_job_metadata, "missing")).to be_nil
+      end
+
+      it "returns nil when job id escapes the jobs directory" do
+        outside_dir = File.join(project_dir, ".aidp", "outside_meta")
+        FileUtils.mkdir_p(outside_dir)
+        File.write(File.join(outside_dir, "metadata.yml"), {job_id: "outside"}.to_yaml)
+
+        expect(runner.send(:load_job_metadata, "../outside_meta")).to be_nil
+      end
+
+      it "returns nil when metadata.yml is a symlink outside the jobs directory" do
+        outside_dir = Dir.mktmpdir("aidp-outside-meta-file")
+        job_id = "linked_metadata_file"
+        job_dir = File.join(project_dir, ".aidp", "jobs", job_id)
+        FileUtils.mkdir_p(job_dir)
+        outside_metadata = File.join(outside_dir, "metadata.yml")
+        File.write(outside_metadata, {job_id: "outside"}.to_yaml)
+        File.symlink(outside_metadata, File.join(job_dir, "metadata.yml"))
+
+        expect(runner.send(:load_job_metadata, job_id)).to be_nil
+      ensure
+        FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
       end
 
       it "returns nil for invalid YAML" do

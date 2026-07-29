@@ -13,6 +13,8 @@ module Aidp
     # Manages background execution of work loops
     # Runs harness in daemon process and tracks job metadata
     class BackgroundRunner
+      StartError = Class.new(StandardError)
+
       include Aidp::MessageDisplay
       include Aidp::RescueLogging
       include Aidp::SafeDirectory
@@ -34,9 +36,11 @@ module Aidp
       # Start a background job
       # Returns job_id
       def start(mode, options = {})
+        ensure_jobs_directory
         job_id = generate_job_id
-        log_file = File.join(@jobs_dir, job_id, "output.log")
-        pid_file = File.join(@jobs_dir, job_id, "job.pid")
+        log_file = job_file_path(job_id, "output.log")
+        pid_file = job_file_path(job_id, "job.pid")
+        raise_start_error unless log_file && pid_file
 
         # Create job directory
         FileUtils.mkdir_p(File.dirname(log_file))
@@ -109,6 +113,9 @@ module Aidp
         metadata = load_job_metadata(job_id)
         return nil unless metadata
 
+        log_file = job_log_path(job_id)
+        return nil unless log_file
+
         # Check if process is still running
         pid = metadata[:pid]
         running = pid && process_running?(pid)
@@ -125,7 +132,7 @@ module Aidp
           started_at: metadata[:started_at],
           completed_at: metadata[:completed_at],
           checkpoint: checkpoint,
-          log_file: File.join(@jobs_dir, job_id, "output.log")
+          log_file: log_file
         }
       end
 
@@ -169,12 +176,12 @@ module Aidp
 
       # Get job logs
       def job_logs(job_id, options = {})
-        log_file = File.join(@jobs_dir, job_id, "output.log")
+        log_file = job_log_path(job_id)
+        return nil unless log_file
         return nil unless File.exist?(log_file)
 
         if options[:tail]
-          lines = options[:lines] || 50
-          `tail -n #{lines} #{log_file}`
+          tail_job_logs(log_file, options[:lines])
         else
           File.read(log_file)
         end
@@ -182,7 +189,8 @@ module Aidp
 
       # Follow job logs in real-time
       def follow_job_logs(job_id)
-        log_file = File.join(@jobs_dir, job_id, "output.log")
+        log_file = job_log_path(job_id)
+        return unless log_file
         return unless File.exist?(log_file)
 
         # Use tail -f to follow logs
@@ -195,6 +203,10 @@ module Aidp
         @jobs_dir = safe_mkdir_p(@jobs_dir, component_name: "BackgroundRunner")
       end
 
+      def raise_start_error
+        raise StartError, "Unable to create or access background job directory: #{@jobs_dir}"
+      end
+
       def generate_job_id
         timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
         random = SecureRandom.hex(4)
@@ -202,7 +214,8 @@ module Aidp
       end
 
       def save_job_metadata(job_id, pid, mode, options)
-        metadata_file = File.join(@jobs_dir, job_id, "metadata.yml")
+        metadata_file = job_metadata_path(job_id)
+        return unless metadata_file
 
         metadata = {
           job_id: job_id,
@@ -217,7 +230,8 @@ module Aidp
       end
 
       def load_job_metadata(job_id)
-        metadata_file = File.join(@jobs_dir, job_id, "metadata.yml")
+        metadata_file = job_metadata_path(job_id)
+        return nil unless metadata_file
         return nil unless File.exist?(metadata_file)
 
         # Return raw metadata with times as ISO8601 strings to avoid unsafe class loading
@@ -231,7 +245,8 @@ module Aidp
         return unless metadata
 
         metadata.merge!(updates)
-        metadata_file = File.join(@jobs_dir, job_id, "metadata.yml")
+        metadata_file = job_metadata_path(job_id)
+        return unless metadata_file
         File.write(metadata_file, metadata.to_yaml)
       end
 
@@ -297,6 +312,57 @@ module Aidp
         else
           metadata[:status] || "completed"
         end
+      end
+
+      def job_log_path(job_id)
+        job_file_path(job_id, "output.log")
+      end
+
+      def job_metadata_path(job_id)
+        job_file_path(job_id, "metadata.yml")
+      end
+
+      def job_file_path(job_id, file_name)
+        return unless Dir.exist?(@jobs_dir)
+
+        jobs_dir = File.realpath(@jobs_dir)
+        resolved_job_dir = resolved_job_dir_path(jobs_dir, job_id)
+        return unless resolved_job_dir
+        return unless resolved_job_dir.start_with?("#{jobs_dir}/")
+
+        resolved_job_file_path(resolved_job_dir, file_name)
+      end
+
+      def tail_job_logs(log_file, requested_lines)
+        lines = Integer(requested_lines || 50, exception: false)
+        lines = 50 unless lines&.positive?
+
+        IO.popen(["tail", "-n", lines.to_s, log_file], &:read)
+      end
+
+      def resolved_job_dir_path(jobs_dir, job_id)
+        job_dir = File.join(@jobs_dir, job_id.to_s)
+
+        if File.exist?(job_dir)
+          File.realpath(job_dir)
+        else
+          File.join(jobs_dir, job_id.to_s)
+        end
+      rescue Errno::ENOENT, Errno::EACCES
+        nil
+      end
+
+      def resolved_job_file_path(job_dir, file_name)
+        candidate = File.join(job_dir, file_name)
+        return candidate unless File.exist?(candidate) || File.symlink?(candidate)
+        return if File.symlink?(candidate)
+
+        resolved_file = File.realpath(candidate)
+        return unless resolved_file.start_with?("#{job_dir}/")
+
+        resolved_file
+      rescue Errno::ENOENT, Errno::EACCES
+        nil
       end
     end
   end
