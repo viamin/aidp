@@ -149,8 +149,13 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     allow(project_generator).to receive(:generate).with(issue, hierarchical: true).and_return(project_plan)
     allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
     allow(repository_client).to receive(:post_comment)
-    allow(repository_client).to receive(:replace_labels)
-    allow(repository_client).to receive(:create_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    expect(repository_client).to receive(:replace_labels).with(
+      42,
+      old_labels: ["aidp-project"],
+      new_labels: ["aidp-blocked"]
+    )
+    allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    expect(repository_client).not_to receive(:create_project)
     allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
     allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
 
@@ -158,6 +163,60 @@ RSpec.describe Aidp::Watch::PlanProcessor do
 
     expect(project_generator).to have_received(:generate).with(issue, hierarchical: true)
     expect(creator).to have_received(:create_sub_issues).with(issue, project_plan[:sub_issues])
+  end
+
+  it "routes aidp-project clarification follow-up back through the project trigger" do
+    project_plan = {
+      summary: "Need more detail",
+      tasks: [],
+      questions: ["Which API should this target?"]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator, generate: project_plan)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:replace_labels)
+
+    expect(repository_client).to receive(:post_comment) do |_number, body|
+      expect(body).to include("remove the `aidp-needs-input` label and add the `aidp-project` label to continue")
+      expect(body).not_to include("add the `aidp-build` label to continue")
+    end
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+  end
+
+  it "creates a new project when no active GitHub Project exists" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint", "Write tests"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [{title: "API slice", tasks: ["Ship API"], dependencies: []}]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator, generate: project_plan)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+    projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, ensure_project_fields: true, sync_issue_to_project: true)
+    creator = instance_double(Aidp::Watch::SubIssueCreator, create_sub_issues: [{number: 43, dependencies: []}])
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:replace_labels)
+    allow(repository_client).to receive(:find_active_project).and_return(nil)
+    expect(repository_client).to receive(:create_project).with(title: "AIDP Project #42: Add search").and_return(
+      {id: "PVT_2", title: "AIDP Project #42: Add search", url: "https://example.com/project/2"}
+    )
+    allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
+    allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
+
+    project_processor.process(issue, trigger_label: "aidp-project")
   end
 
   describe "label actor tagging" do

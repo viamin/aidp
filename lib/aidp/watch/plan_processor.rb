@@ -68,7 +68,13 @@ module Aidp
         # If updating existing plan, archive the previous content
         archived_content = existing_plan ? archive_previous_plan(number, existing_plan) : nil
 
-        comment_body = build_comment(issue: issue, plan: plan_data, label_actor: label_actor, archived_content: archived_content)
+        comment_body = build_comment(
+          issue: issue,
+          plan: plan_data,
+          project_mode: project_mode,
+          label_actor: label_actor,
+          archived_content: archived_content
+        )
         comment_body_with_feedback = FeedbackCollector.append_feedback_prompt(comment_body)
         comment_id = nil
 
@@ -134,19 +140,7 @@ module Aidp
       end
 
       def update_labels_after_plan(number, plan_data, trigger_label:, project_mode:)
-        questions = Array(plan_data[:questions])
-        has_questions = questions.any? && !questions.all? { |q| q.to_s.strip.empty? }
-
-        # Determine which label to add based on whether there are questions
-        new_label = if has_questions
-          @needs_input_label
-        elsif project_mode
-          @project_label
-        else
-          @ready_label
-        end
-        status_text = has_questions ? "needs input" : "ready to build"
-        status_text = "project initialized" if project_mode && !has_questions
+        new_label, status_text = next_label_for(plan_data, project_mode: project_mode)
 
         begin
           @repository_client.replace_labels(
@@ -161,7 +155,7 @@ module Aidp
         end
       end
 
-      def build_comment(issue:, plan:, label_actor: nil, archived_content: nil)
+      def build_comment(issue:, plan:, project_mode:, label_actor: nil, archived_content: nil)
         summary = plan[:summary].to_s.strip
         tasks = Array(plan[:tasks])
         questions = Array(plan[:questions])
@@ -205,7 +199,8 @@ module Aidp
 
         # Add instructions based on whether there are questions
         parts << if has_questions
-          "**Next Steps**: Please reply with answers to the questions above. Once resolved, remove the `#{@needs_input_label}` label and add the `#{@build_label}` label to begin implementation."
+          resume_label = project_mode ? @project_label : @build_label
+          "**Next Steps**: Please reply with answers to the questions above. Once resolved, remove the `#{@needs_input_label}` label and add the `#{resume_label}` label to continue."
         elsif plan[:should_create_sub_issues]
           "**Next Steps**: AIDP will create project sub-issues, place them on the active GitHub Project, and dispatch dependency-ready work with `#{@build_label}` while blocked work is held under `#{@blocked_label}`."
         else
@@ -249,6 +244,18 @@ module Aidp
         saved_project_id = @state_store.project_sync_data(issue[:number])["project_id"]
         return saved_project_id if saved_project_id
 
+        active_project = @repository_client.find_active_project
+        if active_project
+          @state_store.record_project_sync(
+            issue[:number],
+            project_id: active_project[:id],
+            project_url: active_project[:url],
+            project_title: active_project[:title]
+          )
+          display_message("📊 Reusing active GitHub Project '#{active_project[:title]}'", type: :info)
+          return active_project[:id]
+        end
+
         title = "AIDP Project ##{issue[:number]}: #{issue[:title]}".slice(0, 100)
         project = @repository_client.create_project(title: title)
         @state_store.record_project_sync(issue[:number], project_id: project[:id], project_url: project[:url], project_title: project[:title])
@@ -267,6 +274,16 @@ module Aidp
           status = created_issue[:dependencies].any? ? ProjectsProcessor::STATUS_VALUES[:blocked] : ProjectsProcessor::STATUS_VALUES[:todo]
           projects_processor.sync_issue_to_project(created_issue[:number], status: status)
         end
+      end
+
+      def next_label_for(plan_data, project_mode:)
+        questions = Array(plan_data[:questions])
+        has_questions = questions.any? && !questions.all? { |q| q.to_s.strip.empty? }
+
+        return [@needs_input_label, "needs input"] if has_questions
+        return [@blocked_label, "project initialized"] if project_mode && plan_data[:should_create_sub_issues]
+
+        [@ready_label, "ready to build"]
       end
 
       def format_bullets(items, placeholder:)

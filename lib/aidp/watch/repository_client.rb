@@ -308,6 +308,11 @@ module Aidp
         create_project_via_gh(title: title, repository_id: repository_id)
       end
 
+      def find_active_project
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        find_active_project_via_gh
+      end
+
       def repository_node_data
         raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
         repository_node_data_via_gh
@@ -1797,6 +1802,34 @@ module Aidp
         raise
       end
 
+      def find_active_project_via_gh
+        Aidp.log_debug("repository_client", "find_active_project", repo: full_repo)
+
+        query = <<~GRAPHQL
+          query($owner: String!, $repo: String!) {
+            repository(owner: $owner, name: $repo) {
+              projectsV2(first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) {
+                nodes {
+                  id
+                  title
+                  number
+                  url
+                  closed
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, owner: owner, repo: repo)
+        projects = Array(result.dig("data", "repository", "projectsV2", "nodes"))
+        active_project = projects.find { |project| !project["closed"] }
+        normalize_project(active_project) if active_project
+      rescue => e
+        Aidp.log_error("repository_client", "find_active_project_failed", repo: full_repo, error: e.message)
+        raise
+      end
+
       def create_issue_via_gh(title:, body:, labels: [], assignees: [])
         Aidp.log_debug("repository_client", "create_issue", title: title, label_count: labels.size, assignee_count: assignees.size)
 
@@ -1866,11 +1899,14 @@ module Aidp
       end
 
       def normalize_project(raw)
+        return nil unless raw
+
         {
           id: raw["id"],
           title: raw["title"],
           number: raw["number"],
           url: raw["url"],
+          closed: raw["closed"],
           fields: Array(raw.dig("fields", "nodes")).map { |field| normalize_project_field(field) }
         }
       end

@@ -342,6 +342,75 @@ RSpec.describe Aidp::Watch::RepositoryClient do
       end
     end
 
+    describe "#find_active_project" do
+      context "when gh CLI is available" do
+        let(:client) { described_class.new(owner: owner, repo: repo, gh_available: true) }
+
+        before do
+          allow(Aidp).to receive(:log_debug)
+          allow(Aidp).to receive(:log_error)
+        end
+
+        it "returns the most recently updated open project" do
+          allow(client).to receive(:execute_graphql_query).and_return(
+            "data" => {
+              "repository" => {
+                "projectsV2" => {
+                  "nodes" => [
+                    {
+                      "id" => "PVT_closed",
+                      "title" => "Closed Project",
+                      "number" => 2,
+                      "url" => "https://github.com/orgs/test/projects/2",
+                      "closed" => true
+                    },
+                    {
+                      "id" => "PVT_open",
+                      "title" => "Active Project",
+                      "number" => 3,
+                      "url" => "https://github.com/orgs/test/projects/3",
+                      "closed" => false
+                    }
+                  ]
+                }
+              }
+            }
+          )
+
+          result = client.find_active_project
+          expect(result).to include(
+            id: "PVT_open",
+            title: "Active Project",
+            number: 3,
+            url: "https://github.com/orgs/test/projects/3",
+            closed: false
+          )
+        end
+
+        it "returns nil when no active project exists" do
+          allow(client).to receive(:execute_graphql_query).and_return(
+            "data" => {
+              "repository" => {
+                "projectsV2" => {
+                  "nodes" => [
+                    {
+                      "id" => "PVT_closed",
+                      "title" => "Closed Project",
+                      "number" => 2,
+                      "url" => "https://github.com/orgs/test/projects/2",
+                      "closed" => true
+                    }
+                  ]
+                }
+              }
+            }
+          )
+
+          expect(client.find_active_project).to be_nil
+        end
+      end
+    end
+
     describe "#create_project_field" do
       context "when gh CLI is not available" do
         let(:client) { described_class.new(owner: owner, repo: repo, gh_available: false) }
