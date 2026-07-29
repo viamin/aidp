@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.0](https://github.com/viamin/aidp/compare/aidp/v0.39.9...aidp/v0.40.0) (2026-07-29)
+
+
+### Features
+
+* Configurable PRD Question Depth & Interaction Style (Detailed / Balanced / Quick Sketch) ([#543](https://github.com/viamin/aidp/issues/543)) ([39c3271](https://github.com/viamin/aidp/commit/39c3271551590245c92c8f780ca7bfe6b9a781d0))
+
 ## [0.39.9](https://github.com/viamin/aidp/compare/aidp/v0.39.8...aidp/v0.39.9) (2026-07-29)
 
 
