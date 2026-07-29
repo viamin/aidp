@@ -1545,8 +1545,10 @@ module Aidp
       def extract_paths_from_text(text)
         return [] if text.nil?
 
-        text.to_s.scan(%r{(?<![[:alnum:]_./-])([[:alnum:]_.-]+(?:/[[:alnum:]_.-]+)*\.[[:alnum:]]+)(?![[:alnum:]_./-])})
-          .flatten
+        text.to_s.split.filter_map do |token|
+          path = trim_path_token(token)
+          path if valid_path_candidate?(path)
+        end
       end
 
       def extract_output_paths(outputs)
@@ -1595,6 +1597,38 @@ module Aidp
           user_input[:feature_identifier] ||
           user_input["feature_id"] ||
           user_input[:feature_id]
+      end
+
+      def trim_path_token(token)
+        token.to_s.gsub(/\A[^[:alnum:]_.\/-]+|[^[:alnum:]_.\/-]+\z/, "")
+      end
+
+      def valid_path_candidate?(path)
+        return false if path.empty? || !path.include?(".")
+
+        segments = path.split("/")
+        return false if segments.empty? || segments.any?(&:empty?)
+
+        filename = segments.last
+        name, _separator, extension = filename.rpartition(".")
+        return false if name.to_s.empty? || extension.to_s.empty?
+        return false unless extension.each_char.all? { |char| alphanumeric_character?(char) }
+
+        segments.all? { |segment| valid_path_segment?(segment) }
+      end
+
+      def valid_path_segment?(segment)
+        return false if segment == "." || segment == ".."
+
+        segment.each_char.all? do |char|
+          alphanumeric_character?(char) || ["_", ".", "-"].include?(char)
+        end
+      end
+
+      def alphanumeric_character?(char)
+        char.between?("a", "z") ||
+          char.between?("A", "Z") ||
+          char.between?("0", "9")
       end
 
       def load_template(template_name)

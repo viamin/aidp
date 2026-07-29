@@ -15,7 +15,6 @@ module Aidp
 
       def sync!(step_name:, task_description:, affected_files:, tool_commands:, feature_identifier: nil)
         sync_feature_note(
-          step_name: step_name,
           feature_identifier: feature_identifier,
           task_description: task_description,
           affected_files: affected_files
@@ -25,18 +24,18 @@ module Aidp
 
       private
 
-      def sync_feature_note(step_name:, feature_identifier:, task_description:, affected_files:)
+      def sync_feature_note(feature_identifier:, task_description:, affected_files:)
         return if affected_files.empty?
 
         feature_id = resolve_feature_id(
           feature_identifier: feature_identifier,
-          task_description: task_description,
-          affected_files: affected_files,
-          step_name: step_name
+          affected_files: affected_files
         )
+        return if feature_id.empty?
+
         path = File.join(@project_dir, "docs", "features", "#{feature_id}.md")
         markers = affected_files.map { |file| "<#{feature_id}:#{file}>" }
-        learning = bullet_line("#{Time.now.utc.iso8601}: #{task_description}")
+        learning = bullet_line("#{Time.now.utc.iso8601}: #{learning_summary(task_description)}")
 
         content = if File.exist?(path)
           update_existing_note(File.read(path, encoding: "UTF-8"), markers: markers, learning: learning)
@@ -143,27 +142,30 @@ module Aidp
         File.write(path, content)
       end
 
-      def resolve_feature_id(feature_identifier:, task_description:, affected_files:, step_name:)
+      def resolve_feature_id(feature_identifier:, affected_files:)
         explicit_id = normalize_id(feature_identifier)
         return explicit_id unless explicit_id.empty?
 
         derived_id = normalize_id(feature_path_identifier(affected_files))
         return derived_id unless derived_id.empty?
 
-        task_id = normalize_id(task_description.to_s.lines.first.to_s)
-        return task_id unless task_id.empty?
-
-        normalize_id(step_name)
+        ""
       end
 
       def feature_path_identifier(affected_files)
-        segments = affected_files.map { |file| file.to_s.split("/") }
+        feature_files = affected_files.select { |file| feature_path?(file) }
+        segments = feature_files.map { |file| file.to_s.split("/") }
         return "" if segments.empty?
 
-        shared_segments = common_path_segments(segments).reject { |segment| generic_path_segment?(segment) }
+        shared_segments = meaningful_segments(common_path_segments(segments))
         return shared_segments.join("_") unless shared_segments.empty?
 
         meaningful_segments(segments.first).join("_")
+      end
+
+      def feature_path?(file)
+        first_segment = file.to_s.split("/").first
+        !%w[docs spec test].include?(first_segment)
       end
 
       def common_path_segments(all_segments)
@@ -192,6 +194,20 @@ module Aidp
 
       def normalize_id(value)
         value.to_s.downcase.gsub(/[^a-z0-9]+/, "_").gsub(/\A_|_\z/, "")
+      end
+
+      def learning_summary(task_description)
+        single_line = task_description.to_s.encode("UTF-8", invalid: :replace, undef: :replace)
+          .lines
+          .map(&:strip)
+          .reject(&:empty?)
+          .join(" ")
+          .gsub(/\s+/, " ")
+
+        return "Updated feature context." if single_line.empty?
+        return single_line if single_line.length <= 200
+
+        "#{single_line[0, 197].rstrip}..."
       end
 
       def tool_identifier(command)

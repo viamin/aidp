@@ -45,6 +45,32 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
     expect(feature_note).to include("<authentication_session_manager:lib/authentication/session_manager.rb>")
   end
 
+  it "does not create a feature note from docs and spec paths alone" do
+    manager.sync!(
+      step_name: "99_SIMPLE_TASK",
+      task_description: "Update documentation",
+      affected_files: ["docs/guide.md", "spec/models/user_spec.rb"],
+      tool_commands: []
+    )
+
+    expect(Dir.glob(File.join(temp_dir, "docs", "features", "*.md"))).to be_empty
+  end
+
+  it "stores recent learnings as a single concise line" do
+    manager.sync!(
+      step_name: "authentication_flow",
+      feature_identifier: "authentication_flow",
+      task_description: "Update authentication flow\n\nSummary line one\nSummary line two",
+      affected_files: ["lib/authentication/session_manager.rb"],
+      tool_commands: []
+    )
+
+    feature_note = File.read(File.join(temp_dir, "docs", "features", "authentication_flow.md"))
+
+    expect(feature_note).to include("Update authentication flow Summary line one Summary line two")
+    expect(feature_note).not_to include("Update authentication flow\n\nSummary line one")
+  end
+
   it "updates existing notes without duplicating entries" do
     manager.sync!(
       step_name: "authentication_flow",
