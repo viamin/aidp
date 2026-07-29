@@ -99,3 +99,6 @@ Choose PRD interaction style:
 That choice is written to `prd_generation.interaction_style` and becomes the default for future guided planning sessions.
 
 For a full schema reference, see [CONFIGURATION.md](../reference/CONFIGURATION.md).
+
+If you are skipping local Ruby entirely, pair the generated `.aidp/aidp.yml`
+with the standalone Docker workflow described in [DOCKER_QUICKSTART.md](../DOCKER_QUICKSTART.md).

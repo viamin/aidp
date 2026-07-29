@@ -42,6 +42,37 @@ You can re-run the wizard manually:
 aidp --setup-config
 ```
 
+## Run With Docker
+
+Use the standalone Docker image when you want Aidp without a local Ruby
+toolchain. Build the image once, then mount any project into `/workspace`.
+
+```bash
+docker build -t aidp:local .
+
+docker run --rm -it \
+  --env-file .env \
+  -v "$(pwd)":/workspace \
+  -v "$(pwd)/.aidp":/workspace/.aidp \
+  aidp:local
+```
+
+Watch mode uses the same image:
+
+```bash
+docker run --rm -it \
+  --env-file .env \
+  -v "$(pwd)":/workspace \
+  -v "$(pwd)/.aidp":/workspace/.aidp \
+  aidp:local watch https://github.com/<owner>/<repo>/issues
+```
+
+If you supply `GH_TOKEN` or `GITHUB_TOKEN`, the image can use the bundled `gh`
+CLI for read-only access to private repos. Public repositories continue to work
+without GitHub credentials. See [docs/DOCKER_QUICKSTART.md](docs/DOCKER_QUICKSTART.md)
+for environment variables, wrapper scripts, network options, and multi-arch
+`buildx` examples.
+
 ## Devcontainer Support
 
 AIDP provides first-class devcontainer support for sandboxed, secure AI agent execution. Devcontainers offer:
@@ -116,7 +147,7 @@ aidp devcontainer list-backups
 aidp devcontainer restore 0
 ```
 
-See [docs/how-to/DEVELOPMENT_CONTAINER.md](docs/how-to/DEVELOPMENT_CONTAINER.md) for complete devcontainer management documentation.
+See [docs/how-to/DEVELOPMENT_CONTAINER.md](docs/how-to/DEVELOPMENT_CONTAINER.md) for complete devcontainer management documentation. If you do not want VS Code or a local Ruby toolchain, see [Run With Docker](#run-with-docker).
 
 ### Devcontainer Detection
 
