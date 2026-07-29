@@ -315,11 +315,16 @@ module Aidp
       end
 
       def job_file_path(job_id, file_name)
-        job_path = File.expand_path(File.join(@jobs_dir, job_id.to_s, file_name))
-        jobs_dir = File.expand_path(@jobs_dir)
+        jobs_dir = File.realpath(@jobs_dir)
+        job_dir = File.join(@jobs_dir, job_id.to_s)
+        job_path = File.expand_path(File.join(job_dir, file_name))
         return unless job_path.start_with?("#{jobs_dir}/")
 
-        job_path
+        resolved_job_dir = resolved_job_dir_path(job_dir)
+        return unless resolved_job_dir
+        return unless resolved_job_dir.start_with?("#{jobs_dir}/")
+
+        File.join(resolved_job_dir, file_name)
       end
 
       def tail_job_logs(log_file, requested_lines)
@@ -327,6 +332,16 @@ module Aidp
         lines = 50 unless lines&.positive?
 
         IO.popen(["tail", "-n", lines.to_s, log_file], &:read)
+      end
+
+      def resolved_job_dir_path(job_dir)
+        if File.exist?(job_dir)
+          File.realpath(job_dir)
+        else
+          File.expand_path(job_dir)
+        end
+      rescue Errno::ENOENT, Errno::EACCES
+        nil
       end
     end
   end

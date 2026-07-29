@@ -154,6 +154,19 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       expect(runner.job_logs("../outside")).to be_nil
     end
 
+    it "returns nil when the job directory is a symlink outside the jobs directory" do
+      outside_dir = Dir.mktmpdir("aidp-outside-log")
+      runner
+      jobs_dir = File.join(project_dir, ".aidp", "jobs")
+      linked_job_dir = File.join(jobs_dir, "linked_job")
+      File.write(File.join(outside_dir, "output.log"), "outside log")
+      File.symlink(outside_dir, linked_job_dir)
+
+      expect(runner.job_logs("linked_job")).to be_nil
+    ensure
+      FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
+    end
+
     it "returns log contents" do
       allow(runner).to receive(:fork).and_return(45_678)
       allow(Process).to receive(:daemon)
