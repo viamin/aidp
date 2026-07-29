@@ -306,5 +306,17 @@ RSpec.describe Aidp::Watch::StateStore do
         blocker_count: 2
       )
     end
+
+    it "clears stale reverse mappings when a parent replaces its tracked sub-issues" do
+      store.record_sub_issues(700, [701, 702])
+      store.record_issue_dependencies(701, [699])
+
+      store.record_sub_issues(700, [703])
+
+      expect(store.sub_issues(700)).to eq([703])
+      expect(store.parent_issue(701)).to be_nil
+      expect(store.issue_dependencies(701)).to eq([])
+      expect(store.parent_issue(703)).to eq(700)
+    end
   end
 end

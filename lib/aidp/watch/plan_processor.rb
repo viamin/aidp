@@ -14,6 +14,8 @@ module Aidp
     class PlanProcessor
       include Aidp::MessageDisplay
 
+      TrackedSubIssuesRetirementError = Class.new(StandardError)
+
       # Default label names
       DEFAULT_PLAN_LABEL = "aidp-plan"
       DEFAULT_PROJECT_LABEL = "aidp-project"
@@ -255,7 +257,7 @@ module Aidp
           build_label: @build_label,
           blocked_label: @blocked_label
         )
-        created_issues = existing_sub_issues_for(issue[:number], sub_issues: sub_issues)
+        created_issues = existing_sub_issues_for(issue, sub_issues: sub_issues, creator: creator)
         created_issues = creator.create_sub_issues(issue, sub_issues) if created_issues.empty?
         if created_issues.empty?
           return record_project_setup_failure(issue[:number], "unable to create project sub-issues")
@@ -269,6 +271,10 @@ module Aidp
         {status: :ready}
       rescue SubIssueCreator::UnresolvedDependenciesError => e
         Aidp.log_error("plan_processor", "project_sub_issue_dependency_resolution_failed",
+          issue: issue[:number], error: e.message)
+        record_project_setup_failure(issue[:number], e.message)
+      rescue TrackedSubIssuesRetirementError => e
+        Aidp.log_error("plan_processor", "project_sub_issue_retirement_failed",
           issue: issue[:number], error: e.message)
         record_project_setup_failure(issue[:number], e.message)
       end
@@ -314,13 +320,14 @@ module Aidp
         true
       end
 
-      def existing_sub_issues_for(parent_number, sub_issues:)
+      def existing_sub_issues_for(parent_issue, sub_issues:, creator:)
+        parent_number = parent_issue[:number]
         existing_numbers = @state_store.sub_issues(parent_number)
         return [] if existing_numbers.empty?
-        return [] unless reconciliable_sub_issues?(existing_numbers, sub_issues)
+        return retire_tracked_sub_issues(parent_number, existing_numbers) unless reconciliable_sub_issues?(existing_numbers, sub_issues)
 
         display_message("🔁 Reusing #{existing_numbers.size} tracked sub-issues for ##{parent_number}", type: :info)
-        reconcile_existing_sub_issues(existing_numbers, sub_issues)
+        reconcile_existing_sub_issues(parent_issue, existing_numbers, sub_issues, creator)
       end
 
       def next_label_for(plan_data, trigger_label:, project_mode:, project_setup:)
@@ -410,12 +417,16 @@ module Aidp
         title.to_s.strip.downcase
       end
 
-      def reconcile_existing_sub_issues(existing_numbers, sub_issues)
+      def reconcile_existing_sub_issues(parent_issue, existing_numbers, sub_issues, creator)
         issue_numbers_by_title = {}
 
         sub_issues.each_with_index.map do |sub_issue, index|
           number = existing_numbers.fetch(index)
-          title = sub_issue[:title].to_s.strip
+          tracked_issue = @repository_client.fetch_issue(number)
+          planned_issue = creator.planned_sub_issue_attributes(parent_issue, sub_issue, index + 1)
+          update_tracked_sub_issue(number, tracked_issue, planned_issue) unless tracked_sub_issue_contract_matches?(tracked_issue, planned_issue)
+
+          title = planned_issue[:title].to_s.strip
           issue_numbers_by_title[title.downcase] = number unless title.empty?
           {number: number, title: title, dependencies: Array(sub_issue[:dependencies])}
         end.then do |tracked_issues|
@@ -442,6 +453,48 @@ module Aidp
           resolved_dependency = match ? match[1].to_i : issue_numbers_by_title[text.downcase]
           resolved_dependency ? resolved << resolved_dependency : unresolved << dependency
         end
+      end
+
+      def tracked_sub_issue_contract_matches?(tracked_issue, planned_issue)
+        normalize_sub_issue_title(tracked_issue[:title]) == normalize_sub_issue_title(planned_issue[:title]) &&
+          tracked_issue[:body].to_s == planned_issue[:body] &&
+          normalized_list(tracked_issue[:labels]) == normalized_list(planned_issue[:labels]) &&
+          normalized_list(tracked_issue[:assignees]) == normalized_list(planned_issue[:assignees])
+      end
+
+      def update_tracked_sub_issue(number, tracked_issue, planned_issue)
+        Aidp.log_info("plan_processor", "tracked_sub_issue_updated",
+          issue: number,
+          title_changed: normalize_sub_issue_title(tracked_issue[:title]) != normalize_sub_issue_title(planned_issue[:title]),
+          body_changed: tracked_issue[:body].to_s != planned_issue[:body],
+          labels_changed: normalized_list(tracked_issue[:labels]) != normalized_list(planned_issue[:labels]),
+          assignees_changed: normalized_list(tracked_issue[:assignees]) != normalized_list(planned_issue[:assignees]))
+
+        @repository_client.update_issue(
+          number,
+          title: planned_issue[:title],
+          body: planned_issue[:body],
+          labels: planned_issue[:labels],
+          assignees: planned_issue[:assignees]
+        )
+      end
+
+      def normalized_list(values)
+        Array(values).map { |value| value.to_s.strip }.reject(&:empty?).sort
+      end
+
+      def retire_tracked_sub_issues(parent_number, existing_numbers)
+        display_message("🧹 Retiring #{existing_numbers.size} stale tracked sub-issues for ##{parent_number}", type: :warn)
+
+        existing_numbers.each do |number|
+          @repository_client.close_issue(number)
+        rescue => e
+          raise TrackedSubIssuesRetirementError,
+            "unable to retire stale tracked sub-issue ##{number}: #{e.message}"
+        end
+
+        @state_store.clear_sub_issues(parent_number)
+        []
       end
     end
   end

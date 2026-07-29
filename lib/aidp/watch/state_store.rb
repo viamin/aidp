@@ -373,6 +373,7 @@ module Aidp
 
       def record_sub_issues(parent_number, sub_issue_numbers)
         hierarchies[parent_number.to_s] ||= {}
+        clear_stale_sub_issue_tracking(parent_number, Array(sub_issue_numbers))
         hierarchies[parent_number.to_s]["sub_issues"] = Array(sub_issue_numbers)
         hierarchies[parent_number.to_s]["created_at"] = Time.now.utc.iso8601
 
@@ -385,6 +386,10 @@ module Aidp
         save!
       end
 
+      def clear_sub_issues(parent_number)
+        record_sub_issues(parent_number, [])
+      end
+
       def issue_dependencies(issue_number)
         Array(hierarchies[issue_number.to_s]&.dig("dependencies"))
       end
@@ -395,6 +400,22 @@ module Aidp
         hierarchies[issue_number.to_s]["dependencies_updated_at"] = Time.now.utc.iso8601
         save!
       end
+
+      private
+
+      def clear_stale_sub_issue_tracking(parent_number, next_sub_issue_numbers)
+        stale_numbers = sub_issues(parent_number) - next_sub_issue_numbers
+        stale_numbers.each do |sub_number|
+          hierarchy = hierarchies[sub_number.to_s]
+          next unless hierarchy
+
+          hierarchy.delete("parent")
+          hierarchy.delete("dependencies")
+          hierarchy.delete("dependencies_updated_at")
+        end
+      end
+
+      public
 
       def blocking_status(issue_number)
         dependency_numbers = issue_dependencies(issue_number)

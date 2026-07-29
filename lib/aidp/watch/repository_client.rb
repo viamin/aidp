@@ -328,6 +328,10 @@ module Aidp
         close_issue_via_gh(number)
       end
 
+      def update_issue(number, title:, body:, labels:, assignees:)
+        gh_available? ? update_issue_via_gh(number, title: title, body: body, labels: labels, assignees: assignees) : update_issue_via_api(number, title: title, body: body, labels: labels, assignees: assignees)
+      end
+
       def merge_pull_request(number, merge_method: "squash")
         raise "GitHub CLI not available - cannot merge PR" unless gh_available?
         merge_pull_request_via_gh(number, merge_method: merge_method)
@@ -448,6 +452,47 @@ module Aidp
             body: response["body"]
           }
         end
+      end
+
+      def update_issue_via_gh(number, title:, body:, labels:, assignees:)
+        with_gh_retry("update_issue") do
+          existing_issue = fetch_issue_via_gh(number)
+          cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo, "--title", title, "--body", body]
+
+          label_changes(existing_issue[:labels], labels).each do |flag, values|
+            values.each { |value| cmd.concat([flag, value]) }
+          end
+
+          assignee_changes(existing_issue[:assignees], assignees).each do |flag, values|
+            values.each { |value| cmd.concat([flag, value]) }
+          end
+
+          _stdout, stderr, status = Open3.capture3(*cmd)
+          raise "Failed to update issue via gh: #{stderr.strip}" unless status.success?
+
+          true
+        end
+      end
+
+      def update_issue_via_api(number, title:, body:, labels:, assignees:)
+        uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}")
+        request = Net::HTTP::Patch.new(uri)
+        request["Content-Type"] = "application/json"
+        request["Accept"] = "application/vnd.github.v3+json"
+        request.body = JSON.dump({
+          title: title,
+          body: body,
+          labels: labels,
+          assignees: assignees
+        })
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        raise "GitHub API issue update failed (#{response.code})" unless response.code.start_with?("2")
+
+        true
       end
 
       def post_comment_via_api(number, body)
@@ -1376,6 +1421,20 @@ module Aidp
         else
           {"body" => comment.to_s}
         end
+      end
+
+      def label_changes(existing_labels, next_labels)
+        {
+          "--remove-label" => Array(existing_labels) - Array(next_labels),
+          "--add-label" => Array(next_labels) - Array(existing_labels)
+        }
+      end
+
+      def assignee_changes(existing_assignees, next_assignees)
+        {
+          "--remove-assignee" => Array(existing_assignees) - Array(next_assignees),
+          "--add-assignee" => Array(next_assignees) - Array(existing_assignees)
+        }
       end
 
       def normalize_pr_comment(raw)

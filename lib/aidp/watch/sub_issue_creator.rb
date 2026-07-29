@@ -67,29 +67,34 @@ module Aidp
         raise
       end
 
+      def planned_sub_issue_attributes(parent_issue, sub_data, sequence_number)
+        dependencies = sub_issue_dependencies(sub_data)
+        title = sub_data[:title]
+        title = "#{parent_issue[:title]} - Part #{sequence_number}" if title.to_s.strip.empty?
+
+        {
+          title: title,
+          body: build_sub_issue_body(parent_issue, sub_data, sequence_number),
+          labels: sub_issue_labels(sub_data, dependencies),
+          assignees: Array(sub_data[:assignees]),
+          dependencies: dependencies
+        }
+      end
+
       private
 
       def create_single_sub_issue(parent_issue, sub_data, sequence_number)
         parent_number = parent_issue[:number]
         Aidp.log_debug("sub_issue_creator", "create_single_sub_issue", parent: parent_number, sequence: sequence_number)
 
-        # Build issue title
-        title = sub_data[:title]
-        title = "#{parent_issue[:title]} - Part #{sequence_number}" if title.to_s.strip.empty?
-
-        # Build issue body with parent reference
-        body = build_sub_issue_body(parent_issue, sub_data, sequence_number)
-
-        # Determine labels
-        labels = [sub_issue_dependencies(sub_data).any? ? @blocked_label : @build_label]
-        labels.concat(Array(sub_data[:labels])) if sub_data[:labels]
+        attributes = planned_sub_issue_attributes(parent_issue, sub_data, sequence_number)
 
         # Create the issue
         result = @repository_client.create_issue(
-          title: title,
-          body: body,
-          labels: labels,
-          assignees: Array(sub_data[:assignees])
+          title: attributes[:title],
+          body: attributes[:body],
+          labels: attributes[:labels],
+          assignees: attributes[:assignees]
         )
 
         Aidp.log_debug("sub_issue_creator", "issue_created", parent: parent_number, number: result[:number], url: result[:url])
@@ -97,10 +102,10 @@ module Aidp
         {
           number: result[:number],
           url: result[:url],
-          title: title,
+          title: attributes[:title],
           skills: sub_data[:skills],
           personas: sub_data[:personas],
-          dependencies: sub_issue_dependencies(sub_data)
+          dependencies: attributes[:dependencies]
         }
       end
 
@@ -269,6 +274,10 @@ module Aidp
 
       def sub_issue_dependencies(sub_data)
         Array(sub_data[:dependencies]).map(&:to_s).reject(&:empty?)
+      end
+
+      def sub_issue_labels(sub_data, dependencies)
+        [dependencies.any? ? @blocked_label : @build_label].concat(Array(sub_data[:labels]))
       end
 
       def handle_partial_creation_failure(parent_number, created_issues)
