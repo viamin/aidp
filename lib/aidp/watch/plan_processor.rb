@@ -106,10 +106,16 @@ module Aidp
         plan_data = plan_data.merge(comment_id: comment_id) if comment_id
         @state_store.record_plan(number, plan_data.merge(comment_body: comment_body, comment_hint: COMMENT_HEADER))
 
-        process_project_plan(issue, plan_data) if project_mode
+        project_plan_ready = project_mode && process_project_plan(issue, plan_data)
 
         # Update labels: remove plan trigger, add appropriate status label
-        update_labels_after_plan(number, plan_data, trigger_label: trigger_label, project_mode: project_mode)
+        update_labels_after_plan(
+          number,
+          plan_data,
+          trigger_label: trigger_label,
+          project_mode: project_mode,
+          project_plan_ready: project_plan_ready
+        )
       end
 
       private
@@ -139,8 +145,18 @@ module Aidp
         archived_parts.join("\n")
       end
 
-      def update_labels_after_plan(number, plan_data, trigger_label:, project_mode:)
-        new_label, status_text = next_label_for(plan_data, project_mode: project_mode)
+      def update_labels_after_plan(number, plan_data, trigger_label:, project_mode:, project_plan_ready:)
+        new_label, status_text = next_label_for(
+          plan_data,
+          trigger_label: trigger_label,
+          project_mode: project_mode,
+          project_plan_ready: project_plan_ready
+        )
+
+        if new_label == trigger_label
+          display_message("🏷️  Left label '#{trigger_label}' in place (#{status_text})", type: :info)
+          return
+        end
 
         begin
           @repository_client.replace_labels(
@@ -223,7 +239,7 @@ module Aidp
           project_id: project_id,
           config: @project_config
         )
-        projects_processor.ensure_project_fields
+        return false unless projects_processor.ensure_project_fields
 
         creator = SubIssueCreator.new(
           repository_client: @repository_client,
@@ -233,8 +249,10 @@ module Aidp
           blocked_label: @blocked_label
         )
         created_issues = creator.create_sub_issues(issue, plan_data[:sub_issues])
+        return false if created_issues.empty?
 
         sync_project_issue_statuses(issue[:number], created_issues, projects_processor)
+        true
       end
 
       def resolve_project_id(issue)
@@ -276,12 +294,16 @@ module Aidp
         end
       end
 
-      def next_label_for(plan_data, project_mode:)
+      def next_label_for(plan_data, trigger_label:, project_mode:, project_plan_ready:)
         questions = Array(plan_data[:questions])
         has_questions = questions.any? && !questions.all? { |q| q.to_s.strip.empty? }
 
         return [@needs_input_label, "needs input"] if has_questions
-        return [@blocked_label, "project initialized"] if project_mode && plan_data[:should_create_sub_issues]
+        if project_mode && plan_data[:should_create_sub_issues]
+          return [@blocked_label, "project initialized"] if project_plan_ready
+
+          return [trigger_label, "project setup incomplete; retrying on project trigger"]
+        end
 
         [@ready_label, "ready to build"]
       end

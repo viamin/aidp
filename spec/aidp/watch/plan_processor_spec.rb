@@ -165,6 +165,58 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     expect(creator).to have_received(:create_sub_issues).with(issue, project_plan[:sub_issues])
   end
 
+  it "keeps the project trigger label when project resolution fails" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [{title: "API slice", tasks: ["Ship API"], dependencies: []}]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator, generate: project_plan)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:find_active_project).and_raise(StandardError, "project lookup failed")
+
+    expect(repository_client).not_to receive(:replace_labels)
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+  end
+
+  it "keeps the project trigger label when no sub-issues are created" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [{title: "API slice", tasks: ["Ship API"], dependencies: []}]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator, generate: project_plan)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+    projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, ensure_project_fields: true)
+    creator = instance_double(Aidp::Watch::SubIssueCreator, create_sub_issues: [])
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
+    allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
+
+    expect(repository_client).not_to receive(:replace_labels)
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+  end
+
   it "routes aidp-project clarification follow-up back through the project trigger" do
     project_plan = {
       summary: "Need more detail",

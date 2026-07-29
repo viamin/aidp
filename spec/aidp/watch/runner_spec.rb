@@ -12,11 +12,21 @@ RSpec.describe Aidp::Watch::Runner do
       round_robin_last_key: nil,
       record_round_robin_position: nil,
       issue_dependencies: [],
+      sub_issues: [],
       blocking_status: {blocked: false, blockers: [], blocker_count: 0}
     )
   end
   let(:state_extractor) { instance_double("GitHubStateExtractor") }
-  let(:plan_processor) { instance_double("PlanProcessor", plan_label: "plan", project_label: "project", blocked_label: "blocked", process: nil) }
+  let(:plan_processor) do
+    instance_double(
+      "PlanProcessor",
+      plan_label: "plan",
+      project_label: "project",
+      ready_label: "ready",
+      blocked_label: "blocked",
+      process: nil
+    )
+  end
   let(:build_processor) { instance_double("BuildProcessor", build_label: "build", process: nil) }
   let(:auto_processor) { instance_double("AutoProcessor", process: nil) }
   let(:review_processor) { instance_double("ReviewProcessor", process: nil) }
@@ -318,7 +328,7 @@ RSpec.describe Aidp::Watch::Runner do
       expect(repo_client).not_to have_received(:replace_labels)
     end
 
-    it "promotes parent issues when all sub-issues are closed" do
+    it "promotes parent issues to ready when all sub-issues are closed" do
       runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
       allow(runner).to receive(:display_message)
 
@@ -327,6 +337,7 @@ RSpec.describe Aidp::Watch::Runner do
         blockers: [11, 12],
         blocker_count: 2
       )
+      allow(state_store).to receive(:sub_issues).with(10).and_return([11, 12])
       allow(repo_client).to receive(:list_issues).and_return([{number: 10, labels: ["blocked"]}])
       allow(repo_client).to receive(:fetch_issue).with(11).and_return({state: "closed"})
       allow(repo_client).to receive(:fetch_issue).with(12).and_return({state: "closed"})
@@ -337,7 +348,7 @@ RSpec.describe Aidp::Watch::Runner do
       expect(repo_client).to have_received(:replace_labels).with(
         10,
         old_labels: ["blocked"],
-        new_labels: ["build"]
+        new_labels: ["ready"]
       )
     end
   end

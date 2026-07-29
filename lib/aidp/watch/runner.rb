@@ -430,7 +430,7 @@ module Aidp
           @repository_client.replace_labels(
             issue[:number],
             old_labels: [blocked_label],
-            new_labels: [@build_processor.build_label]
+            new_labels: [unblocked_label_for(issue[:number])]
           )
         end
       rescue => e
@@ -583,6 +583,12 @@ module Aidp
         Aidp.log_warn("watch_runner", "dependency_check_failed",
           issue: issue_number, error: e.message)
         false
+      end
+
+      def unblocked_label_for(issue_number)
+        return @plan_processor.ready_label if @state_store.sub_issues(issue_number).any?
+
+        @build_processor.build_label
       end
 
       # Restore from checkpoint if one exists (after auto-update)
