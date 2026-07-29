@@ -317,9 +317,7 @@ module Aidp
 
       def job_file_path(job_id, file_name)
         jobs_dir = File.realpath(@jobs_dir)
-        job_dir = File.join(@jobs_dir, job_id.to_s)
-
-        resolved_job_dir = resolved_job_dir_path(job_dir)
+        resolved_job_dir = resolved_job_dir_path(jobs_dir, job_id)
         return unless resolved_job_dir
         return unless resolved_job_dir.start_with?("#{jobs_dir}/")
 
@@ -333,11 +331,13 @@ module Aidp
         IO.popen(["tail", "-n", lines.to_s, log_file], &:read)
       end
 
-      def resolved_job_dir_path(job_dir)
+      def resolved_job_dir_path(jobs_dir, job_id)
+        job_dir = File.join(@jobs_dir, job_id.to_s)
+
         if File.exist?(job_dir)
           File.realpath(job_dir)
         else
-          File.expand_path(job_dir)
+          File.join(jobs_dir, job_id.to_s)
         end
       rescue Errno::ENOENT, Errno::EACCES
         nil

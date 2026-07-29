@@ -64,6 +64,28 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       data = YAML.load_file(metadata_file, permitted_classes: [Symbol]) # times are stored as strings
       expect(data[:status]).to eq("completed")
     end
+
+    it "creates job metadata from a symlinked project path before the job directory exists" do
+      real_project_dir = Dir.mktmpdir("aidp-bg-real")
+      symlink_project_dir = "#{real_project_dir}-link"
+      File.symlink(real_project_dir, symlink_project_dir)
+
+      symlinked_runner = described_class.new(symlink_project_dir, suppress_display: true)
+      allow(symlinked_runner).to receive(:fork).and_return(12_346)
+      allow(Process).to receive(:daemon)
+      allow(Process).to receive(:detach)
+      allow($stdout).to receive(:reopen)
+      allow($stderr).to receive(:reopen)
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
+
+      job_id = symlinked_runner.start(:execute, foo: "bar")
+
+      expect(job_id).not_to be_nil
+      expect(File.exist?(File.join(real_project_dir, ".aidp", "jobs", job_id, "metadata.yml"))).to be true
+    ensure
+      FileUtils.rm_f(symlink_project_dir) if symlink_project_dir && File.exist?(symlink_project_dir)
+      FileUtils.rm_rf(real_project_dir) if real_project_dir && File.exist?(real_project_dir)
+    end
   end
 
   describe "job metadata helpers" do
