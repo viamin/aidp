@@ -192,8 +192,10 @@ module Aidp
       end
 
       def rewrite_mermaid_status(line, status)
-        name_part, definition = line.split(/\s+:/, 2)
-        tokens = definition.to_s.split(",").map(&:strip).reject(&:empty?)
+        match = line.match(/\A(?<name_part>.*?)(?<separator>\s*:\s*)(?<definition>.*?)(?<newline>\r?\n?)\z/)
+        return line unless match
+
+        tokens = match[:definition].split(",").map(&:strip).reject(&:empty?)
         tokens.reject! { |token| %w[done active].include?(token) }
 
         mapped_status = case status.to_s.downcase
@@ -202,7 +204,7 @@ module Aidp
         end
         tokens.unshift(mapped_status) if mapped_status
 
-        "#{name_part} :#{tokens.join(", ")}\n"
+        "#{match[:name_part]}#{match[:separator]}#{tokens.join(", ")}#{match[:newline]}"
       end
 
       def mermaid_task_line_index(content, tasks, issue_number)

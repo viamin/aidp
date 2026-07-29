@@ -104,6 +104,34 @@ RSpec.describe Aidp::Watch::PrdParser do
       expect(tasks["b1"][:end_date]).to eq(Date.new(2026, 7, 3))
     end
 
+    it "rejects markdown files that do not contain a Mermaid gantt chart" do
+      file = File.join(tmp_dir, "product_requirements.md")
+      File.write(file, <<~MARKDOWN)
+        # PRD
+
+        Goals:
+        - Expose metrics: count, status
+      MARKDOWN
+
+      expect {
+        described_class.new(file_path: file).parse
+      }.to raise_error(described_class::ParseError, /Unable to detect Gantt format/)
+    end
+
+    it "detects plain Mermaid gantt files by their gantt marker" do
+      file = File.join(tmp_dir, "timeline.mmd")
+      File.write(file, <<~MERMAID)
+        gantt
+            section Planning
+            Task A :a1, 2026-07-01, 2d
+      MERMAID
+
+      result = described_class.new(file_path: file).parse
+
+      expect(result[:format]).to eq(:mermaid)
+      expect(result[:tasks].first[:id]).to eq("a1")
+    end
+
     it "parses Mermaid tasks with explicit start and end dates" do
       file = File.join(tmp_dir, "explicit_end_date_gantt.md")
       File.write(file, <<~MARKDOWN)

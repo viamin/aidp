@@ -60,14 +60,19 @@ module Aidp
 
       def detect_format
         ext = File.extname(@file_path).downcase
-        content = File.read(@file_path, 1024)
+        content = File.read(@file_path)
 
         return :csv if ext == ".csv"
         return :ms_project_xml if ext == ".xml"
-        return :mermaid if [".md", ".markdown", ".mmd"].include?(ext)
-        return :mermaid if content.include?("gantt")
+        return :mermaid if mermaid_gantt_format?(ext, content)
 
         raise ParseError, "Unable to detect Gantt format for #{@file_path}"
+      end
+
+      def mermaid_gantt_format?(ext, content)
+        return false unless [".md", ".markdown", ".mmd"].include?(ext) || content.match?(/^\s*gantt\s*$/)
+
+        content.match?(/```mermaid\b.*?^\s*gantt\s*$/m) || content.match?(/^\s*gantt\s*$/)
       end
 
       def parse_mermaid(content)
