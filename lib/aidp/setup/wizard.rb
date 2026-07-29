@@ -67,6 +67,7 @@ module Aidp
       end
 
       def run
+        final_save_succeeded = false
         display_welcome
         # Normalize any legacy tier/model_family entries before prompting
         normalize_existing_model_families!
@@ -85,6 +86,8 @@ module Aidp
 
         if prompt.yes?("Save this configuration?", default: true)
           save_config(yaml_content)
+          final_save_succeeded = true
+          @phase_one_persisted = false
           prompt.ok("✅ Configuration saved to #{relative_config_path}")
           show_next_steps
           display_warnings
@@ -96,6 +99,8 @@ module Aidp
         end
 
         @saved
+      ensure
+        rollback_phase_one_config if @phase_one_persisted && !final_save_succeeded
       end
 
       def saved?
@@ -569,7 +574,7 @@ module Aidp
         prompt.say("  Commands run automatically during work loops to validate changes")
         prompt.say("  Commands can run: after each unit, at full loop end, or on completion")
 
-        existing_commands = get(%i[work_loop commands]) || []
+        existing_commands = effective_work_loop_commands
         existing_commands = phase_two_suggestions[:commands] if existing_commands.empty?
 
         # If user has existing commands, offer to edit or start fresh
@@ -930,7 +935,7 @@ module Aidp
       end
 
       def collect_commands_for_filtering
-        Array(get(%i[work_loop commands])).filter_map do |command|
+        effective_work_loop_commands.filter_map do |command|
           next unless %i[test lint].include?(command[:category].to_sym)
           next if command[:command].to_s.start_with?("echo")
 
@@ -2969,6 +2974,100 @@ module Aidp
             timeout_seconds: nil
           }
         end
+      end
+
+      def effective_work_loop_commands
+        commands = normalize_generic_work_loop_commands(get(%i[work_loop commands]))
+        commands + normalize_legacy_work_loop_commands
+      end
+
+      def normalize_generic_work_loop_commands(commands)
+        Array(commands).filter_map.with_index do |command, index|
+          normalize_generic_work_loop_command(command, index)
+        end
+      end
+
+      def normalize_generic_work_loop_command(command, index)
+        case command
+        when String
+          {
+            name: "command_#{index}",
+            command: command,
+            category: :custom,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          }
+        when Hash
+          category = (command[:category] || command["category"] || :custom).to_sym
+          {
+            name: (command[:name] || command["name"] || "command_#{index}").to_s,
+            command: (command[:command] || command["command"]).to_s,
+            category: category,
+            run_after: normalize_run_after(command[:run_after] || command["run_after"]),
+            required: required_value(command),
+            timeout_seconds: command[:timeout_seconds] || command["timeout_seconds"]
+          }
+        end
+      end
+
+      def normalize_legacy_work_loop_commands
+        legacy_command_mappings.flat_map do |config_key, defaults|
+          Array(get([:work_loop, config_key])).filter_map.with_index do |command, index|
+            normalize_legacy_work_loop_command(command, defaults, index)
+          end
+        end
+      end
+
+      def normalize_legacy_work_loop_command(command, defaults, index)
+        case command
+        when String
+          {
+            name: "#{defaults[:category]}_#{index}",
+            command: command,
+            category: defaults[:category],
+            run_after: defaults[:run_after],
+            required: true,
+            timeout_seconds: nil
+          }
+        when Hash
+          {
+            name: (command[:name] || command["name"] || "#{defaults[:category]}_#{index}").to_s,
+            command: (command[:command] || command["command"]).to_s,
+            category: defaults[:category],
+            run_after: defaults[:run_after],
+            required: required_value(command),
+            timeout_seconds: command[:timeout_seconds] || command["timeout_seconds"]
+          }
+        end
+      end
+
+      def legacy_command_mappings
+        {
+          test_commands: {category: :test, run_after: :each_unit},
+          lint_commands: {category: :lint, run_after: :each_unit},
+          formatter_commands: {category: :formatter, run_after: :on_completion},
+          build_commands: {category: :build, run_after: :each_unit},
+          documentation_commands: {category: :documentation, run_after: :on_completion}
+        }
+      end
+
+      def normalize_run_after(value)
+        case value.to_s
+        when "full_loop", "loop"
+          :full_loop
+        when "on_completion", "completion"
+          :on_completion
+        else
+          :each_unit
+        end
+      end
+
+      def required_value(command)
+        return command[:required] if command.key?(:required)
+        return command["required"] if command.key?("required")
+
+        true
       end
 
       def normalize_phase_two_value(value, fallback)

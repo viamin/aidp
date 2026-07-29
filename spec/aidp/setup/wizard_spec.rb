@@ -252,6 +252,62 @@ RSpec.describe Aidp::Setup::Wizard do
 
       wizard.run
     end
+
+    it "restores the original config if phase two raises before final save" do
+      config_dir = Aidp::ConfigPaths.config_dir(tmp_dir)
+      config_file = Aidp::ConfigPaths.config_file(tmp_dir)
+      FileUtils.mkdir_p(config_dir)
+      File.write(config_file, "schema_version: 1\nproviders:\n  anthropic:\n    api_key: old\n")
+
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Would you like to update it?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+
+      allow(wizard).to receive(:run_phase_two).and_raise("phase two failed")
+
+      expect { wizard.run }.to raise_error(RuntimeError, "phase two failed")
+      expect(File.read(config_file)).to eq("schema_version: 1\nproviders:\n  anthropic:\n    api_key: old\n")
+    end
+
+    it "removes the phase-one config if phase two raises for a new setup" do
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+
+      allow(wizard).to receive(:run_phase_two).and_raise("phase two failed")
+
+      expect { wizard.run }.to raise_error(RuntimeError, "phase two failed")
+      expect(File).not_to exist(Aidp::ConfigPaths.config_file(tmp_dir))
+    end
   end
 
   describe "#generate_yaml" do
@@ -1841,6 +1897,41 @@ RSpec.describe Aidp::Setup::Wizard do
         "bundle exec rspec",
         "bundle exec rubocop"
       ])
+    end
+
+    it "includes legacy work loop commands when generic commands are absent" do
+      wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+      wizard.send(:set, [:work_loop, :lint_commands], [{command: "bundle exec rubocop", required: false}])
+
+      collected = wizard.send(:collect_commands_for_filtering)
+
+      expect(collected).to eq([
+        {key: "test_0", name: "Test 0", command: "bundle exec rspec", type: :test},
+        {key: "lint_0", name: "Lint 0", command: "bundle exec rubocop", type: :lint}
+      ])
+    end
+  end
+
+  describe "#configure_commands" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "when only legacy commands exist" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => :keep
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+      end
+
+      it "treats them as existing commands instead of falling back to suggestions" do
+        expect(wizard).not_to receive(:phase_two_suggestions)
+        wizard.send(:configure_commands)
+      end
     end
   end
 
