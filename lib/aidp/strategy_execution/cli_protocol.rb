@@ -5,6 +5,7 @@ require "open3"
 require "shellwords"
 require "tmpdir"
 require "fileutils"
+require "pathname"
 
 module Aidp
   module StrategyExecution
@@ -33,6 +34,7 @@ module Aidp
           validate_response!(response, role)
 
           response.merge(
+            artifacts: normalize_artifacts(response[:artifacts], artifact_dir),
             artifact_dir: artifact_dir,
             stderr: stderr
           )
@@ -55,6 +57,14 @@ module Aidp
           dir = Dir.mktmpdir("aidp-#{role}-", base_dir)
           FileUtils.mkdir_p(dir)
           dir
+        end
+
+        def normalize_artifacts(artifacts, artifact_dir)
+          Array(artifacts).map do |artifact|
+            next artifact unless artifact.is_a?(String) && !Pathname.new(artifact).absolute?
+
+            File.expand_path(artifact, artifact_dir)
+          end
         end
 
         def validate_response!(response, role)

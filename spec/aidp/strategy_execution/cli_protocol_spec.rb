@@ -28,6 +28,22 @@ RSpec.describe Aidp::StrategyExecution::CliProtocol::Runner do
     expect(result[:artifact_dir]).to include(".aidp")
   end
 
+  it "normalizes relative artifact paths against the artifact directory" do
+    command = [
+      "ruby",
+      "-e",
+      'require "json"; input = JSON.parse(STDIN.read); File.write(File.join(input["artifact_dir"], "out.txt"), "artifact"); puts JSON.generate(success: true, artifacts: ["out.txt"])'
+    ]
+
+    result = runner.execute(
+      command: command,
+      role: "agent",
+      request: {task: {description: "ship it"}}
+    )
+
+    expect(result[:artifacts]).to eq([File.join(result[:artifact_dir], "out.txt")])
+  end
+
   it "raises when evaluator response is incomplete" do
     command = ["ruby", "-e", "puts JSON.generate(success: true)"]
 

@@ -12,8 +12,14 @@ module Aidp
       end
 
       def load_file(path)
-        raw = YAML.safe_load_file(path, permitted_classes: [Date, Time, Symbol], aliases: true) || {}
+        raw = YAML.safe_load_file(expand_path(path), permitted_classes: [Date, Time, Symbol], aliases: true) || {}
         StrategySpec.from_hash(raw)
+      end
+
+      private
+
+      def expand_path(path)
+        File.expand_path(path, @project_dir)
       end
     end
   end

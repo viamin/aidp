@@ -24,4 +24,19 @@ RSpec.describe Aidp::StrategyExecution::StrategyLoader do
     expect(strategy.name).to eq("dated")
     expect(strategy.agents).to include(coder: include(command: "bin/coder"))
   end
+
+  it "loads a relative path from the project directory instead of the current working directory" do
+    File.write(File.join(project_dir, "strategy.yml"), YAML.dump({
+      "name" => "relative",
+      "agents" => {"coder" => "bin/coder"}
+    }))
+
+    Dir.mktmpdir("aidp_strategy_loader_cwd") do |cwd|
+      Dir.chdir(cwd) do
+        strategy = loader.load_file("strategy.yml")
+
+        expect(strategy.name).to eq("relative")
+      end
+    end
+  end
 end

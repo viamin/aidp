@@ -527,7 +527,7 @@ module Aidp
       end
 
       def load_task(task_path)
-        JSON.parse(File.read(task_path), symbolize_names: true)
+        JSON.parse(File.read(expand_path(task_path)), symbolize_names: true)
       end
 
       def prompt_for_task
@@ -539,6 +539,10 @@ module Aidp
 
       def experience_store
         @experience_store ||= StrategyExecution::ExperienceStore.new(project_dir: @project_dir)
+      end
+
+      def expand_path(path)
+        File.expand_path(path, @project_dir)
       end
 
       def format_status(status)

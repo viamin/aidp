@@ -260,6 +260,26 @@ RSpec.describe Aidp::CLI::TemporalCommand do
     end
   end
 
+  describe "#load_task" do
+    let(:project_dir) { Dir.mktmpdir("aidp_temporal_command") }
+
+    after do
+      FileUtils.remove_entry(project_dir) if Dir.exist?(project_dir)
+    end
+
+    it "loads a relative task path from the project directory instead of the current working directory" do
+      File.write(File.join(project_dir, "task.json"), JSON.generate(description: "Implement feature"))
+
+      Dir.mktmpdir("aidp_temporal_command_cwd") do |cwd|
+        Dir.chdir(cwd) do
+          task = command.send(:load_task, "task.json")
+
+          expect(task).to eq(description: "Implement feature")
+        end
+      end
+    end
+  end
+
   describe "#replay_workflow" do
     before do
       allow(command).to receive(:display_message)
