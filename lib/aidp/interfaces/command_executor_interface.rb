@@ -128,6 +128,8 @@ module Aidp
     class TtyCommandExecutor
       include CommandExecutorInterface
 
+      TERMINATION_GRACE_PERIOD = 0.1
+
       # @param logger [LoggerInterface] optional logger for debug output
       # @param component_name [String] component name for logging
       def initialize(logger: nil, component_name: "command_executor")
@@ -144,20 +146,14 @@ module Aidp
       # @param options [Hash] additional options passed to TTY::Command#run
       # @return [CommandResult] the result of the command execution
       def execute(command, args: [], input: nil, timeout: nil, **options)
-        require "tty-command"
+        require "open3"
 
         log_debug("executing_command", command: command, args: args, timeout: timeout)
 
         start_time = Time.now
 
         begin
-          cmd_obj = TTY::Command.new(printer: :null)
-
-          # Prepare input data
-          input_data = resolve_input(input)
-
-          # Execute command - use run! to get result even on non-zero exit
-          result = cmd_obj.run!(command, *args, input: input_data, timeout: timeout, **options)
+          result = execute_command(command, args, resolve_input(input), timeout, options)
 
           duration = Time.now - start_time
           log_debug("command_completed",
@@ -170,7 +166,7 @@ module Aidp
             stderr: result.err,
             exit_status: result.exit_status
           )
-        rescue TTY::Command::TimeoutExceeded
+        rescue CommandTimeoutError
           duration = Time.now - start_time
           log_debug("command_timeout",
             command: command,
@@ -196,6 +192,57 @@ module Aidp
       end
 
       private
+
+      def execute_command(command, args, input_data, timeout, options)
+        env = options.delete(:env) || {}
+        Open3.popen3(env, command.to_s, *args.map(&:to_s), **options) do |stdin, stdout, stderr, wait_thread|
+          write_input(stdin, input_data)
+          out_reader = Thread.new { read_stream(stdout) }
+          err_reader = Thread.new { read_stream(stderr) }
+          status = wait_for_process(wait_thread, command, timeout)
+          CommandResult.new(
+            stdout: out_reader.value,
+            stderr: err_reader.value,
+            exit_status: status.exitstatus
+          )
+        end
+      end
+
+      def write_input(stdin, input_data)
+        return stdin.close unless input_data
+
+        stdin.write(input_data)
+        stdin.close
+      end
+
+      def wait_for_process(wait_thread, command, timeout)
+        return wait_thread.value unless timeout
+
+        return wait_thread.value if wait_thread.join(timeout)
+
+        terminate_process(wait_thread)
+        raise CommandTimeoutError.new(command: command, timeout: timeout)
+      end
+
+      def terminate_process(wait_thread)
+        signal_process(wait_thread.pid, "TERM")
+        return if wait_thread.join(TERMINATION_GRACE_PERIOD)
+
+        signal_process(wait_thread.pid, "KILL")
+        wait_thread.join
+      end
+
+      def signal_process(pid, signal)
+        Process.kill(signal, pid)
+      rescue Errno::ESRCH
+        nil
+      end
+
+      def read_stream(stream)
+        stream.read
+      rescue IOError
+        ""
+      end
 
       def resolve_input(input)
         return nil unless input
