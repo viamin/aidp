@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.45.0](https://github.com/viamin/aidp/compare/aidp/v0.44.0...aidp/v0.45.0) (2026-07-29)
+
+
+### Features
+
+* Gantt Chart Synchronization ([#552](https://github.com/viamin/aidp/issues/552)) ([d855b7f](https://github.com/viamin/aidp/commit/d855b7fc61f810b94e1cb53f2976a1ca5d5085e2))
+
 ## [0.44.0](https://github.com/viamin/aidp/compare/aidp/v0.43.0...aidp/v0.44.0) (2026-07-29)
 
 
