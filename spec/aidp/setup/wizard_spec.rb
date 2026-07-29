@@ -224,6 +224,34 @@ RSpec.describe Aidp::Setup::Wizard do
       wizard.run
       expect(wizard.saved?).to be true
     end
+
+    it "persists the phase-one config before running phase two" do
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Save this configuration?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+
+      allow(wizard).to receive(:run_phase_two) do
+        expect(File).to exist(Aidp::ConfigPaths.config_file(tmp_dir))
+      end.and_call_original
+
+      wizard.run
+    end
   end
 
   describe "#generate_yaml" do
@@ -322,7 +350,7 @@ RSpec.describe Aidp::Setup::Wizard do
       FileUtils.rm_f(File.join(tmp_dir, "Gemfile"))
       File.write(File.join(tmp_dir, "pytest.ini"), "[pytest]")
       wizard = described_class.new(tmp_dir, prompt: prompt)
-      expect(wizard.send(:detect_unit_test_command)).to eq("pytest")
+      expect(wizard.send(:detect_unit_test_command)).to eq("pytest -q")
     end
 
     it "detects pytest from tests directory" do
@@ -1793,6 +1821,26 @@ RSpec.describe Aidp::Setup::Wizard do
         commands = wizard.send(:get, [:work_loop, :commands])
         expect(commands).to eq([])
       end
+    end
+  end
+
+  describe "#collect_commands_for_filtering" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "collects generic work loop test and lint commands" do
+      wizard.send(:set, [:work_loop, :commands], [
+        {name: "unit_tests", command: "bundle exec rspec", category: :test},
+        {name: "lint", command: "bundle exec rubocop", category: :lint},
+        {name: "format", command: "bundle exec rubocop -A", category: :formatter}
+      ])
+
+      collected = wizard.send(:collect_commands_for_filtering)
+
+      expect(collected.map { |entry| entry[:key] }).to eq(%w[unit_tests lint])
+      expect(collected.map { |entry| entry[:command] }).to eq([
+        "bundle exec rspec",
+        "bundle exec rubocop"
+      ])
     end
   end
 
