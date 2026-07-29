@@ -197,7 +197,9 @@ RSpec.describe Aidp::Watch::Runner do
     end
 
     it "collects build work items" do
-      allow(repo_client).to receive(:list_issues).and_return([], [{number: 2, labels: ["build"]}])
+      allow(repo_client).to receive(:list_issues).with(labels: ["blocked"], state: "open").and_return([])
+      allow(repo_client).to receive(:list_issues).with(labels: ["build"], state: "open").and_return([{number: 2, labels: ["build"]}])
+      allow(repo_client).to receive(:list_issues).with(labels: ["ready"], state: "open").and_return([])
 
       items = runner.send(:collect_build_work_items)
 
@@ -206,11 +208,27 @@ RSpec.describe Aidp::Watch::Runner do
     end
 
     it "skips build work items that also carry the project label" do
-      allow(repo_client).to receive(:list_issues).and_return([], [{number: 2, labels: ["build", "project"]}])
+      allow(repo_client).to receive(:list_issues).with(labels: ["blocked"], state: "open").and_return([])
+      allow(repo_client).to receive(:list_issues).with(labels: ["build"], state: "open").and_return([{number: 2, labels: ["build", "project"]}])
+      allow(repo_client).to receive(:list_issues).with(labels: ["ready"], state: "open").and_return([])
 
       items = runner.send(:collect_build_work_items)
 
       expect(items).to eq([])
+    end
+
+    it "collects ready parent project issues for build processing" do
+      allow(repo_client).to receive(:list_issues).with(labels: ["blocked"], state: "open").and_return([])
+      allow(repo_client).to receive(:list_issues).with(labels: ["build"], state: "open").and_return([])
+      allow(repo_client).to receive(:list_issues).with(labels: ["ready"], state: "open").and_return([{number: 9, labels: ["ready"]}])
+      allow(state_store).to receive(:sub_issues).with(9).and_return([10, 11])
+
+      items = runner.send(:collect_build_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:build)
+      expect(items.first.number).to eq(9)
+      expect(items.first.label).to eq("ready")
     end
 
     it "collects auto issue work items" do

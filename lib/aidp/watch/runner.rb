@@ -402,24 +402,7 @@ module Aidp
       def collect_build_work_items
         unblock_dependency_ready_items
 
-        label = @build_processor.build_label
-        project_label = @plan_processor.project_label
-        issues = @repository_client.list_issues(labels: [label], state: "open")
-
-        issues.filter_map do |issue|
-          next unless issue_has_label?(issue, label)
-          next if issue_has_label?(issue, project_label)
-
-          # Note: build_completed check moved to dispatch phase to avoid
-          # API calls during collection (addresses rate limiting concerns)
-          WorkItem.new(
-            number: issue[:number],
-            item_type: :issue,
-            processor_type: :build,
-            label: label,
-            data: issue
-          )
-        end
+        standard_build_work_items + ready_project_work_items
       rescue => e
         Aidp.log_error("watch_runner", "collect_build_items_failed", error: e.message)
         []
@@ -576,6 +559,43 @@ module Aidp
           name = (issue_label.is_a?(Hash) ? issue_label["name"] : issue_label.to_s)
           name.casecmp(label).zero?
         end
+      end
+
+      def standard_build_work_items
+        label = @build_processor.build_label
+        project_label = @plan_processor.project_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+          next if issue_has_label?(issue, project_label)
+
+          build_work_item_for(issue, label: label)
+        end
+      end
+
+      def ready_project_work_items
+        label = @plan_processor.ready_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+          next unless @state_store.sub_issues(issue[:number]).any?
+
+          build_work_item_for(issue, label: label)
+        end
+      end
+
+      def build_work_item_for(issue, label:)
+        # Note: build_completed check moved to dispatch phase to avoid
+        # API calls during collection (addresses rate limiting concerns)
+        WorkItem.new(
+          number: issue[:number],
+          item_type: :issue,
+          processor_type: :build,
+          label: label,
+          data: issue
+        )
       end
 
       def dependencies_met_for_issue?(issue_number)

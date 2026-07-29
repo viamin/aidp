@@ -313,7 +313,7 @@ module Aidp
         return false unless projects_processor.sync_issue_to_project(parent_number, status: ProjectsProcessor::STATUS_VALUES[:blocked])
 
         created_issues.each do |created_issue|
-          status = created_issue[:dependencies].any? ? ProjectsProcessor::STATUS_VALUES[:blocked] : ProjectsProcessor::STATUS_VALUES[:todo]
+          status = project_issue_status_for(created_issue)
           return false unless projects_processor.sync_issue_to_project(created_issue[:number], status: status)
         end
 
@@ -324,10 +324,37 @@ module Aidp
         parent_number = parent_issue[:number]
         existing_numbers = @state_store.sub_issues(parent_number)
         return [] if existing_numbers.empty?
-        return retire_tracked_sub_issues(parent_number, existing_numbers) unless reconciliable_sub_issues?(existing_numbers, sub_issues)
 
-        display_message("🔁 Reusing #{existing_numbers.size} tracked sub-issues for ##{parent_number}", type: :info)
-        reconcile_existing_sub_issues(parent_issue, existing_numbers, sub_issues, creator)
+        tracked_issues = existing_numbers.map { |number| fetch_tracked_sub_issue(number) }
+        preserved_issues, remaining_numbers, remaining_sub_issues = preserve_closed_tracked_sub_issues(tracked_issues, sub_issues)
+        preserved_numbers_by_title = issue_numbers_by_title(preserved_issues)
+
+        remaining_issues = if remaining_numbers.empty? && remaining_sub_issues.empty?
+          []
+        elsif reconciliable_sub_issues?(remaining_numbers, remaining_sub_issues)
+          display_message("🔁 Reusing #{existing_numbers.size} tracked sub-issues for ##{parent_number}", type: :info)
+          reconcile_existing_sub_issues(
+            parent_issue,
+            remaining_numbers,
+            remaining_sub_issues,
+            creator,
+            issue_numbers_by_title: preserved_numbers_by_title
+          )
+        else
+          regenerate_open_tracked_sub_issues(
+            parent_issue,
+            parent_number,
+            remaining_numbers,
+            remaining_sub_issues,
+            creator,
+            preserved_numbers_by_title: preserved_numbers_by_title
+          )
+        end
+
+        ordered_issues = order_tracked_sub_issues(sub_issues, preserved_issues + remaining_issues)
+        record_tracked_sub_issue_dependencies(ordered_issues, sub_issues)
+        @state_store.record_sub_issues(parent_number, ordered_issues.map { |tracked_issue| tracked_issue[:number] })
+        ordered_issues
       end
 
       def next_label_for(plan_data, trigger_label:, project_mode:, project_setup:)
@@ -358,6 +385,12 @@ module Aidp
           setup_failed_at: Time.now.utc.iso8601
         )
         {status: :failed, reason: reason}
+      end
+
+      def project_issue_status_for(created_issue)
+        return ProjectsProcessor::STATUS_VALUES[:done] if created_issue[:state].to_s.casecmp("closed").zero?
+
+        created_issue[:dependencies].any? ? ProjectsProcessor::STATUS_VALUES[:blocked] : ProjectsProcessor::STATUS_VALUES[:todo]
       end
 
       def format_bullets(items, placeholder:)
@@ -399,7 +432,6 @@ module Aidp
 
       def tracked_sub_issues_match_plan?(existing_numbers, sub_issues)
         tracked_issues = existing_numbers.map { |number| fetch_tracked_sub_issue(number) }
-        return false unless tracked_sub_issues_open?(tracked_issues)
 
         tracked_titles = tracked_issues.map { |tracked_issue| normalize_sub_issue_title(tracked_issue[:title]) }
         planned_titles = sub_issues.map { |sub_issue| normalize_sub_issue_title(sub_issue[:title]) }
@@ -420,28 +452,54 @@ module Aidp
         title.to_s.strip.downcase
       end
 
-      def tracked_sub_issues_open?(tracked_issues)
-        closed_issue = tracked_issues.find { |tracked_issue| tracked_issue[:state].to_s.casecmp("closed").zero? }
-        return true unless closed_issue
+      def preserve_closed_tracked_sub_issues(tracked_issues, sub_issues)
+        remaining_tracked_issues = tracked_issues.dup
+        remaining_sub_issues = sub_issues.dup
+        preserved_issues = []
 
+        tracked_issues.each do |tracked_issue|
+          next unless tracked_issue[:state].to_s.casecmp("closed").zero?
+
+          match_index = remaining_sub_issues.index do |sub_issue|
+            normalize_sub_issue_title(sub_issue[:title]) == normalize_sub_issue_title(tracked_issue[:title])
+          end
+          next unless match_index
+
+          preserved_issues << tracked_issue
+          remaining_tracked_issues.delete(tracked_issue)
+          remaining_sub_issues.delete_at(match_index)
+        end
+
+        return [preserved_issues, remaining_tracked_issues.map { |tracked_issue| tracked_issue[:number] }, remaining_sub_issues] if preserved_issues.empty?
+
+        suffix = if preserved_issues.one?
+          ""
+        else
+          "s"
+        end
         display_message(
-          "⚠️  Tracked sub-issue ##{closed_issue[:number]} is already closed; regenerating project work",
-          type: :warn
+          "🔒 Preserving #{preserved_issues.size} completed tracked sub-issue#{suffix} during re-plan",
+          type: :info
         )
-        false
+        [preserved_issues, remaining_tracked_issues.map { |tracked_issue| tracked_issue[:number] }, remaining_sub_issues]
       end
 
-      def reconcile_existing_sub_issues(parent_issue, existing_numbers, sub_issues, creator)
+      def reconcile_existing_sub_issues(parent_issue, existing_numbers, sub_issues, creator, issue_numbers_by_title: {})
         tracked_issues = sub_issues.each_with_index.map do |sub_issue, index|
           number = existing_numbers.fetch(index)
           tracked_issue = @repository_client.fetch_issue(number)
           planned_issue = creator.planned_sub_issue_attributes(parent_issue, sub_issue, index + 1)
           update_tracked_sub_issue(number, tracked_issue, planned_issue) unless tracked_sub_issue_contract_matches?(tracked_issue, planned_issue)
 
-          {number: number, title: planned_issue[:title].to_s.strip, dependencies: Array(sub_issue[:dependencies])}
+          {
+            number: number,
+            title: planned_issue[:title].to_s.strip,
+            dependencies: Array(sub_issue[:dependencies]),
+            state: tracked_issue[:state]
+          }
         end
 
-        issue_numbers_by_title = build_issue_numbers_by_title(tracked_issues)
+        issue_numbers_by_title = build_issue_numbers_by_title(tracked_issues, issue_numbers_by_title)
         tracked_issues.each do |tracked_issue|
           dependencies, unresolved_dependencies = resolve_tracked_dependencies(
             tracked_issue[:dependencies],
@@ -455,14 +513,78 @@ module Aidp
           @state_store.record_issue_dependencies(tracked_issue[:number], dependencies)
           tracked_issue[:dependencies] = dependencies
         end
+
+        tracked_issues
       end
 
-      def build_issue_numbers_by_title(tracked_issues)
+      def regenerate_open_tracked_sub_issues(parent_issue, parent_number, existing_numbers, sub_issues, creator, preserved_numbers_by_title:)
+        retire_tracked_sub_issues(parent_number, existing_numbers)
+        return [] if sub_issues.empty?
+
+        creator.create_sub_issues(
+          parent_issue,
+          sub_issues_with_resolved_dependencies(sub_issues, preserved_numbers_by_title)
+        )
+      end
+
+      def order_tracked_sub_issues(sub_issues, tracked_issues)
+        tracked_issue_groups = tracked_issues.group_by { |tracked_issue| normalize_sub_issue_title(tracked_issue[:title]) }
+
+        sub_issues.map do |sub_issue|
+          normalized_title = normalize_sub_issue_title(sub_issue[:title])
+          issue_group = tracked_issue_groups[normalized_title]
+          next issue_group.shift if issue_group&.any?
+
+          raise SubIssueCreator::UnresolvedDependenciesError,
+            "Unable to match tracked sub-issue for planned item '#{sub_issue[:title]}'"
+        end
+      end
+
+      def record_tracked_sub_issue_dependencies(tracked_issues, sub_issues)
+        issue_numbers_by_title = build_issue_numbers_by_title(tracked_issues)
+
+        tracked_issues.zip(sub_issues).each do |tracked_issue, sub_issue|
+          dependencies, unresolved_dependencies = resolve_tracked_dependencies(
+            sub_issue[:dependencies],
+            issue_numbers_by_title
+          )
+          if unresolved_dependencies.any?
+            raise SubIssueCreator::UnresolvedDependenciesError,
+              "Unable to resolve dependencies for sub-issue ##{tracked_issue[:number]} (#{tracked_issue[:title]}): #{unresolved_dependencies.join(", ")}"
+          end
+
+          @state_store.record_issue_dependencies(tracked_issue[:number], dependencies)
+          tracked_issue[:dependencies] = dependencies
+        end
+      end
+
+      def sub_issues_with_resolved_dependencies(sub_issues, issue_numbers_by_title)
+        sub_issues.map do |sub_issue|
+          dependencies = Array(sub_issue[:dependencies]).map do |dependency|
+            issue_number = issue_numbers_by_title[normalize_sub_issue_title(dependency)]
+            issue_number ? "##{issue_number}" : dependency
+          end
+
+          sub_issue.merge(dependencies: dependencies)
+        end
+      end
+
+      def build_issue_numbers_by_title(tracked_issues, seed = {})
+        issue_numbers_by_title = seed.dup
         duplicate_titles = duplicate_normalized_tracked_titles(tracked_issues)
         if duplicate_titles.empty?
-          return tracked_issues.each_with_object({}) do |tracked_issue, memo|
+          tracked_issues.each do |tracked_issue|
             normalized_title = normalize_sub_issue_title(tracked_issue[:title])
-            memo[normalized_title] = tracked_issue[:number] unless normalized_title.empty?
+            next if normalized_title.empty?
+            next unless issue_numbers_by_title.key?(normalized_title) && issue_numbers_by_title[normalized_title] != tracked_issue[:number]
+
+            duplicate_titles << tracked_issue[:title].to_s.strip
+          end
+          if duplicate_titles.empty?
+            return tracked_issues.each_with_object(issue_numbers_by_title) do |tracked_issue, memo|
+              normalized_title = normalize_sub_issue_title(tracked_issue[:title])
+              memo[normalized_title] = tracked_issue[:number] unless normalized_title.empty?
+            end
           end
         end
 
@@ -482,6 +604,13 @@ module Aidp
           next unless titles.size > 1
 
           titles.uniq.join(" / ")
+        end
+      end
+
+      def issue_numbers_by_title(tracked_issues)
+        tracked_issues.each_with_object({}) do |tracked_issue, memo|
+          normalized_title = normalize_sub_issue_title(tracked_issue[:title])
+          memo[normalized_title] = tracked_issue[:number] unless normalized_title.empty?
         end
       end
 
