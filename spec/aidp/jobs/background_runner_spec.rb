@@ -86,6 +86,15 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       FileUtils.rm_f(symlink_project_dir) if symlink_project_dir && File.exist?(symlink_project_dir)
       FileUtils.rm_rf(real_project_dir) if real_project_dir && File.exist?(real_project_dir)
     end
+
+    it "recreates the jobs directory when it was deleted after initialization" do
+      FileUtils.rm_rf(File.join(project_dir, ".aidp", "jobs"))
+
+      job_id = runner.start(:execute, foo: "bar")
+
+      expect(job_id).not_to be_nil
+      expect(File.exist?(File.join(project_dir, ".aidp", "jobs", job_id, "metadata.yml"))).to be true
+    end
   end
 
   describe "job metadata helpers" do
@@ -169,6 +178,12 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
   describe "#job_logs" do
     it "returns nil when log file missing" do
+      expect(runner.job_logs("missing")).to be_nil
+    end
+
+    it "returns nil when the jobs directory was deleted after initialization" do
+      FileUtils.rm_rf(File.join(project_dir, ".aidp", "jobs"))
+
       expect(runner.job_logs("missing")).to be_nil
     end
 

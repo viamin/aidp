@@ -34,6 +34,7 @@ module Aidp
       # Start a background job
       # Returns job_id
       def start(mode, options = {})
+        ensure_jobs_directory
         job_id = generate_job_id
         log_file = job_file_path(job_id, "output.log")
         pid_file = job_file_path(job_id, "job.pid")
@@ -316,6 +317,8 @@ module Aidp
       end
 
       def job_file_path(job_id, file_name)
+        return unless Dir.exist?(@jobs_dir)
+
         jobs_dir = File.realpath(@jobs_dir)
         resolved_job_dir = resolved_job_dir_path(jobs_dir, job_id)
         return unless resolved_job_dir
