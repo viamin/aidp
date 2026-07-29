@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.42.0](https://github.com/viamin/aidp/compare/aidp/v0.41.0...aidp/v0.42.0) (2026-07-29)
+
+
+### Features
+
+* Create and update personas and skills for specific features and tools as they are used ([#542](https://github.com/viamin/aidp/issues/542)) ([ff79110](https://github.com/viamin/aidp/commit/ff791104ed16cd3b19456058e1b61c8a249242c1))
+
 ## [0.41.0](https://github.com/viamin/aidp/compare/aidp/v0.40.0...aidp/v0.41.0) (2026-07-29)
 
 
