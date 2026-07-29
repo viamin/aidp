@@ -28,7 +28,9 @@ module Aidp
           store_comments([], root_comments, position: :leading) if root_comments.any?
 
           value = parse_value([])
-          skip_trivia
+          trailing_comments = consume_comments
+          store_comments([], trailing_comments, position: :trailing) if trailing_comments.any?
+          skip_whitespace
           raise ParseError, "Unexpected trailing content" unless eof?
 
           @data = value
@@ -187,7 +189,7 @@ module Aidp
 
         def skip_trivia
           loop do
-            advance while whitespace?(current_char)
+            skip_whitespace
 
             if consume_sequence("//")
               advance while !eof? && current_char != "\n"
@@ -200,6 +202,10 @@ module Aidp
               break
             end
           end
+        end
+
+        def skip_whitespace
+          advance while whitespace?(current_char)
         end
 
         def consume_comments
@@ -353,6 +359,7 @@ module Aidp
           def dump
             write_comments([], 0, position: :leading)
             write_value(@data, [])
+            write_root_trailing_comments
             @output
           end
 
@@ -427,6 +434,14 @@ module Aidp
             comments_for(path, :inline).each do |comment|
               @output << " " << comment
             end
+          end
+
+          def write_root_trailing_comments
+            trailing_comments = comments_for([], :trailing)
+            return if trailing_comments.empty?
+
+            @output << "\n"
+            write_comments([], 0, position: :trailing)
           end
 
           def comments_for(path, position)

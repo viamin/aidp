@@ -107,5 +107,18 @@ RSpec.describe Aidp::Setup::Devcontainer::JsoncDocument do
 
       expect(output).to include("1000,\n    3000 // app\n")
     end
+
+    it "keeps trailing root comments after the document" do
+      existing = described_class.parse(<<~JSONC)
+        {
+          "mounts": []
+        }
+        // preserve me
+      JSONC
+
+      output = described_class.dump(existing.data, comments: existing.comments)
+
+      expect(output).to end_with("}\n// preserve me\n")
+    end
   end
 end
