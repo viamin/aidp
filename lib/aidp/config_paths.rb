@@ -32,6 +32,7 @@ module Aidp
     # Security module paths
     def self.security_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "security")
     def self.secrets_registry_file(project_dir = Dir.pwd) = File.join(security_dir(project_dir), "secrets_registry.json")
+    def self.mcp_risk_profile_file(project_dir = Dir.pwd) = File.join(security_dir(project_dir), "mcp_risk_profile.yml")
 
     # Database path
     def self.database_file(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "aidp.db")

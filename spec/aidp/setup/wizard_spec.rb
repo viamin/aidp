@@ -53,6 +53,9 @@ RSpec.describe Aidp::Setup::Wizard do
     FileUtils.mkdir_p(tmp_dir)
     File.write(File.join(tmp_dir, "Gemfile"), "source 'https://rubygems.org'")
     allow(Aidp::Util).to receive(:which).and_return("/usr/bin/fake")
+    allow_any_instance_of(Aidp::Security::McpToolRiskClassifier).to receive(:generate!).and_return(
+      Aidp::Security::McpRiskProfile.new(generator_model: "test", tools: {})
+    )
   end
 
   after { FileUtils.rm_rf(tmp_dir) }
@@ -86,6 +89,33 @@ RSpec.describe Aidp::Setup::Wizard do
       wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
       wizard.run
       expect(File).to exist(Aidp::ConfigPaths.config_file(tmp_dir))
+    end
+
+    it "generates the MCP risk profile after saving configuration" do
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Save this configuration?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+
+      expect_any_instance_of(Aidp::Security::McpToolRiskClassifier).to receive(:generate!).and_return(
+        Aidp::Security::McpRiskProfile.new(generator_model: "test", tools: {})
+      )
+
+      described_class.new(tmp_dir, prompt: prompt_with_yes).run
     end
 
     it "captures auto-update configuration when enabled" do

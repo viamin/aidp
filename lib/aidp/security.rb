@@ -16,6 +16,8 @@ require_relative "security/trifecta_state"
 require_relative "security/rule_of_two_enforcer"
 require_relative "security/secrets_registry"
 require_relative "security/secrets_proxy"
+require_relative "security/mcp_risk_profile"
+require_relative "security/mcp_tool_risk_classifier"
 require_relative "security/work_loop_adapter"
 require_relative "security/watch_mode_handler"
 

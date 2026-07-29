@@ -6,6 +6,7 @@ require "tty-spinner"
 require_relative "../harness/provider_info"
 require_relative "../harness/capability_registry"
 require_relative "../harness/config_manager"
+require_relative "../security"
 
 module Aidp
   class CLI
@@ -21,12 +22,13 @@ module Aidp
     class ProvidersCommand
       include Aidp::MessageDisplay
 
-      def initialize(prompt: TTY::Prompt.new, provider_info_class: nil, capability_registry_class: nil, config_manager_class: nil, project_dir: nil)
+      def initialize(prompt: TTY::Prompt.new, provider_info_class: nil, capability_registry_class: nil, config_manager_class: nil, project_dir: nil, mcp_tool_risk_classifier_class: nil)
         @prompt = prompt
         @provider_info_class = provider_info_class || Aidp::Harness::ProviderInfo
         @capability_registry_class = capability_registry_class || Aidp::Harness::CapabilityRegistry
         @config_manager_class = config_manager_class || Aidp::Harness::ConfigManager
         @project_dir = project_dir || Dir.pwd
+        @mcp_tool_risk_classifier_class = mcp_tool_risk_classifier_class || Aidp::Security::McpToolRiskClassifier
       end
 
       # Main entry point for providers info/refresh subcommands
@@ -198,8 +200,18 @@ module Aidp
           end
         end
 
+        refresh_mcp_risk_profile(config_manager, providers_to_refresh)
+
         display_message("\n" + "=" * 60, type: :muted)
         display_message("Refresh complete", type: :highlight)
+      end
+
+      def refresh_mcp_risk_profile(config_manager, providers_to_refresh)
+        classifier = @mcp_tool_risk_classifier_class.new(config_manager, project_dir: @project_dir)
+        classifier.generate!(providers: providers_to_refresh)
+        display_message("✓ MCP risk profile refreshed", type: :success)
+      rescue => e
+        display_message("⚠ MCP risk profile refresh failed: #{e.message}", type: :warning)
       end
 
       def display_help

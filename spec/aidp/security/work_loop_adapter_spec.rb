@@ -8,6 +8,7 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
   let(:mock_enforcer) { instance_double(Aidp::Security::RuleOfTwoEnforcer) }
   let(:mock_proxy) { instance_double(Aidp::Security::SecretsProxy) }
   let(:mock_state) { instance_double(Aidp::Security::TrifectaState) }
+  let(:mock_mcp_risk_profile) { instance_double(Aidp::Security::McpRiskProfile, tool: nil) }
   let(:config) { {rule_of_two: {enabled: true}} }
 
   subject(:adapter) do
@@ -21,6 +22,10 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
 
   after do
     FileUtils.rm_rf(project_dir) if project_dir && Dir.exist?(project_dir)
+  end
+
+  before do
+    allow(Aidp::Security::McpRiskProfile).to receive(:load).and_return(mock_mcp_risk_profile)
   end
 
   describe "#initialize" do
@@ -269,6 +274,33 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
         result = adapter.check_agent_call_allowed!(operation: :git_push)
         expect(result).to be_nil
       end
+    end
+  end
+
+  describe "#apply_mcp_tool_risk!" do
+    before do
+      allow(mock_enforcer).to receive(:begin_work_unit).and_return(mock_state)
+      allow(mock_state).to receive(:to_h).and_return({})
+      adapter.begin_work_unit(work_unit_id: "unit_1")
+    end
+
+    it "enables all flags from the stored tool profile" do
+      allow(mock_mcp_risk_profile).to receive(:tool).with("filesystem").and_return({
+        flags: %w[private_data egress],
+        risk_level: "high",
+        rationale: "Can read files and communicate externally."
+      })
+
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:filesystem")
+
+      adapter.apply_mcp_tool_risk!("filesystem")
+    end
+
+    it "does nothing when the tool is not in the profile" do
+      expect(mock_state).not_to receive(:enable)
+
+      adapter.apply_mcp_tool_risk!("unknown")
     end
   end
 

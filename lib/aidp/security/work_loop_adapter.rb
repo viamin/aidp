@@ -17,7 +17,7 @@ module Aidp
     #   adapter.check_agent_call_allowed!(operation: :git_push)
     #   adapter.end_work_unit
     class WorkLoopAdapter
-      attr_reader :project_dir, :config, :current_work_unit_id, :current_state
+      attr_reader :project_dir, :config, :current_work_unit_id, :current_state, :mcp_risk_profile
 
       # Sources of untrusted input that trigger the untrusted_input flag
       UNTRUSTED_SOURCES = %w[
@@ -47,6 +47,7 @@ module Aidp
         @config = config || load_security_config
         @enforcer = enforcer || Aidp::Security.enforcer
         @secrets_proxy = secrets_proxy || Aidp::Security.secrets_proxy
+        @mcp_risk_profile = load_mcp_risk_profile
         @current_work_unit_id = nil
         @current_state = nil
       end
@@ -126,6 +127,21 @@ module Aidp
               current_state: @current_state.to_h)
             raise
           end
+        end
+
+        @current_state
+      end
+
+      # Apply deterministic MCP tool risk flags generated during configuration.
+      # This uses the stored profile and does not perform any AI calls at runtime.
+      def apply_mcp_tool_risk!(tool_name)
+        return @current_state unless enabled? && @current_state
+
+        tool_profile = @mcp_risk_profile.tool(tool_name)
+        return @current_state unless tool_profile
+
+        tool_profile[:flags].each do |flag|
+          @current_state.enable(flag.to_sym, source: "mcp_tool:#{tool_name}")
         end
 
         @current_state
@@ -217,6 +233,12 @@ module Aidp
         Aidp::Config.security_config(@project_dir)
       rescue
         {} # Fallback to empty config
+      end
+
+      def load_mcp_risk_profile
+        Aidp::Security::McpRiskProfile.load(@project_dir)
+      rescue
+        Aidp::Security::McpRiskProfile.new(tools: {})
       end
 
       # Detect untrusted input sources in the context
