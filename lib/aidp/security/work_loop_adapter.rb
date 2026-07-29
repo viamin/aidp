@@ -257,15 +257,29 @@ module Aidp
         Aidp::Security::McpRiskProfile.new(tools: {})
       end
 
-      def provider_mcp_server_names(provider_name, **)
+      def provider_mcp_server_names(provider_name, force_refresh: false)
         provider_info = @provider_info_class.new(provider_name, project_dir)
-        info = provider_info.load_info
+        info = provider_info.info(force_refresh: force_refresh)
+        raise "Provider metadata unavailable for #{provider_name}" unless info
+
         return [] unless info&.dig(:mcp_support)
 
-        Array(info[:mcp_servers]).filter_map do |server|
-          name = server[:name].to_s.strip
+        enabled_mcp_servers(info).filter_map do |server|
+          name = server_name(server)
           name unless name.empty?
         end.uniq
+      end
+
+      def enabled_mcp_servers(info)
+        Array(info[:mcp_servers]).select { |server| server_enabled?(server) }
+      end
+
+      def server_enabled?(server)
+        server[:enabled] != false
+      end
+
+      def server_name(server)
+        server[:name].to_s.strip
       end
 
       def apply_unknown_mcp_risk!(provider_name)

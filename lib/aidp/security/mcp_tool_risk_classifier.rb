@@ -82,11 +82,11 @@ module Aidp
           )
           next unless info&.dig(:mcp_support)
 
-          Array(info[:mcp_servers]).each do |server|
-            next unless server[:name]
+          enabled_mcp_servers(info).each do |server|
+            next if server_name(server).empty?
 
-            entry = (tools[server[:name].to_s] ||= {
-              name: server[:name].to_s,
+            entry = (tools[server_name(server)] ||= {
+              name: server_name(server),
               descriptions: [],
               providers: []
             })
@@ -202,6 +202,18 @@ module Aidp
 
         Aidp.log_warn("security.mcp_classifier", "unexpected_tool_classifications",
           tool_names: tool_names)
+      end
+
+      def enabled_mcp_servers(info)
+        Array(info[:mcp_servers]).select { |server| server_enabled?(server) }
+      end
+
+      def server_enabled?(server)
+        server[:enabled] != false
+      end
+
+      def server_name(server)
+        server[:name].to_s.strip
       end
     end
   end

@@ -74,9 +74,10 @@ RSpec.describe Aidp::Security::McpToolRiskClassifier do
       allow(provider_info).to receive(:info).and_return({
         mcp_support: true,
         mcp_servers: [
-          {name: "filesystem", description: "Local file access"},
-          {name: "filesystem", description: "Local file access"},
-          {name: "git", description: "Git operations"}
+          {name: "filesystem", description: "Local file access", enabled: true},
+          {name: "filesystem", description: "Local file access", enabled: true},
+          {name: "git", description: "Git operations", enabled: true},
+          {name: "disabled-tool", description: "Unavailable", enabled: false}
         ]
       })
 
@@ -85,6 +86,22 @@ RSpec.describe Aidp::Security::McpToolRiskClassifier do
       expect(tools).to eq([
         {name: "filesystem", descriptions: ["Local file access"], providers: %w[anthropic cursor]},
         {name: "git", descriptions: ["Git operations"], providers: %w[anthropic cursor]}
+      ])
+    end
+
+    it "skips disabled MCP servers when collecting tools" do
+      allow(provider_info).to receive(:info).and_return({
+        mcp_support: true,
+        mcp_servers: [
+          {name: "filesystem", description: "Local file access", enabled: true},
+          {name: "disabled-tool", description: "Unavailable", enabled: false}
+        ]
+      })
+
+      tools = classifier.collect_tools
+
+      expect(tools).to eq([
+        {name: "filesystem", descriptions: ["Local file access"], providers: ["anthropic"]}
       ])
     end
 
@@ -97,11 +114,11 @@ RSpec.describe Aidp::Security::McpToolRiskClassifier do
 
       allow(anthropic_info).to receive(:info).with(force_refresh: true).and_return({
         mcp_support: true,
-        mcp_servers: [{name: "filesystem", description: "Local file access"}]
+        mcp_servers: [{name: "filesystem", description: "Local file access", enabled: true}]
       })
       allow(cursor_info).to receive(:info).with(force_refresh: false).and_return({
         mcp_support: true,
-        mcp_servers: [{name: "web", description: "Web requests"}]
+        mcp_servers: [{name: "web", description: "Web requests", enabled: true}]
       })
 
       tools = classifier.collect_tools(
