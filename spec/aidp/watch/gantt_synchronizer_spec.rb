@@ -152,5 +152,25 @@ RSpec.describe Aidp::Watch::GanttSynchronizer do
 
       expect(File.read(file)).to include("Implement sync (#102):done, task2, 2026-07-01, 3d")
     end
+
+    it "preserves an existing Mermaid marker for statuses without a mapping" do
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        gantt
+            section Build
+            Implement sync (#102) :done, task2, after task1, 3d
+        ```
+      MARKDOWN
+
+      expect(
+        real_synchronizer.sync_issue_status_to_gantt(
+          prd_path: file,
+          issue_number: 102,
+          status: "Blocked"
+        )
+      ).to be true
+
+      expect(File.read(file)).to include("Implement sync (#102) :done, task2, after task1, 3d")
+    end
   end
 end

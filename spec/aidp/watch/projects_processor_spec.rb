@@ -314,6 +314,29 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
         expect(repository_client).to receive(:create_project_field).at_least(:once)
         processor.ensure_project_fields
       end
+
+      it "only creates core project fields when gantt sync is disabled" do
+        processor.ensure_project_fields
+
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Status",
+          "SINGLE_SELECT",
+          options: [{name: "Backlog"}, {name: "Todo"}, {name: "In Progress"}, {name: "In Review"}, {name: "Done"}, {name: "Blocked"}]
+        )
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Blocking",
+          "TEXT",
+          options: nil
+        )
+        expect(repository_client).not_to have_received(:create_project_field).with(
+          project_id,
+          "Start Date",
+          anything,
+          anything
+        )
+      end
     end
 
     context "when field creation fails" do
@@ -372,6 +395,51 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
   end
 
   describe "#ensure_project_fields" do
+    context "when gantt sync is enabled" do
+      let(:config) do
+        {
+          field_mappings: {status: "Status", blocking: "Blocking"},
+          auto_create_fields: true,
+          auto_sync_gantt: true,
+          prd_path: ".aidp/docs/GANTT.md"
+        }
+      end
+
+      before do
+        allow(repository_client).to receive(:fetch_project_fields).and_return([])
+        allow(repository_client).to receive(:create_project_field).and_return({id: "new", name: "field"})
+      end
+
+      it "creates gantt-specific project fields" do
+        processor.ensure_project_fields
+
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Start Date",
+          "DATE",
+          options: nil
+        )
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Target Date",
+          "DATE",
+          options: nil
+        )
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Dependencies",
+          "TEXT",
+          options: nil
+        )
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Critical Path",
+          "SINGLE_SELECT",
+          options: [{name: "Yes"}, {name: "No"}]
+        )
+      end
+    end
+
     context "when all fields already exist" do
       before do
         allow(repository_client).to receive(:fetch_project_fields).and_return([

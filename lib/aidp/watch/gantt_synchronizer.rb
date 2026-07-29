@@ -195,16 +195,22 @@ module Aidp
         match = line.match(/\A(?<name_part>.*?)(?<separator>\s*:\s*)(?<definition>.*?)(?<newline>\r?\n?)\z/)
         return line unless match
 
+        mapped_status = mermaid_status_for(status)
+        return line unless mapped_status
+
         tokens = match[:definition].split(",").map(&:strip).reject(&:empty?)
         tokens.reject! { |token| %w[done active].include?(token) }
 
-        mapped_status = case status.to_s.downcase
-        when "done", "closed", "completed" then "done"
-        when "in progress", "in_progress", "active" then "active"
-        end
         tokens.unshift(mapped_status) if mapped_status
 
         "#{match[:name_part]}#{match[:separator]}#{tokens.join(", ")}#{match[:newline]}"
+      end
+
+      def mermaid_status_for(status)
+        case status.to_s.downcase
+        when "done", "closed", "completed" then "done"
+        when "in progress", "in_progress", "active" then "active"
+        end
       end
 
       def mermaid_task_line_index(content, tasks, issue_number)

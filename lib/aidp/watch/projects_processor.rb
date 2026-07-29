@@ -208,15 +208,6 @@ module Aidp
 
         Aidp.log_debug("projects_processor", "ensure_project_fields", project_id: @project_id)
 
-        required_fields = [
-          {name: @field_mappings[:status], type: "SINGLE_SELECT", options: STATUS_VALUES.values},
-          {name: @field_mappings[:blocking], type: "TEXT"},
-          {name: @field_mappings[:start_date], type: "DATE"},
-          {name: @field_mappings[:target_date], type: "DATE"},
-          {name: @field_mappings[:dependencies], type: "TEXT"},
-          {name: @field_mappings[:critical_path], type: "SINGLE_SELECT", options: CRITICAL_PATH_VALUES}
-        ]
-
         all_ready = true
         required_fields.each do |field_spec|
           field = find_or_create_field(field_spec[:name], field_spec[:type], field_spec[:options])
@@ -311,6 +302,24 @@ module Aidp
 
       def gantt_sync_enabled?
         @config[:auto_sync_gantt] == true && !configured_prd_path.to_s.empty?
+      end
+
+      def required_fields
+        [
+          {name: @field_mappings[:status], type: "SINGLE_SELECT", options: STATUS_VALUES.values},
+          {name: @field_mappings[:blocking], type: "TEXT"}
+        ] + gantt_required_fields
+      end
+
+      def gantt_required_fields
+        return [] unless gantt_sync_enabled?
+
+        [
+          {name: @field_mappings[:start_date], type: "DATE"},
+          {name: @field_mappings[:target_date], type: "DATE"},
+          {name: @field_mappings[:dependencies], type: "TEXT"},
+          {name: @field_mappings[:critical_path], type: "SINGLE_SELECT", options: CRITICAL_PATH_VALUES}
+        ]
       end
 
       def configured_prd_path
