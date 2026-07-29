@@ -73,6 +73,7 @@ module Aidp
       def parse_mermaid(content)
         chart = extract_mermaid_chart(content)
         lines = chart.each_line.map(&:rstrip)
+        chart_start_date = extract_mermaid_start_date(lines)
         section = nil
         tasks = []
 
@@ -88,7 +89,7 @@ module Aidp
           next unless stripped.include?(" :")
 
           name_part, definition = stripped.split(/\s+:/, 2)
-          tasks << build_mermaid_task(name_part, definition, section, index + 1)
+          tasks << build_mermaid_task(name_part, definition, section, index + 1, chart_start_date)
         end
 
         tasks
@@ -101,7 +102,7 @@ module Aidp
         content
       end
 
-      def build_mermaid_task(name_part, definition, section, line_number)
+      def build_mermaid_task(name_part, definition, section, line_number, chart_start_date)
         tokens = definition.split(",").map(&:strip).reject(&:empty?)
         dependency_ids = []
         milestone = false
@@ -142,7 +143,8 @@ module Aidp
           critical: critical,
           status: status,
           issue_number: extract_issue_number("#{name_part} #{task_id}"),
-          line_number: line_number
+          line_number: line_number,
+          chart_start_date: chart_start_date
         }
       end
 
@@ -224,7 +226,26 @@ module Aidp
           )
         end
 
-        infer_dependency_dates(normalized_tasks)
+        infer_dependency_dates(infer_chart_order_dates(normalized_tasks))
+      end
+
+      def infer_chart_order_dates(tasks)
+        root_tasks = tasks.select { |task| task[:dependency_ids].empty? }
+        return tasks if root_tasks.empty?
+
+        cursor = root_tasks.filter_map { |task| task[:start_date] }.min ||
+          tasks.filter_map { |task| task[:chart_start_date] }.min ||
+          Date.today
+        root_tasks_by_id = root_tasks.each_with_object({}) do |task, memo|
+          start_date = task[:start_date] || cursor
+          end_date = task[:end_date] || infer_end_date(start_date, task[:duration_days])
+          memo[task[:id]] = task.merge(start_date: start_date, end_date: end_date, chart_start_date: nil)
+          cursor = end_date + 1 if end_date
+        end
+
+        tasks.map do |task|
+          root_tasks_by_id.fetch(task[:id]) { task.merge(chart_start_date: nil) }
+        end
       end
 
       def resolve_dependency_id(dependency, tasks, task_ids)
@@ -301,6 +322,13 @@ module Aidp
         return if value.to_s.strip.empty?
 
         Date.parse(value.to_s)
+      end
+
+      def extract_mermaid_start_date(lines)
+        value = lines.filter_map do |line|
+          line.strip.match(/\A%%\s*start_date:\s*(\d{4}-\d{2}-\d{2})\s*\z/i)&.captures&.first
+        end.first
+        parse_date(value)
       end
 
       def parse_duration(value)

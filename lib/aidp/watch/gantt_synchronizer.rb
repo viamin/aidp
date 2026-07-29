@@ -18,9 +18,9 @@ module Aidp
         @project_fields_cache = nil
       end
 
-      def sync_from_prd(prd_path:, format: nil)
+      def sync_from_prd(prd_path:, format: nil, issue_numbers_by_title: {})
         parsed = @parser_class.new(file_path: prd_path, format: format).parse
-        tasks = parsed[:tasks]
+        tasks = resolve_issue_numbers(parsed[:tasks], issue_numbers_by_title)
         critical_path = calculate_critical_path(tasks)
         tasks_by_id = tasks.each_with_object({}) { |task, memo| memo[task[:id]] = task }
 
@@ -66,6 +66,15 @@ module Aidp
       end
 
       private
+
+      def resolve_issue_numbers(tasks, issue_numbers_by_title)
+        tasks.map do |task|
+          next task if task[:issue_number]
+
+          resolved_issue_number = issue_numbers_by_title[normalize_title(task[:name])]
+          resolved_issue_number ? task.merge(issue_number: resolved_issue_number) : task
+        end
+      end
 
       def calculate_critical_path(tasks)
         explicit = tasks.select { |task| task[:critical] }.map { |task| task[:id] }
@@ -207,6 +216,10 @@ module Aidp
         lines = content.lines
         mermaid_start = lines.index { |line| line.match?(/\A```mermaid\b/) }
         mermaid_start ? mermaid_start + 1 : 0
+      end
+
+      def normalize_title(title)
+        title.to_s.gsub(/\s*\(#\d+\)\s*/, " ").strip.downcase
       end
 
       def project_fields

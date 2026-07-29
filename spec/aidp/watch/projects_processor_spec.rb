@@ -429,11 +429,12 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
     end
 
     it "delegates to the gantt synchronizer using configured values" do
-      processor.sync_from_gantt
+      processor.sync_from_gantt(issue_numbers_by_title: {"api slice" => 43})
 
       expect(gantt_synchronizer).to have_received(:sync_from_prd).with(
         prd_path: ".aidp/docs/GANTT.md",
-        format: "mermaid"
+        format: "mermaid",
+        issue_numbers_by_title: {"api slice" => 43}
       )
     end
   end

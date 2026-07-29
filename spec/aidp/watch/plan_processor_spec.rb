@@ -144,7 +144,7 @@ RSpec.describe Aidp::Watch::PlanProcessor do
       plan_generator: project_generator
     )
     projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, ensure_project_fields: true, sync_issue_to_project: true)
-    creator = instance_double(Aidp::Watch::SubIssueCreator, create_sub_issues: [{number: 43, dependencies: []}])
+    creator = instance_double(Aidp::Watch::SubIssueCreator, create_sub_issues: [{number: 43, title: "API slice", dependencies: []}])
 
     allow(project_generator).to receive(:generate).with(issue, hierarchical: true).and_return(project_plan)
     allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
@@ -186,7 +186,10 @@ RSpec.describe Aidp::Watch::PlanProcessor do
       sync_from_gantt: {synced: 1, skipped: 0, critical_path: ["task-1"]},
       sync_issue_to_project: true
     )
-    creator = instance_double(Aidp::Watch::SubIssueCreator, create_sub_issues: [{number: 43, dependencies: []}])
+    creator = instance_double(
+      Aidp::Watch::SubIssueCreator,
+      create_sub_issues: [{number: 43, title: "API slice", dependencies: []}]
+    )
 
     allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
     allow(repository_client).to receive(:post_comment)
@@ -197,7 +200,9 @@ RSpec.describe Aidp::Watch::PlanProcessor do
 
     project_processor.process(issue, trigger_label: "aidp-project")
 
-    expect(projects_processor).to have_received(:sync_from_gantt)
+    expect(projects_processor).to have_received(:sync_from_gantt).with(
+      issue_numbers_by_title: {"api slice" => 43}
+    )
   end
 
   it "does not sync PRD gantt data during project setup when auto-sync is disabled" do

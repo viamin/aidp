@@ -56,6 +56,50 @@ RSpec.describe Aidp::Watch::PrdParser do
       expect(tasks["task3"][:end_date]).to eq(Date.new(2026, 7, 6))
     end
 
+    it "assigns sequential dates to Mermaid root tasks that only specify durations" do
+      file = File.join(tmp_dir, "duration_only_gantt.md")
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        gantt
+            section Planning
+            Define scope :task1, 2d
+            Build sync :task2, after task1, 3d
+            Ship follow-up :task3, 1d
+        ```
+      MARKDOWN
+
+      allow(Date).to receive(:today).and_return(Date.new(2026, 7, 29))
+
+      result = described_class.new(file_path: file).parse
+      tasks = result[:tasks].each_with_object({}) do |task, memo|
+        memo[task[:id]] = task
+      end
+
+      expect(tasks["task1"][:start_date]).to eq(Date.new(2026, 7, 29))
+      expect(tasks["task1"][:end_date]).to eq(Date.new(2026, 7, 30))
+      expect(tasks["task2"][:start_date]).to eq(Date.new(2026, 7, 31))
+      expect(tasks["task2"][:end_date]).to eq(Date.new(2026, 8, 2))
+      expect(tasks["task3"][:start_date]).to eq(Date.new(2026, 7, 31))
+      expect(tasks["task3"][:end_date]).to eq(Date.new(2026, 7, 31))
+    end
+
+    it "uses an explicit Mermaid start date comment when present" do
+      file = File.join(tmp_dir, "comment_anchored_gantt.md")
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        gantt
+            %% start_date: 2026-08-10
+            section Planning
+            Define scope :task1, 2d
+        ```
+      MARKDOWN
+
+      result = described_class.new(file_path: file).parse
+
+      expect(result[:tasks].first[:start_date]).to eq(Date.new(2026, 8, 10))
+      expect(result[:tasks].first[:end_date]).to eq(Date.new(2026, 8, 11))
+    end
+
     it "parses Microsoft Project XML tasks" do
       file = File.join(tmp_dir, "project.xml")
       File.write(file, <<~XML)

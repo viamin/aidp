@@ -263,7 +263,7 @@ module Aidp
           return record_project_setup_failure(issue[:number], "unable to create project sub-issues")
         end
 
-        if gantt_sync_enabled? && !sync_project_gantt_data(projects_processor, issue[:number])
+        if gantt_sync_enabled? && !sync_project_gantt_data(projects_processor, issue[:number], created_issues)
           return record_project_setup_failure(issue[:number], "unable to sync GitHub Project data from the PRD Gantt chart")
         end
 
@@ -324,8 +324,8 @@ module Aidp
         true
       end
 
-      def sync_project_gantt_data(projects_processor, issue_number)
-        projects_processor.sync_from_gantt
+      def sync_project_gantt_data(projects_processor, issue_number, created_issues)
+        projects_processor.sync_from_gantt(issue_numbers_by_title: issue_numbers_by_title(created_issues))
         true
       rescue => e
         Aidp.log_error("plan_processor", "project_gantt_sync_failed",

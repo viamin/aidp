@@ -63,6 +63,33 @@ RSpec.describe Aidp::Watch::GanttSynchronizer do
       expect(repository_client).to have_received(:update_project_item_field).with("PVTI_102", "deps", {project_id: project_id, text: "#101"})
       expect(repository_client).to have_received(:update_project_item_field).with("PVTI_102", "crit", {project_id: project_id, option_id: "yes"})
     end
+
+    it "falls back to title-based issue mapping when Mermaid tasks omit issue numbers" do
+      parsed_without_issue_refs = {
+        format: :mermaid,
+        tasks: [
+          {id: "task1", name: "API slice", issue_number: nil, start_date: Date.new(2026, 7, 1), end_date: Date.new(2026, 7, 2), duration_days: 2, dependency_ids: [], critical: false},
+          {id: "task2", name: "Worker slice", issue_number: nil, start_date: Date.new(2026, 7, 3), end_date: Date.new(2026, 7, 5), duration_days: 3, dependency_ids: ["task1"], critical: true}
+        ]
+      }
+      allow(parser).to receive(:parse).and_return(parsed_without_issue_refs)
+      allow(state_store).to receive(:project_item_id).with(201).and_return("PVTI_201")
+      allow(state_store).to receive(:project_item_id).with(202).and_return("PVTI_202")
+
+      result = synchronizer.sync_from_prd(
+        prd_path: "/tmp/GANTT.md",
+        issue_numbers_by_title: {
+          "api slice" => 201,
+          "worker slice" => 202
+        }
+      )
+
+      expect(result[:synced]).to eq(2)
+      expect(result[:skipped]).to eq(0)
+      expect(repository_client).to have_received(:update_project_item_field).with("PVTI_202", "deps", {project_id: project_id, text: "#201"})
+      expect(state_store).to have_received(:record_project_sync).with(201, hash_including(gantt_task_id: "task1"))
+      expect(state_store).to have_received(:record_project_sync).with(202, hash_including(gantt_task_id: "task2"))
+    end
   end
 
   describe "#sync_issue_status_to_gantt" do

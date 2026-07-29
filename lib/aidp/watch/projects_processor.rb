@@ -191,12 +191,13 @@ module Aidp
         {synced: synced, failed: failed}
       end
 
-      def sync_from_gantt(prd_path = configured_prd_path)
+      def sync_from_gantt(prd_path = configured_prd_path, issue_numbers_by_title: {})
         return {synced: 0, skipped: 0, critical_path: []} unless prd_path
 
         @gantt_synchronizer.sync_from_prd(
           prd_path: prd_path,
-          format: configured_gantt_format
+          format: configured_gantt_format,
+          issue_numbers_by_title: issue_numbers_by_title
         )
       end
 
