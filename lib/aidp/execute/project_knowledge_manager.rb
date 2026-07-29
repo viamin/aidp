@@ -116,17 +116,21 @@ module Aidp
       def update_existing_note(content, markers:, learning:, commands: [])
         updated = ensure_section_entries(content, "Commands", commands)
         updated = ensure_section_entries(updated, "Paths", markers)
-        ensure_section_entries(updated, "Recent Learnings", [learning])
+        ensure_section_entries(updated, "Recent Learnings", [learning], normalizer: method(:normalize_learning_entry))
       end
 
-      def ensure_section_entries(content, section_name, entries)
+      def ensure_section_entries(content, section_name, entries, normalizer: nil)
         return content if entries.empty?
 
         existing_section = content.match(/(## #{Regexp.escape(section_name)}\n)(.*?)(?=\n## |\z)/m)
         return append_new_section(content, section_name, entries) unless existing_section
 
         body = existing_section[2].to_s
-        missing = entries.reject { |entry| body.include?(entry) }
+        existing_entries = body.lines.map(&:strip).reject(&:empty?)
+        normalized_existing = normalize_section_entries(existing_entries, normalizer)
+        missing = entries.reject do |entry|
+          normalized_existing.include?(normalize_section_entry(entry, normalizer))
+        end
         return content if missing.empty?
 
         replacement = "#{existing_section[1]}#{body.rstrip}\n#{missing.join("\n")}\n"
@@ -208,6 +212,20 @@ module Aidp
         return single_line if single_line.length <= 200
 
         "#{single_line[0, 197].rstrip}..."
+      end
+
+      def normalize_section_entries(entries, normalizer)
+        entries.map { |entry| normalize_section_entry(entry, normalizer) }
+      end
+
+      def normalize_section_entry(entry, normalizer)
+        return entry unless normalizer
+
+        normalizer.call(entry)
+      end
+
+      def normalize_learning_entry(entry)
+        entry.to_s.sub(/\A-\s*/, "").sub(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z:\s*/, "")
       end
 
       def tool_identifier(command)

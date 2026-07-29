@@ -254,6 +254,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           )
         )
       end
+
+      it "extracts extensionless file paths used in task text" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Update Dockerfile, Gemfile, and bin/setup while ignoring plain words like deployment"
+          }
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("Dockerfile", "Gemfile", "bin/setup")
+          )
+        )
+      end
     end
 
     describe "STATES constant" do

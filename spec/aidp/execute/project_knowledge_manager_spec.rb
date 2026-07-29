@@ -92,6 +92,32 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
     expect(feature_note.scan("<authentication_flow:lib/user.rb>").size).to eq(1)
   end
 
+  it "deduplicates recent learnings by normalized text instead of timestamp" do
+    allow(Time).to receive(:now)
+      .and_return(
+        Time.utc(2026, 7, 29, 10, 0, 0),
+        Time.utc(2026, 7, 29, 10, 0, 0),
+        Time.utc(2026, 7, 29, 10, 5, 0),
+        Time.utc(2026, 7, 29, 10, 5, 0)
+      )
+
+    2.times do
+      manager.sync!(
+        step_name: "authentication_flow",
+        feature_identifier: "authentication_flow",
+        task_description: "Update authentication flow",
+        affected_files: ["lib/user.rb"],
+        tool_commands: ["bundle exec rspec"]
+      )
+    end
+
+    feature_note = File.read(File.join(temp_dir, "docs", "features", "authentication_flow.md"))
+    tool_note = File.read(File.join(temp_dir, "docs", "tools", "rspec.md"))
+
+    expect(feature_note.scan("Update authentication flow").size).to eq(1)
+    expect(tool_note.scan("Used `bundle exec rspec` during `authentication_flow`.").size).to eq(1)
+  end
+
   it "groups command variants under the executable tool note" do
     manager.sync!(
       step_name: "test_authentication",

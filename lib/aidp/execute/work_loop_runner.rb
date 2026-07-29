@@ -1628,15 +1628,13 @@ module Aidp
       end
 
       def valid_path_candidate?(path)
-        return false if path.empty? || !path.include?(".")
+        return false if path.empty?
 
         segments = path.split("/")
         return false if segments.empty? || segments.any?(&:empty?)
 
         filename = segments.last
-        name, _separator, extension = filename.rpartition(".")
-        return false if name.to_s.empty? || extension.to_s.empty?
-        return false unless extension.each_char.all? { |char| alphanumeric_character?(char) }
+        return false unless valid_filename_candidate?(filename, path.include?("/"))
 
         segments.all? { |segment| valid_path_segment?(segment) }
       end
@@ -1647,6 +1645,37 @@ module Aidp
         segment.each_char.all? do |char|
           alphanumeric_character?(char) || ["_", ".", "-"].include?(char)
         end
+      end
+
+      def valid_filename_candidate?(filename, nested_path)
+        return valid_extension_filename?(filename) if filename.include?(".")
+
+        return true if nested_path
+
+        known_extensionless_filename?(filename)
+      end
+
+      def valid_extension_filename?(filename)
+        name, _separator, extension = filename.rpartition(".")
+        return false if name.to_s.empty? || extension.to_s.empty?
+
+        extension.each_char.all? { |char| alphanumeric_character?(char) }
+      end
+
+      def known_extensionless_filename?(filename)
+        %w[
+          Dockerfile
+          Gemfile
+          Procfile
+          Rakefile
+          Makefile
+          Brewfile
+          Podfile
+          Fastfile
+          Appfile
+          Guardfile
+          Vagrantfile
+        ].include?(filename)
       end
 
       def alphanumeric_character?(char)
