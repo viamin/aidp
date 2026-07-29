@@ -4,6 +4,50 @@ require "spec_helper"
 require_relative "../../../../lib/aidp/setup/devcontainer/jsonc_document"
 
 RSpec.describe Aidp::Setup::Devcontainer::JsoncDocument do
+  describe ".parse" do
+    it "parses objects whose body contains only comments" do
+      document = described_class.parse(<<~JSONC)
+        {
+          "customizations": {
+            // optional settings
+          }
+        }
+      JSONC
+
+      expect(document.data).to eq({"customizations" => {}})
+    end
+
+    it "parses objects with trailing commas before closing braces" do
+      document = described_class.parse(<<~JSONC)
+        {
+          "name": "x",
+          "customizations": {
+            "vscode": {} // keep me
+          },
+        }
+      JSONC
+
+      expect(document.data).to eq(
+        {
+          "name" => "x",
+          "customizations" => {"vscode" => {}}
+        }
+      )
+    end
+
+    it "parses arrays with trailing commas before closing brackets" do
+      document = described_class.parse(<<~JSONC)
+        {
+          "forwardPorts": [
+            3000,
+          ],
+        }
+      JSONC
+
+      expect(document.data).to eq({"forwardPorts" => [3000]})
+    end
+  end
+
   describe ".dump" do
     it "keeps trailing property comments after the property they annotate" do
       existing = described_class.parse(<<~JSONC)

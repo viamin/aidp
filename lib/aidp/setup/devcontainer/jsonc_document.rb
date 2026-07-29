@@ -76,6 +76,8 @@ module Aidp
 
           loop do
             leading_comments = consume_comments
+            break if consume_if("}")
+
             key = parse_string
             skip_trivia
             expect(":")
@@ -92,6 +94,8 @@ module Aidp
             skip_trivia
             break if consume_if("}")
             expect(",")
+            skip_whitespace
+            break if consume_if("}")
           end
 
           result
@@ -107,6 +111,8 @@ module Aidp
           index = 0
           loop do
             leading_comments = consume_comments
+            break if consume_if("]")
+
             value_path = path + [index]
             value = parse_value(value_path)
             inline_comments = consume_inline_comments
@@ -120,6 +126,8 @@ module Aidp
             skip_trivia
             break if consume_if("]")
             expect(",")
+            skip_whitespace
+            break if consume_if("]")
           end
 
           result
