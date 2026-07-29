@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.0](https://github.com/viamin/aidp/compare/aidp/v0.46.0...aidp/v0.47.0) (2026-07-29)
+
+
+### Features
+
+* Add a splash screen when launching ([#559](https://github.com/viamin/aidp/issues/559)) ([ab4807d](https://github.com/viamin/aidp/commit/ab4807d08cb0e0e608bd981b52e4a1ef91d6dcc7))
+
 ## [0.46.0](https://github.com/viamin/aidp/compare/aidp/v0.45.0...aidp/v0.46.0) (2026-07-29)
 
 
