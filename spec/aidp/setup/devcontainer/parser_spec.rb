@@ -82,6 +82,22 @@ RSpec.describe Aidp::Setup::Devcontainer::Parser do
       expect(result["image"]).to eq("mcr.microsoft.com/devcontainers/ruby:3.2")
     end
 
+    it "parses devcontainer.json with comments" do
+      devcontainer_path = File.join(project_dir, ".devcontainer")
+      FileUtils.mkdir_p(devcontainer_path)
+      File.write(File.join(devcontainer_path, "devcontainer.json"), <<~JSONC)
+        {
+          // keep this comment
+          "name": "Test Container",
+          "image": "mcr.microsoft.com/devcontainers/ruby:3.2"
+        }
+      JSONC
+
+      result = parser.parse
+      expect(result["name"]).to eq("Test Container")
+      expect(parser.comments.values.flatten).to include("// keep this comment")
+    end
+
     it "raises error when devcontainer doesn't exist" do
       expect {
         parser.parse

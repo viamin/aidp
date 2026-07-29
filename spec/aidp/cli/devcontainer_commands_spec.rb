@@ -23,6 +23,19 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
     File.write(devcontainer_path, JSON.pretty_generate(config))
   end
 
+  def create_commented_devcontainer
+    FileUtils.mkdir_p(File.dirname(devcontainer_path))
+    File.write(devcontainer_path, <<~JSONC)
+      {
+        // preserve this note
+        "name": "Old Name",
+        "features": {
+          "ghcr.io/devcontainers/features/ruby:1": {}
+        }
+      }
+    JSONC
+  end
+
   def create_aidp_yml(config)
     FileUtils.mkdir_p(File.dirname(aidp_yml_path))
     File.write(aidp_yml_path, YAML.dump(config))
@@ -203,12 +216,7 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
 
     context "when updating existing devcontainer" do
       before do
-        create_devcontainer({
-          "name" => "Old Name",
-          "features" => {
-            "ghcr.io/devcontainers/features/ruby:1" => {}
-          }
-        })
+        create_commented_devcontainer
 
         create_aidp_yml({
           "devcontainer" => {
@@ -263,6 +271,7 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
         )
         # Should add custom port
         expect(config["forwardPorts"]).to include(8080)
+        expect(File.read(devcontainer_path)).to include("// preserve this note")
       end
     end
 

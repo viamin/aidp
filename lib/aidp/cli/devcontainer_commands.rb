@@ -58,6 +58,7 @@ module Aidp
 
         parser = Aidp::Setup::Devcontainer::Parser.new(@project_dir)
         existing_config = parser.devcontainer_exists? ? parser.parse : nil
+        existing_comments = existing_config ? parser.comments : {}
         devcontainer_path = parser.detect || default_devcontainer_path
 
         # Load configuration
@@ -112,7 +113,7 @@ module Aidp
         end
 
         # Write devcontainer.json
-        write_devcontainer(devcontainer_path, final_config)
+        write_devcontainer(devcontainer_path, final_config, comments: existing_comments)
 
         display_message("✅ Devcontainer configuration applied", type: :success)
         display_message("   #{devcontainer_path}", type: :muted)
@@ -191,7 +192,7 @@ module Aidp
         target_path = parser.detect || default_devcontainer_path
 
         # Show what will be restored
-        JSON.parse(File.read(backup_path))
+        Aidp::Setup::Devcontainer::JsoncDocument.parse(File.read(backup_path))
         display_message("📦 Restoring Backup", type: :highlight)
         display_message("   From: #{File.basename(backup_path)}", type: :muted)
         display_message("   To: #{target_path}", type: :muted)
@@ -473,9 +474,14 @@ module Aidp
         end
       end
 
-      def write_devcontainer(path, config)
+      def write_devcontainer(path, config, comments: {})
         FileUtils.mkdir_p(File.dirname(path))
-        File.write(path, JSON.pretty_generate(config))
+        content = if comments.any?
+          Aidp::Setup::Devcontainer::JsoncDocument.dump(config, comments: comments)
+        else
+          JSON.pretty_generate(config)
+        end
+        File.write(path, content)
       end
 
       def default_devcontainer_path

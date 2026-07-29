@@ -2888,6 +2888,7 @@ module Aidp
 
         parser = Devcontainer::Parser.new(project_dir)
         existing = parser.devcontainer_exists? ? parser.parse : nil
+        existing_comments = existing ? parser.comments : {}
 
         generator = Devcontainer::Generator.new(project_dir, @config)
         new_config = generator.generate(wizard_config, existing)
@@ -2907,7 +2908,12 @@ module Aidp
         # Write devcontainer.json
         devcontainer_path = File.join(project_dir, ".devcontainer", "devcontainer.json")
         FileUtils.mkdir_p(File.dirname(devcontainer_path))
-        File.write(devcontainer_path, JSON.pretty_generate(new_config))
+        content = if existing_comments.any?
+          Devcontainer::JsoncDocument.dump(new_config, comments: existing_comments)
+        else
+          JSON.pretty_generate(new_config)
+        end
+        File.write(devcontainer_path, content)
 
         prompt.ok("✅ Generated #{devcontainer_path}")
         Aidp.log_debug(DEVCONTAINER_COMPONENT, "generate.complete",

@@ -2,6 +2,7 @@
 
 require "json"
 require "fileutils"
+require_relative "jsonc_document"
 
 module Aidp
   module Setup
@@ -18,7 +19,7 @@ module Aidp
           "devcontainer.json"
         ].freeze
 
-        attr_reader :project_dir, :devcontainer_path, :config
+        attr_reader :project_dir, :devcontainer_path, :config, :comments
 
         def initialize(project_dir = Dir.pwd)
           @project_dir = project_dir
@@ -61,12 +62,14 @@ module Aidp
 
           begin
             content = File.read(@devcontainer_path)
-            @config = JSON.parse(content)
+            document = JsoncDocument.parse(content)
+            @config = document.data
+            @comments = document.comments
             Aidp.log_debug("devcontainer_parser", "parsed devcontainer",
               features_count: extract_features.size,
               ports_count: extract_ports.size)
             @config
-          rescue JSON::ParserError => e
+          rescue JsoncDocument::ParseError, JSON::ParserError => e
             Aidp.log_error("devcontainer_parser", "invalid JSON", error: e.message, path: @devcontainer_path)
             raise InvalidDevcontainerError, "Invalid JSON in #{@devcontainer_path}: #{e.message}"
           rescue => e
