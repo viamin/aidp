@@ -273,10 +273,14 @@ RSpec.describe Aidp::PromptOptimization::Optimizer do
       )
 
       expect(optimizer.stats.runs_count).to eq(1)
+      expect(
+        optimizer.instance_variable_get(:@project_knowledge_indexer)
+      ).to be_a(Aidp::PromptOptimization::ProjectKnowledgeIndexer)
 
       optimizer.clear_cache
 
       expect(optimizer.stats.runs_count).to eq(0)
+      expect(optimizer.instance_variable_get(:@project_knowledge_indexer)).to be_nil
     end
   end
 

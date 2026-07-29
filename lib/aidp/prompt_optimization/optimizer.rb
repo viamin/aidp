@@ -102,6 +102,7 @@ module Aidp
         @style_guide_indexer = nil
         @template_indexer = nil
         @fragmenter = nil
+        @project_knowledge_indexer = nil
         @stats.reset!
       end
 
