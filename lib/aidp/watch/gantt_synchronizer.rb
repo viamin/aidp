@@ -57,7 +57,7 @@ module Aidp
 
         content = File.read(prd_path)
         lines = content.lines
-        line_index = lines.index { |line| line.include?("##{issue_number}") || line.include?("(##{issue_number})") }
+        line_index = mermaid_task_line_index(content, parsed[:tasks], issue_number)
         return false unless line_index
 
         lines[line_index] = rewrite_mermaid_status(lines[line_index], status)
@@ -194,6 +194,19 @@ module Aidp
         tokens.unshift(mapped_status) if mapped_status
 
         "#{name_part} :#{tokens.join(", ")}\n"
+      end
+
+      def mermaid_task_line_index(content, tasks, issue_number)
+        line_number = tasks.find { |task| task[:issue_number] == issue_number }&.dig(:line_number)
+        return unless line_number
+
+        line_number + mermaid_chart_line_offset(content) - 1
+      end
+
+      def mermaid_chart_line_offset(content)
+        lines = content.lines
+        mermaid_start = lines.index { |line| line.match?(/\A```mermaid\b/) }
+        mermaid_start ? mermaid_start + 1 : 0
       end
 
       def project_fields

@@ -79,6 +79,8 @@ RSpec.describe Aidp::Watch::GanttSynchronizer do
 
     before do
       File.write(file, <<~MARKDOWN)
+        Overview mentions issue #102 before the chart.
+
         ```mermaid
         gantt
             section Build
@@ -100,6 +102,7 @@ RSpec.describe Aidp::Watch::GanttSynchronizer do
         )
       ).to be true
 
+      expect(File.read(file)).to include("Overview mentions issue #102 before the chart.")
       expect(File.read(file)).to include("Implement sync (#102) :done, task2, after task1, 3d")
     end
   end
