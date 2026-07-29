@@ -317,8 +317,6 @@ module Aidp
       def job_file_path(job_id, file_name)
         jobs_dir = File.realpath(@jobs_dir)
         job_dir = File.join(@jobs_dir, job_id.to_s)
-        job_path = File.expand_path(File.join(job_dir, file_name))
-        return unless job_path.start_with?("#{jobs_dir}/")
 
         resolved_job_dir = resolved_job_dir_path(job_dir)
         return unless resolved_job_dir

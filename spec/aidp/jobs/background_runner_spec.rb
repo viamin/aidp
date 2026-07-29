@@ -167,6 +167,28 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
     end
 
+    it "reads logs from a symlinked project path when the job stays inside the jobs directory" do
+      real_project_dir = Dir.mktmpdir("aidp-bg-real")
+      symlink_project_dir = "#{real_project_dir}-link"
+      File.symlink(real_project_dir, symlink_project_dir)
+
+      symlinked_runner = described_class.new(symlink_project_dir, suppress_display: true)
+      job_id = "job1"
+      job_dir = File.join(symlink_project_dir, ".aidp", "jobs", job_id)
+      FileUtils.mkdir_p(job_dir)
+      File.write(File.join(job_dir, "metadata.yml"), {job_id: job_id, pid: Process.pid, mode: :execute}.to_yaml)
+      File.write(File.join(job_dir, "output.log"), "hello from symlink\n")
+
+      expect(symlinked_runner.job_logs(job_id)).to eq("hello from symlink\n")
+      expect(symlinked_runner.job_status(job_id)).to include(
+        job_id: job_id,
+        log_file: File.join(File.realpath(job_dir), "output.log")
+      )
+    ensure
+      FileUtils.rm_f(symlink_project_dir) if symlink_project_dir && File.exist?(symlink_project_dir)
+      FileUtils.rm_rf(real_project_dir) if real_project_dir && File.exist?(real_project_dir)
+    end
+
     it "returns log contents" do
       allow(runner).to receive(:fork).and_return(45_678)
       allow(Process).to receive(:daemon)
