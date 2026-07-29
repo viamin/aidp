@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.0](https://github.com/viamin/aidp/compare/aidp/v0.40.0...aidp/v0.41.0) (2026-07-29)
+
+
+### Features
+
+* work_loop_runner.rb still has hardcoded prompts - needs migration to PromptTemplateManager ([#546](https://github.com/viamin/aidp/issues/546)) ([b344740](https://github.com/viamin/aidp/commit/b344740377383e9b1f36332f4a9c803975075ce9))
+
 ## [0.40.0](https://github.com/viamin/aidp/compare/aidp/v0.39.9...aidp/v0.40.0) (2026-07-29)
 
 
