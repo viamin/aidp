@@ -5,6 +5,7 @@ require "spec_helper"
 RSpec.describe Aidp::Watch::ProjectsProcessor do
   let(:repository_client) { instance_double("Aidp::Watch::RepositoryClient") }
   let(:state_store) { instance_double("Aidp::Watch::StateStore") }
+  let(:gantt_synchronizer) { instance_double("Aidp::Watch::GanttSynchronizer", sync_issue_status_to_gantt: true, sync_from_prd: {synced: 0, skipped: 0, critical_path: []}) }
   let(:project_id) { "PVT_123456" }
   let(:config) { {field_mappings: {status: "Status", blocking: "Blocking"}, auto_create_fields: true} }
 
@@ -13,7 +14,8 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
       repository_client: repository_client,
       state_store: state_store,
       project_id: project_id,
-      config: config
+      config: config,
+      gantt_synchronizer: gantt_synchronizer
     )
   end
 
@@ -117,6 +119,38 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
 
       it "returns false" do
         expect(processor.sync_issue_to_project(issue_number)).to be false
+      end
+    end
+
+    context "when gantt auto-sync is enabled" do
+      let(:config) do
+        {
+          field_mappings: {status: "Status", blocking: "Blocking"},
+          auto_create_fields: true,
+          auto_sync_gantt: true,
+          prd_path: ".aidp/docs/GANTT.md"
+        }
+      end
+
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_existing")
+        allow(state_store).to receive(:blocking_status).with(issue_number).and_return({blocked: false, blockers: []})
+        allow(state_store).to receive(:record_project_sync)
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: [{name: "Done", id: "opt_done"}]}
+        ])
+        allow(repository_client).to receive(:update_project_item_field)
+      end
+
+      it "updates the Mermaid gantt task status" do
+        processor.sync_issue_to_project(issue_number, status: "Done")
+
+        expect(gantt_synchronizer).to have_received(:sync_issue_status_to_gantt).with(
+          prd_path: ".aidp/docs/GANTT.md",
+          issue_number: issue_number,
+          status: "Done",
+          format: nil
+        )
       end
     end
   end
@@ -342,7 +376,11 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
       before do
         allow(repository_client).to receive(:fetch_project_fields).and_return([
           {name: "Status", id: "PVTSSF_status", options: []},
-          {name: "Blocking", id: "PVTSSF_blocking", options: []}
+          {name: "Blocking", id: "PVTSSF_blocking", options: []},
+          {name: "Start Date", id: "PVTSSF_start"},
+          {name: "Target Date", id: "PVTSSF_target"},
+          {name: "Dependencies", id: "PVTSSF_dependencies"},
+          {name: "Critical Path", id: "PVTSSF_critical", options: []}
         ])
       end
 
@@ -377,6 +415,26 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
 
     it "matches field names case-insensitively" do
       expect(processor.update_issue_status(issue_number, "in progress")).to be true
+    end
+  end
+
+  describe "#sync_from_gantt" do
+    let(:config) do
+      {
+        field_mappings: {status: "Status", blocking: "Blocking"},
+        auto_create_fields: true,
+        prd_path: ".aidp/docs/GANTT.md",
+        gantt_format: "mermaid"
+      }
+    end
+
+    it "delegates to the gantt synchronizer using configured values" do
+      processor.sync_from_gantt
+
+      expect(gantt_synchronizer).to have_received(:sync_from_prd).with(
+        prd_path: ".aidp/docs/GANTT.md",
+        format: "mermaid"
+      )
     end
   end
 end

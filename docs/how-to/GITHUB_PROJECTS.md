@@ -38,9 +38,16 @@ watch:
       skills: "Skills"
       personas: "Personas"
       blocking: "Blocking"
+      start_date: "Start Date"
+      target_date: "Target Date"
+      dependencies: "Dependencies"
+      critical_path: "Critical Path"
 
     auto_create_fields: true
     sync_interval: 60
+    prd_path: ".aidp/docs/GANTT.md"
+    auto_sync_gantt: false
+    gantt_format: "auto"
 
     default_status_values:
       - "Backlog"
@@ -199,6 +206,41 @@ When `projects.enabled: true`, AIDP automatically:
 - Moves cards through workflow states
 - Updates blocking relationships
 - Tracks parent-child issue hierarchies
+
+### Gantt Synchronization
+
+When `projects.prd_path` is configured, AIDP can parse project timelines from:
+
+- Mermaid Gantt charts in Markdown
+- Microsoft Project XML exports
+- CSV task exports with dependency columns
+
+Recommended configuration:
+
+```yaml
+watch:
+  projects:
+    enabled: true
+    default_project_id: "PVT_kwDOABCDEFGHIJKLMNOP"
+    prd_path: ".aidp/docs/GANTT.md"
+    auto_sync_gantt: true
+    gantt_format: "mermaid" # use "auto" to detect by extension/content
+```
+
+What gets synced to GitHub Projects:
+
+- `Start Date`: task start date
+- `Target Date`: task end date or milestone date
+- `Dependencies`: upstream issue references derived from the Gantt graph
+- `Critical Path`: `Yes` / `No`
+
+Bidirectional behavior:
+
+- PRD/Gantt task dates and dependencies update GitHub Project fields
+- Issue status updates can rewrite Mermaid task status markers in `.aidp/docs/GANTT.md`
+- Completed blockers remain visible through the existing project blocking field
+
+For Mermaid task mapping, include an issue reference in the task name or ID, for example `Build sync (#419)`.
 
 ### Example Project Setup
 

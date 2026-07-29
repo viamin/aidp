@@ -1644,6 +1644,21 @@ module Aidp
               }
             }
           GRAPHQL
+        elsif value.is_a?(Hash) && value[:date]
+          <<~GRAPHQL
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: {date: $date}
+              }) {
+                projectV2Item {
+                  id
+                }
+              }
+            }
+          GRAPHQL
         else
           # Text field
           <<~GRAPHQL
@@ -1675,8 +1690,10 @@ module Aidp
 
         if value.is_a?(Hash) && value[:option_id]
           variables[:optionId] = value[:option_id]
+        elsif value.is_a?(Hash) && value[:date]
+          variables[:date] = value[:date]
         else
-          variables[:text] = value.to_s
+          variables[:text] = value.is_a?(Hash) ? value[:text].to_s : value.to_s
         end
 
         result = execute_graphql_query(mutation, **variables)
