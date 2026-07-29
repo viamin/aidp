@@ -169,12 +169,12 @@ module Aidp
 
       # Get job logs
       def job_logs(job_id, options = {})
-        log_file = File.join(@jobs_dir, job_id, "output.log")
+        log_file = job_log_path(job_id)
+        return nil unless log_file
         return nil unless File.exist?(log_file)
 
         if options[:tail]
-          lines = options[:lines] || 50
-          `tail -n #{lines} #{log_file}`
+          tail_job_logs(log_file, options[:lines])
         else
           File.read(log_file)
         end
@@ -182,7 +182,8 @@ module Aidp
 
       # Follow job logs in real-time
       def follow_job_logs(job_id)
-        log_file = File.join(@jobs_dir, job_id, "output.log")
+        log_file = job_log_path(job_id)
+        return unless log_file
         return unless File.exist?(log_file)
 
         # Use tail -f to follow logs
@@ -297,6 +298,21 @@ module Aidp
         else
           metadata[:status] || "completed"
         end
+      end
+
+      def job_log_path(job_id)
+        log_file = File.expand_path(File.join(@jobs_dir, job_id.to_s, "output.log"))
+        jobs_dir = File.expand_path(@jobs_dir)
+        return unless log_file.start_with?("#{jobs_dir}/")
+
+        log_file
+      end
+
+      def tail_job_logs(log_file, requested_lines)
+        lines = Integer(requested_lines || 50, exception: false)
+        lines = 50 unless lines&.positive?
+
+        IO.popen(["tail", "-n", lines.to_s, log_file], &:read)
       end
     end
   end

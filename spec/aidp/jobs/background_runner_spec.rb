@@ -133,6 +133,10 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       expect(runner.job_logs("missing")).to be_nil
     end
 
+    it "returns nil when job id escapes the jobs directory" do
+      expect(runner.job_logs("../outside")).to be_nil
+    end
+
     it "returns log contents" do
       allow(runner).to receive(:fork).and_return(45_678)
       allow(Process).to receive(:daemon)
@@ -166,10 +170,27 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       FileUtils.touch(log_file) unless File.exist?(log_file)
       File.open(log_file, "a") { |f| f.puts "line1\nline2\nline3" }
 
-      # Mock tail command
-      allow(runner).to receive(:`).and_return("line3")
       result = runner.job_logs(job_id, tail: true, lines: 1)
-      expect(result).to eq("line3")
+      expect(result).to eq("line3\n")
+    end
+
+    it "falls back to 50 lines when tail count is invalid" do
+      allow(runner).to receive(:fork).and_return(56_790)
+      allow(Process).to receive(:daemon)
+      allow(Process).to receive(:detach)
+      allow(runner).to receive(:sleep)
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
+      allow($stdout).to receive(:reopen)
+      allow($stderr).to receive(:reopen)
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
+
+      job_id = runner.start(:execute, {})
+      log_file = File.join(project_dir, ".aidp", "jobs", job_id, "output.log")
+      FileUtils.touch(log_file) unless File.exist?(log_file)
+      File.open(log_file, "a") { |f| f.puts "line1\nline2" }
+
+      result = runner.job_logs(job_id, tail: true, lines: "not-a-number")
+      expect(result).to include("line1", "line2")
     end
   end
 
