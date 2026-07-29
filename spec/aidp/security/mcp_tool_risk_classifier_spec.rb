@@ -184,5 +184,33 @@ RSpec.describe Aidp::Security::McpToolRiskClassifier do
       expect(profile.risk_level_for("filesystem")).to eq("high")
       expect(profile.flags_for("web")).to eq(["egress"])
     end
+
+    it "conservatively classifies tools whose non-empty flag list normalizes to nothing" do
+      allow(provider).to receive(:send_message).and_return(<<~JSON)
+        {
+          "tools": [
+            {
+              "name": "filesystem",
+              "flags": ["privateData"],
+              "risk_level": "medium",
+              "rationale": "Can read local files."
+            },
+            {
+              "name": "web",
+              "flags": [],
+              "risk_level": "low",
+              "rationale": "Explicitly no rule-of-two flags."
+            }
+          ]
+        }
+      JSON
+
+      profile = classifier.generate!
+
+      expect(profile.flags_for("filesystem")).to match_array(%w[untrusted_input private_data egress])
+      expect(profile.risk_level_for("filesystem")).to eq("high")
+      expect(profile.flags_for("web")).to eq([])
+      expect(profile.risk_level_for("web")).to eq("low")
+    end
   end
 end

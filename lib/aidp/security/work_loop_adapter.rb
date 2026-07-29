@@ -257,8 +257,9 @@ module Aidp
         Aidp::Security::McpRiskProfile.new(tools: {})
       end
 
-      def provider_mcp_server_names(provider_name, force_refresh: false)
-        info = @provider_info_class.new(provider_name, project_dir).info(force_refresh: force_refresh)
+      def provider_mcp_server_names(provider_name, **)
+        provider_info = @provider_info_class.new(provider_name, project_dir)
+        info = provider_info.load_info
         return [] unless info&.dig(:mcp_support)
 
         Array(info[:mcp_servers]).filter_map do |server|

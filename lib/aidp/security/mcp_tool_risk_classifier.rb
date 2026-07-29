@@ -176,8 +176,11 @@ module Aidp
         flags = tool[:flags]
         return unless flags.is_a?(Array) && RISK_LEVELS.include?(tool[:risk_level].to_s)
 
+        normalized_flags = flags.map(&:to_s).select { |flag| RISK_FLAGS.include?(flag) }.uniq
+        return if flags.any? && normalized_flags.empty?
+
         {
-          flags: flags.map(&:to_s).select { |flag| RISK_FLAGS.include?(flag) }.uniq,
+          flags: normalized_flags,
           risk_level: tool[:risk_level].to_s,
           rationale: tool[:rationale].to_s.strip
         }
