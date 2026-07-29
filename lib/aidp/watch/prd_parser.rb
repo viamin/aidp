@@ -207,7 +207,7 @@ module Aidp
       def normalize_tasks(tasks)
         task_ids = tasks.each_with_object({}) { |task, memo| memo[task[:id].to_s] = task[:id].to_s }
 
-        tasks.map do |task|
+        normalized_tasks = tasks.map do |task|
           dependency_ids = Array(task[:dependency_ids]).filter_map do |dependency|
             resolve_dependency_id(dependency, tasks, task_ids)
           end
@@ -223,6 +223,8 @@ module Aidp
             end_date: task[:end_date] || infer_end_date(task[:start_date], duration_days)
           )
         end
+
+        infer_dependency_dates(normalized_tasks)
       end
 
       def resolve_dependency_id(dependency, tasks, task_ids)
@@ -254,6 +256,40 @@ module Aidp
         return start_date if duration_days.zero?
 
         start_date + duration_days - 1
+      end
+
+      def infer_dependency_dates(tasks)
+        tasks_by_id = tasks.each_with_object({}) { |task, memo| memo[task[:id]] = task }
+
+        tasks.map do |task|
+          resolved_task = resolve_dependency_dates(task, tasks_by_id, {})
+          tasks_by_id[task[:id]] = resolved_task
+        end
+      end
+
+      def resolve_dependency_dates(task, tasks_by_id, visiting)
+        return task if task[:start_date] && task[:end_date]
+        return task if task[:dependency_ids].empty?
+        return task if visiting[task[:id]]
+
+        visiting[task[:id]] = true
+        dependency_end_dates = task[:dependency_ids].filter_map do |dependency_id|
+          dependency = tasks_by_id[dependency_id]
+          next unless dependency
+
+          resolved_dependency = resolve_dependency_dates(dependency, tasks_by_id, visiting)
+          tasks_by_id[dependency_id] = resolved_dependency
+          resolved_dependency[:end_date]
+        end
+        visiting.delete(task[:id])
+
+        return task if dependency_end_dates.empty?
+
+        start_date = task[:start_date] || dependency_end_dates.max + 1
+        task.merge(
+          start_date: start_date,
+          end_date: task[:end_date] || infer_end_date(start_date, task[:duration_days])
+        )
       end
 
       def text_at(node, path)

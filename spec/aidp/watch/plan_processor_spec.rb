@@ -178,7 +178,7 @@ RSpec.describe Aidp::Watch::PlanProcessor do
       repository_client: repository_client,
       state_store: state_store,
       plan_generator: project_generator,
-      project_config: {prd_path: ".aidp/docs/GANTT.md", gantt_format: "mermaid"}
+      project_config: {prd_path: ".aidp/docs/GANTT.md", gantt_format: "mermaid", auto_sync_gantt: true}
     )
     projects_processor = instance_double(
       Aidp::Watch::ProjectsProcessor,
@@ -198,6 +198,41 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     project_processor.process(issue, trigger_label: "aidp-project")
 
     expect(projects_processor).to have_received(:sync_from_gantt)
+  end
+
+  it "does not sync PRD gantt data during project setup when auto-sync is disabled" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint", "Write tests"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [{title: "API slice", tasks: ["Ship API"], dependencies: []}]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator, generate: project_plan)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator,
+      project_config: {prd_path: ".aidp/docs/GANTT.md", gantt_format: "mermaid", auto_sync_gantt: false}
+    )
+    projects_processor = instance_double(
+      Aidp::Watch::ProjectsProcessor,
+      ensure_project_fields: true,
+      sync_from_gantt: {synced: 0, skipped: 0, critical_path: []},
+      sync_issue_to_project: true
+    )
+    creator = instance_double(Aidp::Watch::SubIssueCreator, create_sub_issues: [{number: 43, dependencies: []}])
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:replace_labels)
+    allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
+    allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+
+    expect(projects_processor).not_to have_received(:sync_from_gantt)
   end
 
   it "moves project issues to needs-input when project resolution fails" do

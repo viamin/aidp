@@ -31,6 +31,31 @@ RSpec.describe Aidp::Watch::PrdParser do
       expect(result[:tasks].last[:critical]).to be true
     end
 
+    it "infers dependent Mermaid task dates from predecessor end dates" do
+      file = File.join(tmp_dir, "dependent_gantt.md")
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        gantt
+            title Project Timeline
+            dateFormat YYYY-MM-DD
+            section Planning
+            Define scope (#101) :task1, 2026-07-01, 2d
+            Build sync (#102) :task2, after task1, 3d
+            Ship follow-up (#103) :task3, after task2, 1d
+        ```
+      MARKDOWN
+
+      result = described_class.new(file_path: file).parse
+      tasks = result[:tasks].each_with_object({}) do |task, memo|
+        memo[task[:id]] = task
+      end
+
+      expect(tasks["task2"][:start_date]).to eq(Date.new(2026, 7, 3))
+      expect(tasks["task2"][:end_date]).to eq(Date.new(2026, 7, 5))
+      expect(tasks["task3"][:start_date]).to eq(Date.new(2026, 7, 6))
+      expect(tasks["task3"][:end_date]).to eq(Date.new(2026, 7, 6))
+    end
+
     it "parses Microsoft Project XML tasks" do
       file = File.join(tmp_dir, "project.xml")
       File.write(file, <<~XML)
