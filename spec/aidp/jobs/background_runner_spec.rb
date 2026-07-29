@@ -91,6 +91,14 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       expect(status[:status]).to match(/completed|running/)
       expect(status[:log_file]).to include("output.log")
     end
+
+    it "returns nil when job id escapes the jobs directory" do
+      outside_dir = File.join(project_dir, ".aidp", "outside_meta")
+      FileUtils.mkdir_p(outside_dir)
+      File.write(File.join(outside_dir, "metadata.yml"), {job_id: "outside", pid: Process.pid}.to_yaml)
+
+      expect(runner.job_status("../outside_meta")).to be_nil
+    end
   end
 
   describe "#stop_job" do
@@ -108,6 +116,15 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
     it "returns failure when job not found" do
       expect(runner.stop_job("missing")[:success]).to be false
+    end
+
+    it "does not load metadata outside the jobs directory" do
+      outside_dir = File.join(project_dir, ".aidp", "outside_meta")
+      FileUtils.mkdir_p(outside_dir)
+      File.write(File.join(outside_dir, "metadata.yml"), {job_id: "outside", pid: Process.pid}.to_yaml)
+
+      expect(Process).not_to receive(:kill)
+      expect(runner.stop_job("../outside_meta")).to eq({success: false, message: "Job not found"})
     end
 
     it "stops a running job (simulated)" do
@@ -299,6 +316,14 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
     describe "#load_job_metadata" do
       it "returns nil for missing metadata file" do
         expect(runner.send(:load_job_metadata, "missing")).to be_nil
+      end
+
+      it "returns nil when job id escapes the jobs directory" do
+        outside_dir = File.join(project_dir, ".aidp", "outside_meta")
+        FileUtils.mkdir_p(outside_dir)
+        File.write(File.join(outside_dir, "metadata.yml"), {job_id: "outside"}.to_yaml)
+
+        expect(runner.send(:load_job_metadata, "../outside_meta")).to be_nil
       end
 
       it "returns nil for invalid YAML" do

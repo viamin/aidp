@@ -109,6 +109,9 @@ module Aidp
         metadata = load_job_metadata(job_id)
         return nil unless metadata
 
+        log_file = job_log_path(job_id)
+        return nil unless log_file
+
         # Check if process is still running
         pid = metadata[:pid]
         running = pid && process_running?(pid)
@@ -125,7 +128,7 @@ module Aidp
           started_at: metadata[:started_at],
           completed_at: metadata[:completed_at],
           checkpoint: checkpoint,
-          log_file: File.join(@jobs_dir, job_id, "output.log")
+          log_file: log_file
         }
       end
 
@@ -203,7 +206,8 @@ module Aidp
       end
 
       def save_job_metadata(job_id, pid, mode, options)
-        metadata_file = File.join(@jobs_dir, job_id, "metadata.yml")
+        metadata_file = job_metadata_path(job_id)
+        return unless metadata_file
 
         metadata = {
           job_id: job_id,
@@ -218,7 +222,8 @@ module Aidp
       end
 
       def load_job_metadata(job_id)
-        metadata_file = File.join(@jobs_dir, job_id, "metadata.yml")
+        metadata_file = job_metadata_path(job_id)
+        return nil unless metadata_file
         return nil unless File.exist?(metadata_file)
 
         # Return raw metadata with times as ISO8601 strings to avoid unsafe class loading
@@ -232,7 +237,8 @@ module Aidp
         return unless metadata
 
         metadata.merge!(updates)
-        metadata_file = File.join(@jobs_dir, job_id, "metadata.yml")
+        metadata_file = job_metadata_path(job_id)
+        return unless metadata_file
         File.write(metadata_file, metadata.to_yaml)
       end
 
@@ -301,11 +307,19 @@ module Aidp
       end
 
       def job_log_path(job_id)
-        log_file = File.expand_path(File.join(@jobs_dir, job_id.to_s, "output.log"))
-        jobs_dir = File.expand_path(@jobs_dir)
-        return unless log_file.start_with?("#{jobs_dir}/")
+        job_file_path(job_id, "output.log")
+      end
 
-        log_file
+      def job_metadata_path(job_id)
+        job_file_path(job_id, "metadata.yml")
+      end
+
+      def job_file_path(job_id, file_name)
+        job_path = File.expand_path(File.join(@jobs_dir, job_id.to_s, file_name))
+        jobs_dir = File.expand_path(@jobs_dir)
+        return unless job_path.start_with?("#{jobs_dir}/")
+
+        job_path
       end
 
       def tail_job_logs(log_file, requested_lines)
