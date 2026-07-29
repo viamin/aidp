@@ -73,6 +73,24 @@ RSpec.describe Aidp::Config do
       # Default providers should still be present
       expect(config[:providers]).to have_key(:cursor)
     end
+
+    it "deep merges watch project gantt defaults" do
+      File.write(config_file, {
+        watch: {
+          projects: {
+            enabled: true,
+            prd_path: ".aidp/docs/GANTT.md"
+          }
+        }
+      }.to_yaml)
+
+      config = described_class.load_harness_config(temp_dir)
+
+      expect(config[:watch][:projects][:enabled]).to be true
+      expect(config[:watch][:projects][:prd_path]).to eq(".aidp/docs/GANTT.md")
+      expect(config[:watch][:projects][:auto_sync_gantt]).to be false
+      expect(config[:watch][:projects][:field_mappings][:start_date]).to eq("Start Date")
+    end
   end
 
   describe ".validate_harness_config" do

@@ -220,6 +220,16 @@ RSpec.describe Aidp::Watch::RepositoryClient do
           result = client.update_project_item_field("PVTI_1", "PVTF_1", {project_id: "PVT_123", option_id: "OPT_1"})
           expect(result).to eq("PVTI_1")
         end
+
+        it "updates date field successfully" do
+          mutation_response = {
+            "data" => {"updateProjectV2ItemFieldValue" => {"projectV2Item" => {"id" => "PVTI_1"}}}
+          }
+          allow(client).to receive(:execute_graphql_query).and_return(mutation_response)
+
+          result = client.update_project_item_field("PVTI_1", "PVTF_1", {project_id: "PVT_123", date: "2026-07-29"})
+          expect(result).to eq("PVTI_1")
+        end
       end
     end
 

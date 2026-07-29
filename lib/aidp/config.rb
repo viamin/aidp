@@ -215,10 +215,17 @@ module Aidp
             priority: "Priority",
             skills: "Skills",
             personas: "Personas",
-            blocking: "Blocking"
+            blocking: "Blocking",
+            start_date: "Start Date",
+            target_date: "Target Date",
+            dependencies: "Dependencies",
+            critical_path: "Critical Path"
           },
           auto_create_fields: true,
           sync_interval: 60,
+          prd_path: nil,
+          auto_sync_gantt: false,
+          gantt_format: "auto",
           default_status_values: ["Backlog", "Todo", "In Progress", "In Review", "Done"],
           default_priority_values: ["Low", "Medium", "High", "Critical"]
         },
@@ -510,6 +517,11 @@ module Aidp
       if config[:security] || config["security"]
         security_section = config[:security] || config["security"]
         merged[:security] = deep_merge_hash(merged[:security], symbolize_keys(security_section))
+      end
+
+      if config[:watch] || config["watch"]
+        watch_section = config[:watch] || config["watch"]
+        merged[:watch] = deep_merge_hash(merged[:watch], symbolize_keys(watch_section))
       end
 
       merged

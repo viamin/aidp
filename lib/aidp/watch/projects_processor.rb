@@ -15,7 +15,11 @@ module Aidp
         priority: "Priority",
         skills: "Skills",
         personas: "Personas",
-        blocking: "Blocking"
+        blocking: "Blocking",
+        start_date: "Start Date",
+        target_date: "Target Date",
+        dependencies: "Dependencies",
+        critical_path: "Critical Path"
       }.freeze
 
       # Status values for different issue states
@@ -27,17 +31,25 @@ module Aidp
         done: "Done",
         blocked: "Blocked"
       }.freeze
+      CRITICAL_PATH_VALUES = %w[Yes No].freeze
 
       attr_reader :repository_client, :state_store, :project_id
 
-      def initialize(repository_client:, state_store:, project_id:, config: {})
+      def initialize(repository_client:, state_store:, project_id:, config: {}, gantt_synchronizer: nil)
         @repository_client = repository_client
         @state_store = state_store
         @project_id = project_id
-        @config = config
-        @field_mappings = config[:field_mappings] || DEFAULT_FIELD_MAPPINGS
-        @auto_create_fields = config[:auto_create_fields] != false
+        @config = normalize_config(config)
+        @field_mappings = DEFAULT_FIELD_MAPPINGS.merge(@config[:field_mappings] || {})
+        @auto_create_fields = @config[:auto_create_fields] != false
         @project_fields_cache = nil
+        @gantt_synchronizer = gantt_synchronizer || GanttSynchronizer.new(
+          repository_client: repository_client,
+          state_store: state_store,
+          project_id: project_id,
+          field_mappings: @field_mappings,
+          auto_create_fields: @auto_create_fields
+        )
       end
 
       # Sync a single issue to the project
@@ -66,7 +78,7 @@ module Aidp
 
         # Update status if provided
         if status
-          update_issue_status(issue_number, status)
+          return false unless update_issue_status(issue_number, status)
         end
 
         # Check and update blocking status
@@ -76,6 +88,7 @@ module Aidp
           last_sync: Time.now.utc.iso8601,
           status: status
         })
+        sync_issue_status_to_gantt(issue_number, status) if status && gantt_sync_enabled?
 
         true
       rescue => e
@@ -178,17 +191,22 @@ module Aidp
         {synced: synced, failed: failed}
       end
 
+      def sync_from_gantt(prd_path = configured_prd_path, issue_numbers_by_title: {})
+        return {synced: 0, skipped: 0, critical_path: []} unless prd_path
+
+        @gantt_synchronizer.sync_from_prd(
+          prd_path: prd_path,
+          format: configured_gantt_format,
+          issue_numbers_by_title: issue_numbers_by_title
+        )
+      end
+
       # Initialize required project fields if they don't exist
       # @return [Boolean] True if all fields are ready
       def ensure_project_fields
         return true unless @auto_create_fields
 
         Aidp.log_debug("projects_processor", "ensure_project_fields", project_id: @project_id)
-
-        required_fields = [
-          {name: @field_mappings[:status], type: "SINGLE_SELECT", options: STATUS_VALUES.values},
-          {name: @field_mappings[:blocking], type: "TEXT"}
-        ]
 
         all_ready = true
         required_fields.each do |field_spec|
@@ -207,6 +225,19 @@ module Aidp
         rescue => e
           Aidp.log_error("projects_processor", "Failed to fetch project fields", error: e.message)
           []
+        end
+      end
+
+      def normalize_config(value)
+        case value
+        when Hash
+          value.each_with_object({}) do |(key, nested_value), normalized|
+            normalized[key.to_sym] = normalize_config(nested_value)
+          end
+        when Array
+          value.map { |item| normalize_config(item) }
+        else
+          value
         end
       end
 
@@ -280,6 +311,52 @@ module Aidp
 
       def clear_blocking_field(issue_number)
         update_blocking_field(issue_number, [])
+      end
+
+      def gantt_sync_enabled?
+        @config[:auto_sync_gantt] == true && !configured_prd_path.to_s.empty?
+      end
+
+      def required_fields
+        [
+          {name: @field_mappings[:status], type: "SINGLE_SELECT", options: STATUS_VALUES.values},
+          {name: @field_mappings[:blocking], type: "TEXT"}
+        ] + gantt_required_fields
+      end
+
+      def gantt_required_fields
+        return [] unless gantt_sync_enabled?
+
+        [
+          {name: @field_mappings[:start_date], type: "DATE"},
+          {name: @field_mappings[:target_date], type: "DATE"},
+          {name: @field_mappings[:dependencies], type: "TEXT"},
+          {name: @field_mappings[:critical_path], type: "SINGLE_SELECT", options: CRITICAL_PATH_VALUES}
+        ]
+      end
+
+      def configured_prd_path
+        @config[:prd_path]
+      end
+
+      def configured_gantt_format
+        format = @config[:gantt_format]
+        return nil if format.nil? || format.to_s == "auto"
+
+        format
+      end
+
+      def sync_issue_status_to_gantt(issue_number, status)
+        @gantt_synchronizer.sync_issue_status_to_gantt(
+          prd_path: configured_prd_path,
+          issue_number: issue_number,
+          status: status,
+          format: configured_gantt_format
+        )
+      rescue => e
+        Aidp.log_warn("projects_processor", "gantt_status_sync_failed",
+          issue_number: issue_number, error: e.message)
+        false
       end
     end
   end
