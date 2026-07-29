@@ -234,6 +234,82 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     expect(project_sync["setup_error"]).to eq("unable to create project sub-issues")
   end
 
+  it "reuses tracked sub-issues when aidp-project is re-applied" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint", "Write tests"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [{title: "API slice", tasks: ["Ship API"], dependencies: []}]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+    projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, ensure_project_fields: true, sync_issue_to_project: true)
+    creator = instance_double(Aidp::Watch::SubIssueCreator)
+
+    state_store.record_sub_issues(42, [43])
+    state_store.record_issue_dependencies(43, [])
+
+    allow(project_generator).to receive(:generate).with(issue, hierarchical: true).and_return(project_plan)
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:replace_labels)
+    allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
+    allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
+    allow(creator).to receive(:create_sub_issues)
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+
+    expect(creator).not_to have_received(:create_sub_issues)
+    expect(projects_processor).to have_received(:sync_issue_to_project).with(42, status: Aidp::Watch::ProjectsProcessor::STATUS_VALUES[:blocked])
+    expect(projects_processor).to have_received(:sync_issue_to_project).with(43, status: Aidp::Watch::ProjectsProcessor::STATUS_VALUES[:todo])
+  end
+
+  it "moves project issues to needs-input when sub-issue dependency resolution fails" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [{title: "API slice", tasks: ["Ship API"], dependencies: ["Missing task"]}]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator, generate: project_plan)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+    projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, ensure_project_fields: true)
+    creator = instance_double(Aidp::Watch::SubIssueCreator)
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
+    allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
+    allow(creator).to receive(:create_sub_issues).and_raise(
+      Aidp::Watch::SubIssueCreator::UnresolvedDependenciesError,
+      "Unable to resolve dependencies for sub-issue #43 (API slice): Missing task"
+    )
+
+    expect(repository_client).to receive(:replace_labels).with(
+      42,
+      old_labels: ["aidp-project", "aidp-plan", "aidp-build"],
+      new_labels: ["aidp-needs-input"]
+    )
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+
+    project_sync = state_store.project_sync_data(42)
+    expect(project_sync["setup_status"]).to eq("failed")
+    expect(project_sync["setup_error"]).to eq("Unable to resolve dependencies for sub-issue #43 (API slice): Missing task")
+  end
+
   it "routes aidp-project clarification follow-up back through the project trigger" do
     project_plan = {
       summary: "Need more detail",

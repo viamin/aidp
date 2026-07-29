@@ -218,6 +218,19 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
       end
     end
 
+    context "when a dependency cannot be resolved" do
+      let(:sub_issues_data) { [{title: "Task", dependencies: ["Missing task"]}] }
+
+      it "raises instead of dropping the dependency" do
+        expect do
+          creator.create_sub_issues(parent_issue, sub_issues_data)
+        end.to raise_error(
+          Aidp::Watch::SubIssueCreator::UnresolvedDependenciesError,
+          /Unable to resolve dependencies for sub-issue #43 \(Task\): Missing task/
+        )
+      end
+    end
+
     context "with whitespace-only title" do
       let(:sub_issues_data) { [{title: "   "}] }
 

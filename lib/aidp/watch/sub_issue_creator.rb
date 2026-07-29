@@ -9,6 +9,8 @@ module Aidp
     class SubIssueCreator
       include Aidp::MessageDisplay
 
+      UnresolvedDependenciesError = Class.new(StandardError)
+
       attr_reader :repository_client, :state_store, :project_id
 
       def initialize(repository_client:, state_store:, project_id: nil, build_label: "aidp-build", blocked_label: "aidp-blocked")
@@ -227,13 +229,25 @@ module Aidp
         end
 
         created_issues.each do |issue|
-          dependency_numbers = issue[:dependencies].filter_map do |dependency|
-            resolve_dependency_number(dependency, title_map)
-          end
+          dependency_numbers, unresolved_dependencies = resolve_dependency_numbers(issue[:dependencies], title_map)
+          raise_unresolved_dependencies!(issue, unresolved_dependencies) if unresolved_dependencies.any?
 
           @state_store.record_issue_dependencies(issue[:number], dependency_numbers)
           issue[:dependencies] = dependency_numbers
         end
+      end
+
+      def resolve_dependency_numbers(dependencies, title_map)
+        Array(dependencies).each_with_object([[], []]) do |dependency, (resolved, unresolved)|
+          dependency_number = resolve_dependency_number(dependency, title_map)
+          dependency_number ? resolved << dependency_number : unresolved << dependency
+        end
+      end
+
+      def raise_unresolved_dependencies!(issue, unresolved_dependencies)
+        dependency_list = unresolved_dependencies.join(", ")
+        raise UnresolvedDependenciesError,
+          "Unable to resolve dependencies for sub-issue ##{issue[:number]} (#{issue[:title]}): #{dependency_list}"
       end
 
       def resolve_dependency_number(dependency, title_map)

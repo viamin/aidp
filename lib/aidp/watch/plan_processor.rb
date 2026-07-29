@@ -254,7 +254,8 @@ module Aidp
           build_label: @build_label,
           blocked_label: @blocked_label
         )
-        created_issues = creator.create_sub_issues(issue, plan_data[:sub_issues])
+        created_issues = existing_sub_issues_for(issue[:number])
+        created_issues = creator.create_sub_issues(issue, plan_data[:sub_issues]) if created_issues.empty?
         if created_issues.empty?
           return record_project_setup_failure(issue[:number], "unable to create project sub-issues")
         end
@@ -262,6 +263,10 @@ module Aidp
         sync_project_issue_statuses(issue[:number], created_issues, projects_processor)
         @state_store.record_project_sync(issue[:number], setup_status: "ready", setup_error: nil, setup_failed_at: nil)
         {status: :ready}
+      rescue SubIssueCreator::UnresolvedDependenciesError => e
+        Aidp.log_error("plan_processor", "project_sub_issue_dependency_resolution_failed",
+          issue: issue[:number], error: e.message)
+        record_project_setup_failure(issue[:number], e.message)
       end
 
       def resolve_project_id(issue)
@@ -300,6 +305,19 @@ module Aidp
         created_issues.each do |created_issue|
           status = created_issue[:dependencies].any? ? ProjectsProcessor::STATUS_VALUES[:blocked] : ProjectsProcessor::STATUS_VALUES[:todo]
           projects_processor.sync_issue_to_project(created_issue[:number], status: status)
+        end
+      end
+
+      def existing_sub_issues_for(parent_number)
+        existing_numbers = @state_store.sub_issues(parent_number)
+        return [] if existing_numbers.empty?
+
+        display_message("🔁 Reusing #{existing_numbers.size} tracked sub-issues for ##{parent_number}", type: :info)
+        existing_numbers.map do |number|
+          {
+            number: number,
+            dependencies: @state_store.issue_dependencies(number)
+          }
         end
       end
 
