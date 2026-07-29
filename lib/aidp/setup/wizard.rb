@@ -539,7 +539,6 @@ module Aidp
       end
 
       def configure_work_loop_phase_two
-        phase_two_suggestions
         configure_commands
         configure_watch_patterns
         configure_guards
@@ -632,7 +631,7 @@ module Aidp
           end
         end
 
-        set(%i[work_loop commands], commands)
+        save_work_loop_commands(commands)
         prompt.say("✅ Configured #{commands.size} command(s)")
       end
 
@@ -1054,21 +1053,19 @@ module Aidp
 
       def configure_watch_patterns
         existing = get(%i[work_loop test watch]) || {}
-        default_patterns = phase_two_suggestions[:watch_patterns]
-        default_patterns = detect_watch_patterns if default_patterns.empty?
+        default_patterns = existing[:patterns] || detect_watch_patterns
 
-        watch_patterns = ask_list("Test watch patterns (comma-separated)", existing.fetch(:patterns, default_patterns))
+        watch_patterns = ask_list("Test watch patterns (comma-separated)", default_patterns)
         set(%i[work_loop test watch], {patterns: watch_patterns}) if watch_patterns.any?
       end
 
       def configure_guards
         existing = get(%i[work_loop guards]) || {}
-        suggestions = phase_two_suggestions
 
         include_patterns = ask_list("Guard include patterns",
-          existing[:include] || suggestions[:guard_include_patterns] || detect_source_patterns)
+          existing[:include] || detect_source_patterns)
         exclude_patterns = ask_list("Guard exclude patterns",
-          existing[:exclude] || suggestions[:guard_exclude_patterns] || ["node_modules/**", "dist/**", "build/**"])
+          existing[:exclude] || detect_guard_exclude_patterns)
         max_lines = ask_with_default("Max lines changed per commit",
           (existing[:max_lines_changed_per_commit] || 300).to_s) do |value|
           value.to_i
@@ -2210,6 +2207,13 @@ module Aidp
         end
       end
 
+      def detect_guard_exclude_patterns
+        suggestions = phase_two_suggestions[:guard_exclude_patterns]
+        return suggestions if suggestions.any?
+
+        ["node_modules/**", "dist/**", "build/**"]
+      end
+
       def detect_coverage_command(tool)
         case tool
         when "simplecov"
@@ -2734,6 +2738,17 @@ module Aidp
           acc[key.to_sym]
         end
         parent.delete(path.last.to_sym)
+      end
+
+      def save_work_loop_commands(commands)
+        set(%i[work_loop commands], commands)
+        delete_legacy_work_loop_command_keys
+      end
+
+      def delete_legacy_work_loop_command_keys
+        %i[test_commands lint_commands formatter_commands build_commands documentation_commands].each do |key|
+          delete_path([:work_loop, key])
+        end
       end
 
       def deep_symbolize(object)

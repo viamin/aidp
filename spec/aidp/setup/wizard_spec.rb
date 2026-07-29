@@ -1933,6 +1933,86 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard.send(:configure_commands)
       end
     end
+
+    context "when saving generic commands from legacy config" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => :add,
+            "\nWhat would you like to do?" => [:add, :done]
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+      end
+
+      it "clears legacy command keys after writing work_loop.commands" do
+        allow(wizard).to receive(:collect_command_details).and_return({
+          name: "lint",
+          command: "bundle exec rubocop",
+          category: :lint,
+          run_after: :each_unit,
+          required: true,
+          timeout_seconds: 300
+        })
+
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, %i[work_loop commands])).to eq([
+          {
+            name: "test_0",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "lint",
+            command: "bundle exec rubocop",
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 300
+          }
+        ])
+        expect(wizard.send(:get, %i[work_loop test_commands])).to be_nil
+      end
+    end
+  end
+
+  describe "#configure_watch_patterns" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    before do
+      wizard.send(:set, [:work_loop, :test, :watch], {patterns: ["spec/**/*_spec.rb"]})
+    end
+
+    it "uses existing watch patterns without loading phase two suggestions" do
+      expect(wizard).not_to receive(:phase_two_suggestions)
+      wizard.send(:configure_watch_patterns)
+    end
+  end
+
+  describe "#configure_guards" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    before do
+      wizard.send(:set, [:work_loop, :guards], {
+        include: ["lib/**/*"],
+        exclude: ["tmp/**/*"],
+        max_lines_changed_per_commit: 300,
+        protected_paths: [],
+        confirm_protected: true
+      })
+    end
+
+    it "uses existing guard patterns without loading phase two suggestions" do
+      expect(wizard).not_to receive(:phase_two_suggestions)
+      wizard.send(:configure_guards)
+    end
   end
 
   describe "#collect_command_details" do
