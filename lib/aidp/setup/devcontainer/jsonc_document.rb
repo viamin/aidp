@@ -148,6 +148,8 @@ module Aidp
               advance
               chars << parse_escape_sequence
             else
+              raise ParseError, "Invalid control character in string" if control_character?(char)
+
               chars << char
               advance
             end
@@ -171,11 +173,40 @@ module Aidp
           when "r" then "\r"
           when "t" then "\t"
           when "u"
-            hex = read_chars(4)
-            [hex.to_i(16)].pack("U")
+            parse_unicode_escape
           else
             raise ParseError, "Invalid escape sequence"
           end
+        end
+
+        def parse_unicode_escape
+          codepoint = read_unicode_codepoint
+          raise ParseError, "Invalid Unicode escape sequence" if low_surrogate?(codepoint)
+
+          return [codepoint].pack("U") unless high_surrogate?(codepoint)
+
+          low_surrogate = read_low_surrogate
+          [combine_surrogate_pair(codepoint, low_surrogate)].pack("U")
+        end
+
+        def read_unicode_codepoint
+          hex = read_chars(4)
+          raise ParseError, "Invalid Unicode escape sequence" unless hex.match?(/\A\h{4}\z/)
+
+          hex.to_i(16)
+        end
+
+        def read_low_surrogate
+          raise ParseError, "Invalid Unicode escape sequence" unless consume_sequence("\\u")
+
+          codepoint = read_unicode_codepoint
+          raise ParseError, "Invalid Unicode escape sequence" unless low_surrogate?(codepoint)
+
+          codepoint
+        end
+
+        def combine_surrogate_pair(high_surrogate, low_surrogate)
+          0x10000 + ((high_surrogate - 0xD800) << 10) + (low_surrogate - 0xDC00)
         end
 
         def parse_literal
@@ -353,6 +384,18 @@ module Aidp
 
         def horizontal_whitespace?(char)
           char == " " || char == "\t"
+        end
+
+        def control_character?(char)
+          char.ord < 0x20
+        end
+
+        def high_surrogate?(codepoint)
+          codepoint.between?(0xD800, 0xDBFF)
+        end
+
+        def low_surrogate?(codepoint)
+          codepoint.between?(0xDC00, 0xDFFF)
         end
 
         # Serializes JSON while re-inserting preserved comments before values.

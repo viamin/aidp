@@ -46,6 +46,32 @@ RSpec.describe Aidp::Setup::Devcontainer::JsoncDocument do
 
       expect(document.data).to eq({"forwardPorts" => [3000]})
     end
+
+    it "rejects unescaped control characters inside strings" do
+      expect {
+        described_class.parse("{\n  \"name\": \"bad\nvalue\"\n}")
+      }.to raise_error(
+        described_class::ParseError,
+        "Invalid control character in string"
+      )
+    end
+
+    it "decodes surrogate-pair unicode escapes into valid UTF-8 strings" do
+      document = described_class.parse('{"x":"\uD83D\uDE00"}')
+
+      expect(document.data).to eq({"x" => "😀"})
+      expect { described_class.dump(document.data, comments: document.comments) }.not_to raise_error
+    end
+
+    it "rejects malformed surrogate-pair unicode escapes" do
+      expect {
+        described_class.parse('{"x":"\uD83D"}')
+      }.to raise_error(described_class::ParseError, "Invalid Unicode escape sequence")
+
+      expect {
+        described_class.parse('{"x":"\uDE00"}')
+      }.to raise_error(described_class::ParseError, "Invalid Unicode escape sequence")
+    end
   end
 
   describe ".dump" do
