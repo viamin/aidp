@@ -191,6 +191,28 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         expect(prompt_manager).to have_received(:archive).with("authentication_flow")
         expect(prompt_manager).to have_received(:delete)
       end
+
+      it "syncs non-Ruby paths discovered from user input and deterministic outputs" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Update aidp.yml and docs/guide.md for the new flow"
+          },
+          deterministic_outputs: [
+            {output_path: "src/feature.ts"},
+            {output_path: "docs/guide.md"}
+          ]
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("aidp.yml", "docs/guide.md", "src/feature.ts")
+          )
+        )
+      end
     end
 
     describe "STATES constant" do

@@ -970,20 +970,8 @@ module Aidp
 
       # Extract files that will be affected by this work
       def extract_affected_files(context, user_input)
-        files = []
-
-        # From user input (e.g., "update lib/user.rb")
-        user_input&.scan(/[\w\/]+\.rb/)&.each do |file|
-          files << file
-        end
-
-        # From deterministic outputs
-        context[:deterministic_outputs]&.each do |output|
-          if output[:output_path]&.end_with?(".rb")
-            files << output[:output_path]
-          end
-        end
-
+        files = extract_paths_from_text(user_input)
+        files.concat(extract_output_paths(context[:deterministic_outputs]))
         files.uniq
       end
 
@@ -1552,6 +1540,20 @@ module Aidp
         files = Array(@work_context[:affected_files])
         files.concat(extract_affected_files(@work_context, format_user_input(@work_context[:user_input])))
         files.map(&:to_s).reject(&:empty?).uniq
+      end
+
+      def extract_paths_from_text(text)
+        return [] if text.nil?
+
+        text.to_s.scan(%r{(?<![[:alnum:]_./-])([[:alnum:]_.-]+(?:/[[:alnum:]_.-]+)*\.[[:alnum:]]+)(?![[:alnum:]_./-])})
+          .flatten
+      end
+
+      def extract_output_paths(outputs)
+        Array(outputs).filter_map do |output|
+          path = output[:output_path].to_s.strip
+          path unless path.empty?
+        end
       end
 
       def knowledge_tool_commands

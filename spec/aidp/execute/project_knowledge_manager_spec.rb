@@ -23,12 +23,12 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
     )
 
     feature_note = File.read(File.join(temp_dir, "docs", "features", "authentication_flow.md"))
-    tool_note = File.read(File.join(temp_dir, "docs", "tools", "bundle_exec_rspec.md"))
+    tool_note = File.read(File.join(temp_dir, "docs", "tools", "rspec.md"))
 
     expect(feature_note).to include("<authentication_flow:lib/user.rb>")
     expect(feature_note).not_to include("16 Implementation")
     expect(feature_note).to include("## Recent Learnings")
-    expect(tool_note).to include("<bundle_exec_rspec:spec/user_spec.rb>")
+    expect(tool_note).to include("<rspec:spec/user_spec.rb>")
     expect(tool_note).to include("`bundle exec rspec`")
   end
 
@@ -64,5 +64,23 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
 
     feature_note = File.read(File.join(temp_dir, "docs", "features", "authentication_flow.md"))
     expect(feature_note.scan("<authentication_flow:lib/user.rb>").size).to eq(1)
+  end
+
+  it "groups command variants under the executable tool note" do
+    manager.sync!(
+      step_name: "test_authentication",
+      task_description: "Verify authentication specs",
+      affected_files: ["spec/models/user_spec.rb"],
+      tool_commands: [
+        "bundle exec rspec spec/models/user_spec.rb",
+        "bundle exec rspec spec/services/auth_spec.rb"
+      ]
+    )
+
+    tool_note = File.read(File.join(temp_dir, "docs", "tools", "rspec.md"))
+
+    expect(tool_note).to include("<rspec:spec/models/user_spec.rb>")
+    expect(tool_note).to include("`bundle exec rspec spec/models/user_spec.rb`")
+    expect(tool_note).to include("`bundle exec rspec spec/services/auth_spec.rb`")
   end
 end

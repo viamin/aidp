@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "shellwords"
 
 module Aidp
   module Execute
@@ -48,15 +49,18 @@ module Aidp
 
       def sync_tool_notes(step_name:, affected_files:, tool_commands:)
         tool_commands.first(MAX_TOOL_NOTES).each do |command|
-          tool_id = normalize_id(command)
+          tool_id = tool_identifier(command)
+          next if tool_id.empty?
+
           path = File.join(@project_dir, "docs", "tools", "#{tool_id}.md")
+          commands = [bullet_line("`#{command}`")]
           markers = affected_files.map { |file| "<#{tool_id}:#{file}>" }
           learning = bullet_line("#{Time.now.utc.iso8601}: Used `#{command}` during `#{step_name}`.")
 
           content = if File.exist?(path)
-            update_existing_note(File.read(path, encoding: "UTF-8"), markers: markers, learning: learning)
+            update_existing_note(File.read(path, encoding: "UTF-8"), markers: markers, learning: learning, commands: commands)
           else
-            build_tool_note(command: command, tool_id: tool_id, markers: markers, learning: learning)
+            build_tool_note(commands: commands, tool_id: tool_id, markers: markers, learning: learning)
           end
 
           write_note(path, content)
@@ -87,14 +91,14 @@ module Aidp
         MARKDOWN
       end
 
-      def build_tool_note(command:, tool_id:, markers:, learning:)
+      def build_tool_note(commands:, tool_id:, markers:, learning:)
         paths_section = markers.empty? ? "- Add affected paths as they become known." : markers.join("\n")
 
         <<~MARKDOWN
           # #{humanize(tool_id)}
 
-          ## Command
-          - `#{command}`
+          ## Commands
+          #{commands.join("\n")}
 
           ## Paths
           #{paths_section}
@@ -110,8 +114,9 @@ module Aidp
         MARKDOWN
       end
 
-      def update_existing_note(content, markers:, learning:)
-        updated = ensure_section_entries(content, "Paths", markers)
+      def update_existing_note(content, markers:, learning:, commands: [])
+        updated = ensure_section_entries(content, "Commands", commands)
+        updated = ensure_section_entries(updated, "Paths", markers)
         ensure_section_entries(updated, "Recent Learnings", [learning])
       end
 
@@ -187,6 +192,25 @@ module Aidp
 
       def normalize_id(value)
         value.to_s.downcase.gsub(/[^a-z0-9]+/, "_").gsub(/\A_|_\z/, "")
+      end
+
+      def tool_identifier(command)
+        raw_command = command.to_s.strip
+        tokens = Shellwords.split(raw_command)
+        executable = unwrap_tool_command(tokens)
+        normalize_id(executable)
+      rescue ArgumentError
+        normalize_id(raw_command.split(/\s+/).first)
+      end
+
+      def unwrap_tool_command(tokens)
+        normalized = tokens.drop_while { |token| token.include?("=") && !token.start_with?("/", "./", "../") }
+        return "" if normalized.empty?
+
+        return File.basename(normalized[2]) if normalized[0] == "bundle" && normalized[1] == "exec" && normalized[2]
+        return File.basename(normalized[1], ".rb") if normalized[0] == "ruby" && normalized[1]
+
+        File.basename(normalized.first, ".rb")
       end
 
       def humanize(value)
