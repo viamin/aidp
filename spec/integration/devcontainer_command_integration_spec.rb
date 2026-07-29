@@ -202,16 +202,20 @@ RSpec.describe "DevcontainerCommand Integration", type: :integration do
       # Create initial devcontainer with custom settings
       devcontainer_dir = File.join(project_dir, ".devcontainer")
       FileUtils.mkdir_p(devcontainer_dir)
-      initial_config = {
-        "name" => "My Custom Name",
-        "customizations" => {
-          "vscode" => {
-            "extensions" => ["custom.extension"]
-          }
-        },
-        "forwardPorts" => [9000]
-      }
-      File.write(File.join(devcontainer_dir, "devcontainer.json"), JSON.pretty_generate(initial_config))
+      File.write(File.join(devcontainer_dir, "devcontainer.json"), <<~JSONC)
+        {
+          "name": "My Custom Name",
+          "customizations": {
+            "vscode": {
+              "extensions": ["custom.extension"]
+            }
+          },
+          "forwardPorts": [
+            // existing app
+            9000
+          ]
+        }
+      JSONC
 
       # Create aidp.yml
       config_dir = File.join(project_dir, ".aidp")
@@ -251,6 +255,9 @@ RSpec.describe "DevcontainerCommand Integration", type: :integration do
 
       # Old port should still be there
       expect(merged_config["forwardPorts"]).to include(9000)
+
+      content = File.read(devcontainer_path)
+      expect(content).to include("// existing app\n    9000")
     end
   end
 end

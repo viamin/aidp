@@ -1328,6 +1328,32 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard.send(:configure_devcontainer)
       end
     end
+
+    describe "#generate_devcontainer_file" do
+      it "preserves comments in an existing devcontainer.json" do
+        devcontainer_dir = File.join(tmp_dir, ".devcontainer")
+        FileUtils.mkdir_p(devcontainer_dir)
+        File.write(File.join(devcontainer_dir, "devcontainer.json"), <<~JSONC)
+          {
+            // preserve this note
+            "name": "Old Name"
+          }
+        JSONC
+
+        test_prompt = TestPrompt.new(responses: {yes?: false})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:set, %i[devcontainer manage], true)
+        allow(wizard).to receive(:build_wizard_config_for_devcontainer).and_return(
+          {custom_ports: [{number: 8080, label: "API"}]}
+        )
+
+        wizard.send(:generate_devcontainer_file)
+
+        content = File.read(File.join(devcontainer_dir, "devcontainer.json"))
+        expect(content).to include("// preserve this note")
+        expect(Aidp::Setup::Devcontainer::Parser.new(tmp_dir).parse["forwardPorts"]).to include(8080)
+      end
+    end
   end
 
   describe "#configure_watch_label_creation" do
