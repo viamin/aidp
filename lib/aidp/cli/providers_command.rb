@@ -208,7 +208,10 @@ module Aidp
 
       def refresh_mcp_risk_profile(config_manager, providers_to_refresh)
         classifier = @mcp_tool_risk_classifier_class.new(config_manager, project_dir: @project_dir)
-        classifier.generate!(providers: providers_to_refresh)
+        classifier.generate!(
+          providers: config_manager.provider_names,
+          force_refresh_providers: providers_to_refresh
+        )
         display_message("✓ MCP risk profile refreshed", type: :success)
       rescue => e
         display_message("⚠ MCP risk profile refresh failed: #{e.message}", type: :warning)

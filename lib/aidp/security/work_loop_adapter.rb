@@ -18,6 +18,7 @@ module Aidp
     #   adapter.end_work_unit
     class WorkLoopAdapter
       attr_reader :project_dir, :config, :current_work_unit_id, :current_state, :mcp_risk_profile
+      MCP_CONSERVATIVE_FLAGS = %i[untrusted_input private_data egress].freeze
 
       # Sources of untrusted input that trigger the untrusted_input flag
       UNTRUSTED_SOURCES = %w[
@@ -139,13 +140,9 @@ module Aidp
         return @current_state unless enabled? && @current_state
 
         tool_profile = @mcp_risk_profile.tool(tool_name)
-        return @current_state unless tool_profile
+        return apply_unclassified_mcp_tool_risk!(tool_name) unless tool_profile
 
-        tool_profile[:flags].each do |flag|
-          @current_state.enable(flag.to_sym, source: "mcp_tool:#{tool_name}")
-        end
-
-        @current_state
+        enable_mcp_tool_flags(tool_name, tool_profile[:flags])
       end
 
       # Apply deterministic MCP tool risk flags for all MCP servers configured on
@@ -271,8 +268,22 @@ module Aidp
       end
 
       def apply_unknown_mcp_risk!(provider_name)
-        %i[untrusted_input private_data egress].each do |flag|
+        MCP_CONSERVATIVE_FLAGS.each do |flag|
           @current_state.enable(flag, source: "mcp_provider:#{provider_name}:unknown_tools")
+        end
+
+        @current_state
+      end
+
+      def apply_unclassified_mcp_tool_risk!(tool_name)
+        Aidp.log_warn("security.adapter", "mcp_tool_unclassified",
+          tool_name: tool_name)
+        enable_mcp_tool_flags(tool_name, MCP_CONSERVATIVE_FLAGS, source_suffix: ":unclassified")
+      end
+
+      def enable_mcp_tool_flags(tool_name, flags, source_suffix: "")
+        Array(flags).each do |flag|
+          @current_state.enable(flag.to_sym, source: "mcp_tool:#{tool_name}#{source_suffix}")
         end
 
         @current_state

@@ -87,6 +87,33 @@ RSpec.describe Aidp::Security::McpToolRiskClassifier do
         {name: "git", descriptions: ["Git operations"], providers: %w[anthropic cursor]}
       ])
     end
+
+    it "only force-refreshes the requested providers when rebuilding a full profile" do
+      anthropic_info = instance_double(Aidp::Harness::ProviderInfo)
+      cursor_info = instance_double(Aidp::Harness::ProviderInfo)
+      allow(provider_info_class).to receive(:new).with("anthropic", project_dir).and_return(anthropic_info)
+      allow(provider_info_class).to receive(:new).with("cursor", project_dir).and_return(cursor_info)
+      allow(config).to receive(:configured_providers).and_return(%w[anthropic cursor])
+
+      allow(anthropic_info).to receive(:info).with(force_refresh: true).and_return({
+        mcp_support: true,
+        mcp_servers: [{name: "filesystem", description: "Local file access"}]
+      })
+      allow(cursor_info).to receive(:info).with(force_refresh: false).and_return({
+        mcp_support: true,
+        mcp_servers: [{name: "web", description: "Web requests"}]
+      })
+
+      tools = classifier.collect_tools(
+        providers: %w[anthropic cursor],
+        force_refresh_providers: ["anthropic"]
+      )
+
+      expect(tools).to eq([
+        {name: "filesystem", descriptions: ["Local file access"], providers: ["anthropic"]},
+        {name: "web", descriptions: ["Web requests"], providers: ["cursor"]}
+      ])
+    end
   end
 
   describe "#generate!" do

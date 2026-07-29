@@ -51,8 +51,12 @@ module Aidp
         @time_source = time_source
       end
 
-      def generate!(providers: nil, tier: "mini", force_refresh: false)
-        tools = collect_tools(providers: providers, force_refresh: force_refresh)
+      def generate!(providers: nil, tier: "mini", force_refresh: false, force_refresh_providers: nil)
+        tools = collect_tools(
+          providers: providers,
+          force_refresh: force_refresh,
+          force_refresh_providers: force_refresh_providers
+        )
         return write_empty_profile if tools.empty?
 
         provider_name, model_name = select_model(tier)
@@ -67,12 +71,15 @@ module Aidp
         raise
       end
 
-      def collect_tools(providers: nil, force_refresh: false)
+      def collect_tools(providers: nil, force_refresh: false, force_refresh_providers: nil)
         provider_names = Array(providers || config.configured_providers).map(&:to_s)
+        force_refresh_provider_names = Array(force_refresh_providers).map(&:to_s)
 
         provider_names.each_with_object({}) do |provider_name, tools|
           provider_info = @provider_info_class.new(provider_name, project_dir)
-          info = provider_info.info(force_refresh: force_refresh)
+          info = provider_info.info(
+            force_refresh: force_refresh || force_refresh_provider_names.include?(provider_name)
+          )
           next unless info&.dig(:mcp_support)
 
           Array(info[:mcp_servers]).each do |server|

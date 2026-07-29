@@ -201,7 +201,10 @@ RSpec.describe Aidp::CLI::ProvidersCommand do
 
       it "refreshes the specified provider" do
         expect(provider_info_double).to receive(:info).with(force_refresh: true)
-        expect(classifier_double).to receive(:generate!).with(providers: [provider_name])
+        expect(classifier_double).to receive(:generate!).with(
+          providers: %w[anthropic cursor],
+          force_refresh_providers: [provider_name]
+        )
         allow(prompt).to receive(:say)
 
         command.run([provider_name], subcommand: "refresh")
@@ -228,7 +231,10 @@ RSpec.describe Aidp::CLI::ProvidersCommand do
 
       it "refreshes all configured providers" do
         expect(provider_info_double).to receive(:info).with(force_refresh: true).twice
-        expect(classifier_double).to receive(:generate!).with(providers: ["anthropic", "cursor"])
+        expect(classifier_double).to receive(:generate!).with(
+          providers: %w[anthropic cursor],
+          force_refresh_providers: %w[anthropic cursor]
+        )
         allow(prompt).to receive(:say)
 
         command.run([], subcommand: "refresh")

@@ -302,8 +302,10 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
       adapter.apply_mcp_tool_risk!("filesystem")
     end
 
-    it "does nothing when the tool is not in the profile" do
-      expect(mock_state).not_to receive(:enable)
+    it "falls back to a conservative classification when the tool is not in the profile" do
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_tool:unknown:unclassified")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:unknown:unclassified")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:unknown:unclassified")
 
       adapter.apply_mcp_tool_risk!("unknown")
     end
@@ -334,6 +336,19 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
 
       expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem")
       expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:web")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
+    end
+
+    it "falls back to a conservative classification when a configured MCP server is unclassified" do
+      allow(provider_info).to receive(:info).with(force_refresh: false).and_return({
+        mcp_support: true,
+        mcp_servers: [{name: "filesystem"}]
+      })
+
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_tool:filesystem:unclassified")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem:unclassified")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_tool:filesystem:unclassified")
 
       adapter.apply_provider_mcp_tool_risk!("anthropic")
     end
