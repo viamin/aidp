@@ -109,7 +109,7 @@ module Aidp
         critical = false
         status = nil
         task_id = nil
-        start_date = nil
+        explicit_dates = []
         duration_days = nil
 
         tokens.each do |token|
@@ -121,9 +121,9 @@ module Aidp
           when "done", "active"
             status = token
           when /\Aafter\s+(.+)\z/i
-            dependency_ids << Regexp.last_match(1).strip
+            dependency_ids.concat(Regexp.last_match(1).split)
           when /\A\d{4}-\d{2}-\d{2}\z/
-            start_date = Date.parse(token)
+            explicit_dates << Date.parse(token)
           when /\A(\d+)d\z/i
             duration_days = Regexp.last_match(1).to_i
           else
@@ -131,13 +131,18 @@ module Aidp
           end
         end
 
+        start_date = explicit_dates.first
+        end_date = explicit_dates[1]
+        duration_days ||= 0 if milestone
+        duration_days ||= 1 unless end_date
+
         {
           id: task_id || slugify(name_part),
           name: name_part.strip,
           section: section,
           start_date: start_date,
-          end_date: (start_date && duration_days) ? start_date + duration_days - 1 : nil,
-          duration_days: duration_days || (milestone ? 0 : 1),
+          end_date: end_date || ((start_date && duration_days) ? start_date + duration_days - 1 : nil),
+          duration_days: duration_days,
           dependency_ids: dependency_ids,
           milestone: milestone,
           critical: critical,
