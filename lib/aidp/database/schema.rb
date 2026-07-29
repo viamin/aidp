@@ -331,7 +331,7 @@ module Aidp
             spec TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_strategies_project_name ON strategies(project_dir, name);
+        CREATE INDEX IF NOT EXISTS idx_strategies_project_name ON strategies(project_dir, name);
 
         -- Replayable task inputs for strategy execution
         CREATE TABLE IF NOT EXISTS experience_tasks (
@@ -411,12 +411,19 @@ module Aidp
         CREATE INDEX IF NOT EXISTS idx_experience_embeddings_run ON experience_embeddings(run_id);
       SQL
 
+      # Version 5: Preserve immutable strategy versions for replay/auditability
+      V5_STRATEGY_VERSIONING = <<~SQL
+        DROP INDEX IF EXISTS idx_strategies_project_name;
+        CREATE INDEX IF NOT EXISTS idx_strategies_project_name ON strategies(project_dir, name);
+      SQL
+
       # All migrations in order
       MIGRATIONS = {
         1 => V1_INITIAL,
         2 => V2_PROMPT_FEEDBACK,
         3 => V3_TEMPLATE_VERSIONS,
-        4 => V4_STRATEGY_EXECUTION
+        4 => V4_STRATEGY_EXECUTION,
+        5 => V5_STRATEGY_VERSIONING
       }.freeze
 
       # Get SQL for a specific version

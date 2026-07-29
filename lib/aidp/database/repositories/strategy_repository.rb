@@ -13,17 +13,7 @@ module Aidp
 
         def upsert(name:, spec:)
           strategy_id = Digest::SHA256.hexdigest("#{project_dir}:#{name}:#{spec}")
-          existing = query_one(
-            "SELECT id FROM strategies WHERE project_dir = ? AND name = ?",
-            [project_dir, name]
-          )
-
-          if existing
-            execute(
-              "UPDATE strategies SET id = ?, spec = ? WHERE project_dir = ? AND name = ?",
-              [strategy_id, spec, project_dir, name]
-            )
-          else
+          unless load(strategy_id)
             execute(
               insert_sql([:id, :project_dir, :name, :spec]),
               [strategy_id, project_dir, name, spec]
@@ -40,7 +30,7 @@ module Aidp
 
         def find_by_name(name)
           row = query_one(
-            "SELECT * FROM strategies WHERE project_dir = ? AND name = ?",
+            "SELECT * FROM strategies WHERE project_dir = ? AND name = ? ORDER BY created_at DESC, rowid DESC",
             [project_dir, name]
           )
           deserialize_strategy(row)

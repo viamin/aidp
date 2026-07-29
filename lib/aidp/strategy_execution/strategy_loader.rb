@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "date"
 require "yaml"
 require_relative "strategy_spec"
 

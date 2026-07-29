@@ -99,6 +99,29 @@ RSpec.describe Aidp::Database::Migrations do
 
       expect(count).to eq(Aidp::Database::Schema.latest_version)
     end
+
+    it "upgrades the strategies index from unique to non-unique for version 4 databases" do
+      db = Aidp::Database.connection(temp_dir)
+
+      (1..4).each do |version|
+        Aidp::Database::Schema.migration_sql(version).split(";").each do |statement|
+          statement = statement.strip
+          next if statement.empty?
+
+          db.execute(statement)
+        end
+      end
+      (1..4).each do |version|
+        db.execute("INSERT INTO schema_migrations (version) VALUES (?)", [version])
+      end
+
+      described_class.run!(temp_dir)
+
+      strategy_index = db.execute("PRAGMA index_list('strategies')").find { |row| row["name"] == "idx_strategies_project_name" }
+
+      expect(strategy_index).not_to be_nil
+      expect(strategy_index["unique"]).to eq(0)
+    end
   end
 
   describe ".pending?" do
@@ -160,6 +183,14 @@ RSpec.describe Aidp::Database::Migrations do
 
       expect(indexes).to include("idx_progress_project_mode")
       expect(indexes).to include("idx_workstreams_project_slug")
+    end
+
+    it "creates a non-unique strategies lookup index" do
+      db = Aidp::Database.connection(temp_dir)
+      strategy_index = db.execute("PRAGMA index_list('strategies')").find { |row| row["name"] == "idx_strategies_project_name" }
+
+      expect(strategy_index).not_to be_nil
+      expect(strategy_index["unique"]).to eq(0)
     end
   end
 end
