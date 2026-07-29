@@ -214,6 +214,44 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         )
       end
 
+      it "ignores standalone version numbers when extracting affected files from user input" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Bump release notes to v1.2.3 and document 1.2 in docs/releases.md"
+          },
+          deterministic_outputs: []
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("docs/releases.md")
+          )
+        )
+      end
+
+      it "still keeps nested repository paths that include version directories" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {
+            "task" => "Update changelog in releases/v1.2.3/notes.md"
+          },
+          deterministic_outputs: []
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("releases/v1.2.3/notes.md")
+          )
+        )
+      end
+
       it "excludes internal deterministic output paths from knowledge sync" do
         knowledge_runner.prompt_manager = prompt_manager
         knowledge_runner.step_name = "project_knowledge_sync"

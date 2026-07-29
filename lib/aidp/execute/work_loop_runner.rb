@@ -1629,6 +1629,7 @@ module Aidp
 
       def valid_path_candidate?(path)
         return false if path.empty?
+        return false if standalone_version_token?(path)
 
         segments = path.split("/")
         return false if segments.empty? || segments.any?(&:empty?)
@@ -1637,6 +1638,19 @@ module Aidp
         return false unless valid_filename_candidate?(filename, path.include?("/"))
 
         segments.all? { |segment| valid_path_segment?(segment) }
+      end
+
+      def standalone_version_token?(path)
+        return false if path.include?("/")
+
+        components = path.split(".")
+        return false if components.length < 2
+
+        components.all? { |component| version_component?(component) }
+      end
+
+      def version_component?(component)
+        component.match?(/\Av?\d+\z/i)
       end
 
       def valid_path_segment?(segment)
