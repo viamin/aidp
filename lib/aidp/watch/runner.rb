@@ -3,6 +3,7 @@
 require "tty-prompt"
 require_relative "feedback_collector"
 require_relative "github_state_extractor"
+require_relative "projects_processor"
 require_relative "round_robin_scheduler"
 require_relative "work_item"
 require_relative "worktree_cleanup_job"
@@ -43,6 +44,7 @@ module Aidp
 
         # Extract label configuration from safety_config (it's actually the full watch config)
         label_config = safety_config[:labels] || safety_config["labels"] || {}
+        @project_config = safety_config[:projects] || safety_config["projects"] || {}
 
         # Extract detection comment configuration (issue #280)
         # Enabled by default, can be disabled in config
@@ -59,7 +61,7 @@ module Aidp
           state_store: @state_store,
           plan_generator: PlanGenerator.new(provider_name: provider_name, verbose: verbose),
           label_config: label_config,
-          project_config: safety_config[:projects] || safety_config["projects"] || {}
+          project_config: @project_config
         )
         @build_processor = BuildProcessor.new(
           repository_client: @repository_client,
@@ -436,6 +438,7 @@ module Aidp
             old_labels: [blocked_label],
             new_labels: [unblocked_label_for(issue[:number])]
           )
+          sync_project_status_for_unblocked_issue(issue[:number])
         end
       rescue => e
         Aidp.log_error("watch_runner", "unblock_dependency_ready_items_failed", error: e.message)
@@ -593,6 +596,25 @@ module Aidp
         return @plan_processor.ready_label if @state_store.sub_issues(issue_number).any?
 
         @build_processor.build_label
+      end
+
+      def sync_project_status_for_unblocked_issue(issue_number)
+        project_id = @state_store.project_sync_data(issue_number)["project_id"]
+        return unless project_id
+
+        projects_processor = ProjectsProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          project_id: project_id,
+          config: @project_config
+        )
+        return if projects_processor.sync_issue_to_project(issue_number, status: ProjectsProcessor::STATUS_VALUES[:todo])
+
+        Aidp.log_warn("watch_runner", "project_status_sync_failed",
+          issue: issue_number, project_id: project_id)
+      rescue => e
+        Aidp.log_warn("watch_runner", "project_status_sync_failed",
+          issue: issue_number, project_id: project_id, error: e.message)
       end
 
       # Restore from checkpoint if one exists (after auto-update)

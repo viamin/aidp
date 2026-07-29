@@ -13,7 +13,8 @@ RSpec.describe Aidp::Watch::Runner do
       record_round_robin_position: nil,
       issue_dependencies: [],
       sub_issues: [],
-      blocking_status: {blocked: false, blockers: [], blocker_count: 0}
+      blocking_status: {blocked: false, blockers: [], blocker_count: 0},
+      project_sync_data: {}
     )
   end
   let(:state_extractor) { instance_double("GitHubStateExtractor") }
@@ -324,6 +325,7 @@ RSpec.describe Aidp::Watch::Runner do
     it "promotes blocked issues to build when dependencies are closed" do
       runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
       allow(runner).to receive(:display_message)
+      projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, sync_issue_to_project: true)
 
       allow(state_store).to receive(:blocking_status).with(10).and_return(
         blocked: true,
@@ -333,6 +335,8 @@ RSpec.describe Aidp::Watch::Runner do
       allow(repo_client).to receive(:list_issues).and_return([{number: 10, labels: ["blocked"]}])
       allow(repo_client).to receive(:fetch_issue).with(11).and_return({state: "closed"})
       allow(repo_client).to receive(:replace_labels)
+      allow(state_store).to receive(:project_sync_data).with(10).and_return({"project_id" => "PVT_123"})
+      allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
 
       runner.send(:unblock_dependency_ready_items)
 
@@ -340,6 +344,10 @@ RSpec.describe Aidp::Watch::Runner do
         10,
         old_labels: ["blocked"],
         new_labels: ["build"]
+      )
+      expect(projects_processor).to have_received(:sync_issue_to_project).with(
+        10,
+        status: Aidp::Watch::ProjectsProcessor::STATUS_VALUES[:todo]
       )
     end
 

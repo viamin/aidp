@@ -398,7 +398,10 @@ module Aidp
       end
 
       def tracked_sub_issues_match_plan?(existing_numbers, sub_issues)
-        tracked_titles = existing_numbers.map { |number| normalize_sub_issue_title(fetch_tracked_sub_issue_title(number)) }
+        tracked_issues = existing_numbers.map { |number| fetch_tracked_sub_issue(number) }
+        return false unless tracked_sub_issues_open?(tracked_issues)
+
+        tracked_titles = tracked_issues.map { |tracked_issue| normalize_sub_issue_title(tracked_issue[:title]) }
         planned_titles = sub_issues.map { |sub_issue| normalize_sub_issue_title(sub_issue[:title]) }
 
         tracked_titles == planned_titles
@@ -409,12 +412,23 @@ module Aidp
         false
       end
 
-      def fetch_tracked_sub_issue_title(number)
-        @repository_client.fetch_issue(number).fetch(:title)
+      def fetch_tracked_sub_issue(number)
+        @repository_client.fetch_issue(number)
       end
 
       def normalize_sub_issue_title(title)
         title.to_s.strip.downcase
+      end
+
+      def tracked_sub_issues_open?(tracked_issues)
+        closed_issue = tracked_issues.find { |tracked_issue| tracked_issue[:state].to_s.casecmp("closed").zero? }
+        return true unless closed_issue
+
+        display_message(
+          "⚠️  Tracked sub-issue ##{closed_issue[:number]} is already closed; regenerating project work",
+          type: :warn
+        )
+        false
       end
 
       def reconcile_existing_sub_issues(parent_issue, existing_numbers, sub_issues, creator)
