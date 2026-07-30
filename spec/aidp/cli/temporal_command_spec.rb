@@ -291,7 +291,12 @@ RSpec.describe Aidp::CLI::TemporalCommand do
           Aidp::StrategyExecution::ExperienceStore,
           replay_bundle: {
             id: "run-1",
-            task: {description: "Replay me", context: {}, input_payload: {}}
+            task: {
+              id: "task-original",
+              description: "Replay me",
+              context: {},
+              input_payload: {}
+            }
           }
         )
       )
@@ -308,6 +313,19 @@ RSpec.describe Aidp::CLI::TemporalCommand do
         hash_including(project_dir: project_dir),
         project_dir: project_dir
       )
+    end
+
+    it "strips the original task id so the workflow creates a fresh task row" do
+      handle = instance_double("WorkflowHandle", id: "workflow-replay")
+      allow(Aidp::Temporal).to receive(:start_workflow).and_return(handle)
+
+      command.send(:replay_workflow, ["run-1", "strategy.yml"])
+
+      expect(Aidp::Temporal).to have_received(:start_workflow) do |_klass, input, _opts|
+        expect(input[:task]).not_to have_key(:id)
+        expect(input[:task][:source_run_id]).to eq("run-1")
+        expect(input[:task][:description]).to eq("Replay me")
+      end
     end
   end
 

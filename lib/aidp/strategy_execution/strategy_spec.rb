@@ -22,6 +22,7 @@ module Aidp
         @merge_policy = (data[:merge_policy] || DEFAULT_MERGE_POLICY).to_s
         @constraints = (data[:constraints] || {}).transform_keys(&:to_sym)
         @timeouts = (data[:timeouts] || {}).transform_keys(&:to_sym)
+        ensure_runnable!
       end
 
       def to_h
@@ -39,8 +40,6 @@ module Aidp
 
       def branch_commands
         commands = candidate_agent_commands
-        return [] if commands.empty?
-
         Array.new(fanout) do |index|
           command = commands[index % commands.length]
           {
@@ -116,6 +115,12 @@ module Aidp
         raw = agents[:coder] || agents[:execution] || agents.values
         commands = raw.is_a?(Hash) ? [raw] : Array(raw).flatten
         commands.reject { |entry| entry[:command].to_s.empty? }
+      end
+
+      def ensure_runnable!
+        return unless candidate_agent_commands.empty?
+
+        raise ArgumentError, "strategy '#{name}' requires at least one agent with a non-empty command"
       end
     end
   end

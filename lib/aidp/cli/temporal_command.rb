@@ -198,7 +198,7 @@ module Aidp
         end
 
         strategy = load_strategy(strategy_path)
-        replay_task = bundle[:task].merge(source_run_id: original_run_id)
+        replay_task = build_replay_task(bundle[:task], original_run_id)
 
         handle = Aidp::Temporal.start_workflow(
           Aidp::Temporal::Workflows::StrategyExecutionWorkflow,
@@ -233,7 +233,7 @@ module Aidp
             {
               project_dir: @project_dir,
               strategy: strategy.to_h,
-              task: bundle[:task].merge(source_run_id: run_id)
+              task: build_replay_task(bundle[:task], run_id)
             },
             project_dir: @project_dir
           ).id
@@ -524,6 +524,10 @@ module Aidp
 
       def load_strategy(strategy_path)
         StrategyExecution::StrategyLoader.new(project_dir: @project_dir).load_file(strategy_path)
+      end
+
+      def build_replay_task(bundle_task, source_run_id)
+        bundle_task.except(:id, :source_run_id).merge(source_run_id: source_run_id)
       end
 
       def load_task(task_path)

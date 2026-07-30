@@ -49,5 +49,23 @@ RSpec.describe Aidp::StrategyExecution::StrategySpec do
         ]
       )
     end
+
+    it "rejects strategies with no runnable agent commands" do
+      expect {
+        described_class.from_hash(
+          "name" => "empty",
+          "agents" => {"planner" => ""}
+        )
+      }.to raise_error(ArgumentError, /requires at least one agent with a non-empty command/)
+    end
+
+    it "rejects strategies with an empty agent map" do
+      expect {
+        described_class.from_hash(
+          "name" => "empty",
+          "agents" => {}
+        )
+      }.to raise_error(ArgumentError, /requires at least one agent with a non-empty command/)
+    end
   end
 end

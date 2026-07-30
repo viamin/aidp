@@ -51,5 +51,39 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyExecutionWorkflow do
       expect(result[:merged_children].first[:run_id]).to eq("child-run")
       expect(result[:branch_count]).to eq(2)
     end
+
+    it "creates a fresh task row for replayed inputs so lineage is preserved" do
+      strategy_record = {id: "strategy-1"}
+      task_record = {id: "task-new", description: "Replay me"}
+      run_record = {id: "run-new"}
+
+      allow(workflow).to receive(:register_strategy).and_return(strategy_record)
+      allow(workflow).to receive(:start_run).and_return(run_record)
+      allow(workflow).to receive(:complete_run)
+
+      created_tasks = []
+      allow(workflow).to receive(:execute_store) do |operation, payload|
+        if operation == "create_task"
+          created_tasks << payload
+          task_record
+        end
+      end
+
+      branch_handle = instance_double("Handle", result: {branch_key: "branch_0", aggregate_score: 0.5, subtasks: []})
+      allow(Temporalio::Workflow).to receive(:execute_child_workflow).and_return(branch_handle)
+
+      workflow.execute(
+        project_dir: "/tmp/project",
+        strategy: {
+          name: "fanout",
+          fanout: 1,
+          agents: {coder: "bin/coder"}
+        },
+        task: {description: "Replay me", source_run_id: "run-original"}
+      )
+
+      expect(created_tasks.length).to eq(1)
+      expect(created_tasks.first[:source_run_id]).to eq("run-original")
+    end
   end
 end
