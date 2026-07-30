@@ -2993,9 +2993,17 @@ module Aidp
 
       def effective_work_loop_commands
         generic_commands = normalize_generic_work_loop_commands(get(%i[work_loop commands]))
-        return generic_commands if generic_commands.any?
+        legacy_commands = normalize_legacy_work_loop_commands
 
-        normalize_legacy_work_loop_commands
+        deduplicated_work_loop_commands(generic_commands, legacy_commands)
+      end
+
+      def deduplicated_work_loop_commands(*command_sets)
+        command_sets.flatten.uniq { |command| deduplication_key(command) }
+      end
+
+      def deduplication_key(command)
+        command.slice(:command, :required, :run_after, :category, :timeout_seconds)
       end
 
       def normalize_generic_work_loop_commands(commands)

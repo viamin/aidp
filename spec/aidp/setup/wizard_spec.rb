@@ -1847,13 +1847,31 @@ RSpec.describe Aidp::Setup::Wizard do
 
       before do
         wizard.send(:set, [:work_loop, :commands], existing_commands)
-        wizard.send(:set, [:work_loop, :test_commands], ["npm test"])
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec", "npm test"])
       end
 
-      it "prefers generic commands over legacy commands" do
+      it "merges unique legacy commands into the effective command list" do
         wizard.send(:configure_commands)
         commands = wizard.send(:get, [:work_loop, :commands])
         expect(commands).to eq(existing_commands)
+        expect(wizard.send(:effective_work_loop_commands)).to eq([
+          {
+            name: "generic_test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "test_1",
+            command: "npm test",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          }
+        ])
       end
     end
 
