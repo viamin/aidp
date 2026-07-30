@@ -411,19 +411,15 @@ module Aidp
         CREATE INDEX IF NOT EXISTS idx_experience_embeddings_run ON experience_embeddings(run_id);
       SQL
 
-      # Version 5: Preserve immutable strategy versions for replay/auditability
-      V5_STRATEGY_VERSIONING = <<~SQL
-        DROP INDEX IF EXISTS idx_strategies_project_name;
-        CREATE INDEX IF NOT EXISTS idx_strategies_project_name ON strategies(project_dir, name);
-      SQL
-
       # All migrations in order
+      # V4's strategies index is intentionally non-unique so that immutable
+      # versions of a named strategy can coexist for replay and auditability;
+      # StrategyRepository keys rows by a SHA256(project_dir:name:spec) digest.
       MIGRATIONS = {
         1 => V1_INITIAL,
         2 => V2_PROMPT_FEEDBACK,
         3 => V3_TEMPLATE_VERSIONS,
-        4 => V4_STRATEGY_EXECUTION,
-        5 => V5_STRATEGY_VERSIONING
+        4 => V4_STRATEGY_EXECUTION
       }.freeze
 
       # Get SQL for a specific version

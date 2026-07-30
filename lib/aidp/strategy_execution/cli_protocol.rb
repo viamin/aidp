@@ -58,13 +58,13 @@ module Aidp
           raise ProtocolError, "Invalid JSON response: #{e.message}"
         rescue ProtocolError
           raise
-        rescue => e
+        rescue Errno::ENOENT, Errno::EACCES => e
           Aidp.log_error("cli_protocol", "execution_failed",
             role: role,
             command: command.is_a?(Array) ? command.first : Shellwords.split(command.to_s).first,
             error: e.message,
             error_class: e.class.name)
-          raise
+          raise ProtocolError, "Command failed: #{e.message}"
         end
 
         private

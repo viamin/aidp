@@ -89,4 +89,14 @@ RSpec.describe Aidp::StrategyExecution::CliProtocol::Runner do
       runner.execute(command: command, role: "evaluator", request: {})
     }.to raise_error(Aidp::StrategyExecution::CliProtocol::ProtocolError)
   end
+
+  it "wraps missing executable failures as ProtocolError" do
+    expect {
+      runner.execute(
+        command: ["/no/such/binary/aidp-cli-protocol-missing"],
+        role: "agent",
+        request: {task: {description: "ship it"}}
+      )
+    }.to raise_error(Aidp::StrategyExecution::CliProtocol::ProtocolError, /Command failed/)
+  end
 end

@@ -16,8 +16,8 @@ RSpec.describe Aidp::Database::Repositories::StrategyRepository do
   end
 
   it "keeps prior strategy specs addressable by id when a named strategy changes" do
-    original = repository.upsert(name: "fanout", spec: %({"name":"fanout","fanout":2}))
-    updated = repository.upsert(name: "fanout", spec: %({"name":"fanout","fanout":4}))
+    original = repository.register(name: "fanout", spec: %({"name":"fanout","fanout":2}))
+    updated = repository.register(name: "fanout", spec: %({"name":"fanout","fanout":4}))
 
     expect(original[:id]).not_to eq(updated[:id])
     expect(repository.load(original[:id])[:spec]).to include(name: "fanout", fanout: 2)
@@ -26,9 +26,9 @@ RSpec.describe Aidp::Database::Repositories::StrategyRepository do
   end
 
   it "does not duplicate a strategy row when the spec is unchanged" do
-    strategy = repository.upsert(name: "fanout", spec: %({"name":"fanout","fanout":2}))
+    strategy = repository.register(name: "fanout", spec: %({"name":"fanout","fanout":2}))
 
-    repository.upsert(name: "fanout", spec: %({"name":"fanout","fanout":2}))
+    repository.register(name: "fanout", spec: %({"name":"fanout","fanout":2}))
 
     rows = repository.send(:query, "SELECT id FROM strategies WHERE project_dir = ?", [project_dir])
 

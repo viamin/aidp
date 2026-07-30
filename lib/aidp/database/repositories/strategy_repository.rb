@@ -11,7 +11,7 @@ module Aidp
           super(project_dir: project_dir, table_name: "strategies")
         end
 
-        def upsert(name:, spec:)
+        def register(name:, spec:)
           strategy_id = Digest::SHA256.hexdigest("#{project_dir}:#{name}:#{spec}")
           existed = load(strategy_id)
           unless existed
@@ -21,7 +21,7 @@ module Aidp
             )
           end
 
-          Aidp.log_debug("strategy_repository", existed ? "loaded" : "upserted",
+          Aidp.log_debug("strategy_repository", existed ? "loaded" : "registered",
             id: strategy_id, name: name)
 
           {id: strategy_id, name: name}

@@ -17,7 +17,7 @@ module Aidp
       end
 
       def register_strategy(strategy_spec)
-        record = strategy_repository.upsert(
+        record = strategy_repository.register(
           name: strategy_spec.name,
           spec: JSON.generate(strategy_spec.to_h)
         )
