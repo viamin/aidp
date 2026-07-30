@@ -3186,13 +3186,51 @@ module Aidp
       def build_wizard_config_for_devcontainer
         {
           providers: @config[:providers]&.keys,
-          test_framework: @config.dig(:work_loop, :test_commands)&.first&.dig(:framework),
+          test_framework: devcontainer_test_framework,
           linters: @config.dig(:work_loop, :linting, :tools),
           watch_mode: @config.dig(:work_loop, :watch, :enabled),
           app_type: detect_app_type,
           services: detect_services,
           custom_ports: @config.dig(:devcontainer, :custom_ports)
         }.compact
+      end
+
+      def devcontainer_test_framework
+        command = first_work_loop_command_for(:test)
+        framework = framework_for_work_loop_command(command)
+        return framework if framework
+
+        detected_framework = framework_from_detected_tooling(command)
+        return detected_framework if detected_framework
+
+        @config.dig(:work_loop, :test_commands)&.first&.dig(:framework)&.to_s
+      end
+
+      def first_work_loop_command_for(category)
+        effective_work_loop_commands.find do |command|
+          command[:category].to_sym == category
+        end
+      end
+
+      def framework_for_work_loop_command(command)
+        framework = Aidp::ToolingDetector.framework_from_command(command&.dig(:command))
+        return if framework == :unknown
+
+        framework.to_s
+      end
+
+      def framework_from_detected_tooling(command)
+        candidates = [
+          command&.dig(:command),
+          detect_tooling.test_commands.first
+        ].compact.uniq
+
+        candidates.each do |candidate|
+          framework = detect_tooling.framework_for_command(candidate)
+          return framework.to_s if framework != :unknown
+        end
+
+        nil
       end
 
       def detect_app_type

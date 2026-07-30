@@ -1465,6 +1465,26 @@ RSpec.describe Aidp::Setup::Wizard do
       end
     end
 
+    describe "#build_wizard_config_for_devcontainer" do
+      it "derives the test framework from generic work loop commands after legacy cleanup" do
+        wizard = described_class.new(tmp_dir, prompt: TestPrompt.new(responses: {yes?: false}), dry_run: true)
+
+        wizard.send(:set, [:work_loop, :test_commands], [{framework: "rspec"}])
+        wizard.send(:save_work_loop_commands, [
+          {
+            name: "test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true
+          }
+        ])
+
+        expect(wizard.config.dig(:work_loop, :test_commands)).to be_nil
+        expect(wizard.send(:build_wizard_config_for_devcontainer)[:test_framework]).to eq("rspec")
+      end
+    end
+
     describe "#generate_devcontainer_file" do
       it "preserves comments in an existing devcontainer.json" do
         devcontainer_dir = File.join(tmp_dir, ".devcontainer")
