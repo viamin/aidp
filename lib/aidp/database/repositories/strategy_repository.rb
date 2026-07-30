@@ -13,12 +13,16 @@ module Aidp
 
         def upsert(name:, spec:)
           strategy_id = Digest::SHA256.hexdigest("#{project_dir}:#{name}:#{spec}")
-          unless load(strategy_id)
+          existed = load(strategy_id)
+          unless existed
             execute(
               insert_sql([:id, :project_dir, :name, :spec]),
               [strategy_id, project_dir, name, spec]
             )
           end
+
+          Aidp.log_debug("strategy_repository", existed ? "loaded" : "upserted",
+            id: strategy_id, name: name)
 
           {id: strategy_id, name: name}
         end

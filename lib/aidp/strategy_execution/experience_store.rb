@@ -17,24 +17,30 @@ module Aidp
       end
 
       def register_strategy(strategy_spec)
-        strategy_repository.upsert(
+        record = strategy_repository.upsert(
           name: strategy_spec.name,
           spec: JSON.generate(strategy_spec.to_h)
         )
+        Aidp.log_debug("experience_store", "strategy_registered",
+          strategy_id: record[:id], name: strategy_spec.name)
+        record
       end
 
       def create_task(description:, title: nil, input_payload: {}, context: {}, source_run_id: nil)
-        task_repository.create(
+        task = task_repository.create(
           description: description,
           title: title,
           input_payload: input_payload,
           context: context,
           source_run_id: source_run_id
         )
+        Aidp.log_debug("experience_store", "task_created",
+          task_id: task[:id], source_run_id: source_run_id)
+        task
       end
 
       def start_run(task_id:, strategy_id:, workflow_id:, depth:, input_payload:, parent_run_id: nil, branch_key: nil, metadata: {})
-        run_repository.start(
+        run = run_repository.start(
           task_id: task_id,
           strategy_id: strategy_id,
           workflow_id: workflow_id,
@@ -44,15 +50,25 @@ module Aidp
           branch_key: branch_key,
           metadata: metadata
         )
+        Aidp.log_debug("experience_store", "run_started",
+          run_id: run[:id],
+          task_id: task_id,
+          strategy_id: strategy_id,
+          branch_key: branch_key,
+          depth: depth)
+        run
       end
 
       def complete_run(run_id:, status:, output_payload:, metadata: {})
-        run_repository.complete(
+        run = run_repository.complete(
           run_id: run_id,
           status: status,
           output_payload: output_payload,
           metadata: metadata
         )
+        Aidp.log_debug("experience_store", "run_completed",
+          run_id: run_id, status: status)
+        run
       end
 
       def record_evaluation(run_id:, evaluator_name:, score:, passed:, summary: nil, metadata: {})
@@ -64,6 +80,11 @@ module Aidp
           summary: summary,
           metadata: metadata
         )
+        Aidp.log_debug("experience_store", "evaluation_recorded",
+          run_id: run_id,
+          evaluator_name: evaluator_name,
+          score: score,
+          passed: passed)
       end
 
       def record_artifact(run_id:, role:, path:, metadata: {})
@@ -73,21 +94,32 @@ module Aidp
           path: path,
           metadata: metadata
         )
+        Aidp.log_debug("experience_store", "artifact_recorded",
+          run_id: run_id, role: role, path: path)
       end
 
       def replay_bundle(run_id)
-        run_repository.bundle_for_replay(run_id)
+        bundle = run_repository.bundle_for_replay(run_id)
+        Aidp.log_debug("experience_store", "replay_bundle_loaded",
+          run_id: run_id, found: !bundle.nil?)
+        bundle
       end
 
       def run_details(run_id)
         run = run_repository.load(run_id)
         return nil unless run
 
-        run.merge(
+        details = run.merge(
           evaluations: evaluation_repository.list_for_run(run_id),
           artifacts: artifact_repository.list_for_run(run_id),
           children: run_repository.children(run_id)
         )
+        Aidp.log_debug("experience_store", "run_details_loaded",
+          run_id: run_id,
+          evaluation_count: details[:evaluations].length,
+          artifact_count: details[:artifacts].length,
+          child_count: details[:children].length)
+        details
       end
 
       private

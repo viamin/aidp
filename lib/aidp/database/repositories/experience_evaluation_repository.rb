@@ -25,6 +25,12 @@ module Aidp
               serialize_json(metadata || {})
             ]
           )
+
+          Aidp.log_debug("experience_evaluation_repository", "recorded",
+            run_id: run_id,
+            evaluator_name: evaluator_name,
+            score: score,
+            passed: passed)
         end
 
         def list_for_run(run_id)

@@ -5,7 +5,7 @@ require_relative "../../../../lib/aidp/temporal"
 
 RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
   let(:workflow) { described_class.new }
-  let(:workflow_info) { double("WorkflowInfo", workflow_id: "wf-branch", task_queue: "aidp-workflows") }
+  let(:workflow_info) { double("WorkflowInfo", workflow_id: "wf-branch", run_id: "wf-branch-run", task_queue: "aidp-workflows") }
 
   before do
     allow(Temporalio::Workflow).to receive(:info).and_return(workflow_info)

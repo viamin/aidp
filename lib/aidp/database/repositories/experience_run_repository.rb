@@ -34,6 +34,13 @@ module Aidp
             ]
           )
 
+          Aidp.log_debug("experience_run_repository", "started",
+            id: run_id,
+            task_id: task_id,
+            strategy_id: strategy_id,
+            branch_key: branch_key,
+            depth: depth)
+
           load(run_id)
         end
 
@@ -55,6 +62,9 @@ module Aidp
               project_dir
             ]
           )
+
+          Aidp.log_debug("experience_run_repository", "completed",
+            id: run_id, status: status)
 
           load(run_id)
         end

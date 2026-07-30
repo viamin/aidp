@@ -27,8 +27,21 @@ module Aidp
             artifact_dir: artifact_dir
           )
 
+          Aidp.log_debug("cli_protocol", "executing",
+            role: role,
+            command: command.is_a?(Array) ? command.first : Shellwords.split(command.to_s).first,
+            task_id: request[:task]&.dig(:id),
+            artifact_dir: artifact_dir)
+
           stdout, stderr, status = Open3.capture3(*command_parts(command), stdin_data: JSON.generate(payload), chdir: @project_dir)
-          raise ProtocolError, stderr.strip unless status.success?
+          unless status.success?
+            Aidp.log_error("cli_protocol", "execution_failed",
+              role: role,
+              command: command.is_a?(Array) ? command.first : Shellwords.split(command.to_s).first,
+              exit_status: status.exitstatus,
+              stderr: stderr.to_s.strip)
+            raise ProtocolError, stderr.strip
+          end
 
           response = JSON.parse(stdout, symbolize_names: true)
           validate_response!(response, role)
@@ -39,7 +52,19 @@ module Aidp
             stderr: stderr
           )
         rescue JSON::ParserError => e
+          Aidp.log_error("cli_protocol", "invalid_response",
+            role: role,
+            error: e.message)
           raise ProtocolError, "Invalid JSON response: #{e.message}"
+        rescue ProtocolError
+          raise
+        rescue => e
+          Aidp.log_error("cli_protocol", "execution_failed",
+            role: role,
+            command: command.is_a?(Array) ? command.first : Shellwords.split(command.to_s).first,
+            error: e.message,
+            error_class: e.class.name)
+          raise
         end
 
         private

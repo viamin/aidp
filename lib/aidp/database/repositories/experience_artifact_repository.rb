@@ -15,6 +15,9 @@ module Aidp
             insert_sql([:project_dir, :run_id, :role, :path, :metadata]),
             [project_dir, run_id, role, path, serialize_json(metadata || {})]
           )
+
+          Aidp.log_debug("experience_artifact_repository", "recorded",
+            run_id: run_id, role: role, path: path)
         end
 
         def list_for_run(run_id)

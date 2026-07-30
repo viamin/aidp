@@ -27,6 +27,9 @@ module Aidp
             ]
           )
 
+          Aidp.log_debug("experience_task_repository", "created",
+            id: task_id, source_run_id: source_run_id)
+
           load(task_id)
         end
 

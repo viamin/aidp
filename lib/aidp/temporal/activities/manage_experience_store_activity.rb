@@ -15,6 +15,12 @@ module Aidp
             payload = input[:payload] || {}
             store = Aidp::StrategyExecution::ExperienceStore.new(project_dir: project_dir)
 
+            Aidp.log_debug("manage_experience_store_activity", "dispatching",
+              operation: operation,
+              run_id: payload[:run_id],
+              task_id: payload[:task_id],
+              strategy_id: payload[:strategy_id])
+
             case operation
             when "register_strategy"
               strategy = Aidp::StrategyExecution::StrategySpec.from_hash(payload[:strategy])
@@ -36,6 +42,8 @@ module Aidp
             when "run_details"
               store.run_details(payload[:run_id])
             else
+              Aidp.log_error("manage_experience_store_activity", "unknown_operation",
+                operation: operation)
               error_result("Unknown operation: #{operation}")
             end
           end

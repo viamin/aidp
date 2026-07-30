@@ -3,6 +3,7 @@
 require "temporalio/workflow"
 require_relative "base_workflow"
 require_relative "../../strategy_execution/strategy_spec"
+require_relative "../../strategy_execution/cli_protocol"
 
 module Aidp
   module Temporal
@@ -22,22 +23,47 @@ module Aidp
 
         def execute(input)
           initialize_state(input)
+          log_workflow("execute_started",
+            strategy: @strategy.name,
+            depth: @depth,
+            task_id: @task[:id])
 
           @strategy_record = register_strategy
+          log_workflow("strategy_registered", strategy_id: @strategy_record[:id])
+
           @task_record = ensure_task
+          log_workflow("task_ensured", task_id: @task_record[:id])
+
           @run = start_run
+          log_workflow("run_started", run_id: @run[:id])
 
           transition_to(:fanout)
           branches = launch_branches
+          log_workflow("branches_launched", count: branches.length)
+
           @winning_branch = select_winning_branch(branches)
+          log_workflow("winning_branch_selected",
+            branch_key: @winning_branch&.fetch(:branch_key, nil),
+            aggregate_score: @winning_branch&.fetch(:aggregate_score, nil))
 
           transition_to(:merge)
           merged_children = execute_subtasks(@winning_branch)
+          log_workflow("subtasks_completed", count: merged_children.length)
+
           result = build_result(branches, merged_children)
 
           complete_run("completed", result)
+          log_workflow("execute_completed", run_id: @run[:id])
           result
-        rescue => e
+        rescue Temporalio::Error::CanceledError
+          raise
+        rescue Aidp::StrategyExecution::CliProtocol::ProtocolError,
+          Aidp::Database::Error => e
+          Aidp.log_error("strategy_execution_workflow", "execute_failed",
+            run_id: @run&.fetch(:id, nil),
+            depth: @depth,
+            error: e.message,
+            error_class: e.class.name)
           complete_run("failed", {error: e.message}) if @run
           raise
         end
@@ -52,6 +78,9 @@ module Aidp
           @parent_run_id = input[:parent_run_id]
           @state = :init
           @winning_branch = nil
+          @strategy_record = nil
+          @task_record = nil
+          @run = nil
         end
 
         def register_strategy
@@ -89,6 +118,11 @@ module Aidp
 
         def launch_branches
           @strategy.branch_commands.map.with_index do |branch, index|
+            log_workflow("branch_launching",
+              branch_key: branch[:key],
+              branch_index: index,
+              run_id: @run[:id])
+
             Temporalio::Workflow.execute_child_workflow(
               StrategyBranchWorkflow,
               {
@@ -108,18 +142,32 @@ module Aidp
         end
 
         def select_winning_branch(branches)
-          case @strategy.merge_policy
+          winning = case @strategy.merge_policy
           when "highest_score", "critic_vote_then_merge"
             branches.max_by { |branch| branch[:aggregate_score].to_f }
           else
             branches.first
           end
+
+          log_workflow("merge_policy_applied",
+            merge_policy: @strategy.merge_policy,
+            candidates: branches.length,
+            winning_branch_key: winning&.fetch(:branch_key, nil),
+            run_id: @run[:id],
+            depth: @depth)
+
+          winning
         end
 
         def execute_subtasks(winning_branch)
           subtasks = Array(winning_branch[:subtasks])
           return [] if subtasks.empty?
           return [] if @depth >= @strategy.max_depth
+
+          log_workflow("recursive_fanout_starting",
+            subtask_count: subtasks.length,
+            run_id: @run[:id],
+            depth: @depth)
 
           transition_to(:recursive_fanout)
 
@@ -164,6 +212,11 @@ module Aidp
               winning_branch: @winning_branch&.fetch(:branch_key, nil)
             }
           )
+          log_workflow("run_completed",
+            run_id: @run[:id],
+            status: status,
+            depth: @depth,
+            branch_key: @winning_branch&.fetch(:branch_key, nil))
         end
 
         def execute_store(operation, payload)
@@ -208,7 +261,13 @@ module Aidp
         end
 
         def transition_to(state)
+          previous = @state
           @state = state
+          log_workflow("state_transition",
+            from: previous,
+            to: state,
+            run_id: @run&.fetch(:id, nil),
+            depth: @depth)
         end
       end
     end

@@ -3,6 +3,7 @@
 require "temporalio/workflow"
 require_relative "base_workflow"
 require_relative "../../strategy_execution/strategy_spec"
+require_relative "../../strategy_execution/cli_protocol"
 
 module Aidp
   module Temporal
@@ -10,17 +11,57 @@ module Aidp
       class StrategyBranchWorkflow < BaseWorkflow
         def execute(input)
           initialize_state(input)
+          log_workflow("execute_started",
+            branch_key: @branch&.dig(:key),
+            strategy_id: @strategy_id,
+            depth: @depth)
+
           @run = start_run
+          log_workflow("run_started",
+            run_id: @run[:id],
+            branch_key: @branch&.dig(:key))
 
           agent_result = execute_agent
+          log_workflow("agent_completed",
+            run_id: @run[:id],
+            branch_key: @branch&.dig(:key),
+            artifact_count: Array(agent_result[:artifacts]).length)
+
           evaluations = execute_evaluators(agent_result)
+          log_workflow("evaluator_completed",
+            run_id: @run[:id],
+            branch_key: @branch&.dig(:key),
+            evaluator_count: evaluations.length,
+            aggregate_score: aggregate_score(
+              evaluations.filter_map { |evaluation| evaluation[:score]&.to_f },
+              evaluations
+            ))
+
           artifacts = record_artifacts(agent_result, evaluations)
+          log_workflow("artifacts_recorded",
+            run_id: @run[:id],
+            branch_key: @branch&.dig(:key),
+            artifact_count: artifacts.length)
 
           output = build_output(agent_result, evaluations, artifacts)
           complete_run("completed", output)
 
+          log_workflow("run_completed",
+            run_id: @run[:id],
+            branch_key: @branch&.dig(:key),
+            status: "completed",
+            aggregate_score: output[:aggregate_score])
+
           output
-        rescue => e
+        rescue Temporalio::Error::CanceledError
+          raise
+        rescue Aidp::StrategyExecution::CliProtocol::ProtocolError,
+          Aidp::Database::Error => e
+          Aidp.log_error("strategy_branch_workflow", "execute_failed",
+            run_id: @run&.dig(:id),
+            branch_key: @branch&.dig(:key),
+            error: e.message,
+            error_class: e.class.name)
           complete_run("failed", {error: e.message}) if @run
           raise
         end
@@ -53,6 +94,10 @@ module Aidp
         end
 
         def execute_agent
+          log_workflow("agent_started",
+            run_id: @run[:id],
+            branch_key: @branch&.dig(:key))
+
           Temporalio::Workflow.execute_activity(
             Activities::ExecuteCliCommandActivity,
             {
@@ -72,6 +117,11 @@ module Aidp
 
         def execute_evaluators(agent_result)
           @strategy.evaluator_definitions.map do |evaluator|
+            log_workflow("evaluator_started",
+              run_id: @run[:id],
+              branch_key: @branch&.dig(:key),
+              evaluator_name: evaluator[:name])
+
             result = Temporalio::Workflow.execute_activity(
               Activities::ExecuteCliCommandActivity,
               {
