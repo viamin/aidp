@@ -152,11 +152,19 @@ module Aidp
         end
 
         def aggregate_score(scores, evaluations)
-          return 0.0 if scores.empty?
-
-          normalized = scores.sum / scores.length
+          normalized = if scores.empty?
+            pass_ratio(evaluations)
+          else
+            scores.sum / scores.length
+          end
           bonus = evaluations.count { |evaluation| evaluation[:passed] } * 0.1
           normalized + bonus
+        end
+
+        def pass_ratio(evaluations)
+          return 0.0 if evaluations.empty?
+
+          evaluations.count { |evaluation| evaluation[:passed] }.to_f / evaluations.length
         end
 
         def complete_run(status, output)

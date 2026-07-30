@@ -47,4 +47,31 @@ RSpec.describe Aidp::StrategyExecution::ExperienceStore do
     expect(details[:artifacts].first[:path]).to eq("/tmp/output.patch")
     expect(details[:status]).to eq("completed")
   end
+
+  it "preserves start metadata when a run completes" do
+    strategy_record = store.register_strategy(strategy)
+    task = store.create_task(description: "Keep audit trail intact")
+    run = store.start_run(
+      task_id: task[:id],
+      strategy_id: strategy_record[:id],
+      workflow_id: "wf-2",
+      depth: 1,
+      input_payload: {},
+      metadata: {workflow_type: "Aidp::Temporal::Workflows::StrategyBranchWorkflow"}
+    )
+
+    store.complete_run(
+      run_id: run[:id],
+      status: "completed",
+      output_payload: {summary: "done"},
+      metadata: {branch_key: "branch-1"}
+    )
+
+    details = store.run_details(run[:id])
+
+    expect(details[:metadata]).to include(
+      workflow_type: "Aidp::Temporal::Workflows::StrategyBranchWorkflow",
+      branch_key: "branch-1"
+    )
+  end
 end

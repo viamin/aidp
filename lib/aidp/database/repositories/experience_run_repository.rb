@@ -38,6 +38,8 @@ module Aidp
         end
 
         def complete(run_id:, status:, output_payload:, metadata: {})
+          merged_metadata = existing_metadata(run_id).merge(metadata || {})
+
           execute(
             <<~SQL,
               UPDATE experience_runs
@@ -47,7 +49,7 @@ module Aidp
             [
               status,
               serialize_json(output_payload || {}),
-              serialize_json(metadata || {}),
+              serialize_json(merged_metadata),
               current_timestamp,
               run_id,
               project_dir
@@ -101,6 +103,10 @@ module Aidp
         end
 
         private
+
+        def existing_metadata(run_id)
+          load(run_id)&.fetch(:metadata, {}) || {}
+        end
 
         def deserialize_run(row)
           return nil unless row
