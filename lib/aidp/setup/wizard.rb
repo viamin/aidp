@@ -2967,13 +2967,17 @@ module Aidp
         parsed = JSON.parse(json_match[0], symbolize_names: true)
         {
           commands: normalize_suggested_commands(parsed[:commands]),
-          watch_patterns: Array(parsed[:watch_patterns]).map(&:to_s),
-          guard_include_patterns: Array(parsed[:guard_include_patterns]).map(&:to_s),
-          guard_exclude_patterns: Array(parsed[:guard_exclude_patterns]).map(&:to_s)
+          watch_patterns: normalize_suggested_patterns(parsed[:watch_patterns]),
+          guard_include_patterns: normalize_suggested_patterns(parsed[:guard_include_patterns]),
+          guard_exclude_patterns: normalize_suggested_patterns(parsed[:guard_exclude_patterns])
         }
       rescue JSON::ParserError => e
         Aidp.log_warn("setup_wizard", "phase_two_suggestions_parse_failed", error: e.message)
         {}
+      end
+
+      def normalize_suggested_patterns(patterns)
+        Array(patterns).select { |pattern| pattern.is_a?(String) && !pattern.empty? }
       end
 
       def normalize_suggested_commands(commands)
@@ -2982,12 +2986,14 @@ module Aidp
 
           category = command[:category].to_s
           run_after = command[:run_after].to_s
+          command_value = command[:command]
+          next unless command_value.is_a?(String) && !command_value.empty?
           next unless %w[test lint formatter build documentation custom].include?(category)
           next unless %w[each_unit full_loop on_completion].include?(run_after)
 
           {
             name: command[:name].to_s.empty? ? "command" : command[:name].to_s,
-            command: command[:command].to_s,
+            command: command_value,
             category: category.to_sym,
             run_after: run_after.to_sym,
             required: command[:required] != false,

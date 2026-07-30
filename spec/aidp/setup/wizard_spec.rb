@@ -1842,6 +1842,38 @@ RSpec.describe Aidp::Setup::Wizard do
     end
   end
 
+  describe "phase-two suggestion parsing" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "drops suggestions whose commands are missing, empty, or non-string" do
+      response = {
+        commands: [
+          {name: "missing", category: "test", run_after: "each_unit"},
+          {name: "empty", command: "", category: "lint", run_after: "each_unit"},
+          {name: "numeric", command: 123, category: "build", run_after: "full_loop"},
+          {name: "valid", command: "bundle exec rspec", category: "test", run_after: "each_unit"}
+        ],
+        watch_patterns: ["spec/**/*_spec.rb", "", nil, 123],
+        guard_include_patterns: ["lib/**/*", {}],
+        guard_exclude_patterns: [false, "vendor/**"]
+      }.to_json
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "valid",
+        command: "bundle exec rspec",
+        category: :test,
+        run_after: :each_unit,
+        required: true,
+        timeout_seconds: nil
+      }])
+      expect(suggestions[:watch_patterns]).to eq(["spec/**/*_spec.rb"])
+      expect(suggestions[:guard_include_patterns]).to eq(["lib/**/*"])
+      expect(suggestions[:guard_exclude_patterns]).to eq(["vendor/**"])
+    end
+  end
+
   describe "#configure_commands" do
     let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
 
