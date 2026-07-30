@@ -1782,6 +1782,7 @@ RSpec.describe Aidp::Setup::Wizard do
       end
 
       it "exits early without setting commands" do
+        expect(wizard).not_to receive(:phase_two_suggestions)
         wizard.send(:configure_commands)
         expect(wizard.send(:get, [:work_loop, :commands])).to be_nil
       end
@@ -1827,6 +1828,29 @@ RSpec.describe Aidp::Setup::Wizard do
       end
 
       it "preserves existing commands" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq(existing_commands)
+      end
+    end
+
+    context "when both generic and legacy commands exist" do
+      let(:existing_commands) do
+        [{name: "generic_test", command: "bundle exec rspec", category: :test, run_after: :each_unit, required: true}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :keep}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+        wizard.send(:set, [:work_loop, :test_commands], ["npm test"])
+      end
+
+      it "prefers generic commands over legacy commands" do
         wizard.send(:configure_commands)
         commands = wizard.send(:get, [:work_loop, :commands])
         expect(commands).to eq(existing_commands)
@@ -1946,6 +1970,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
       before do
         wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+        wizard.send(:set, [:work_loop, :formatter_commands], ["bundle exec rubocop -A"])
       end
 
       it "clears legacy command keys after writing work_loop.commands" do
@@ -1970,6 +1995,14 @@ RSpec.describe Aidp::Setup::Wizard do
             timeout_seconds: nil
           },
           {
+            name: "formatter_0",
+            command: "bundle exec rubocop -A",
+            category: :formatter,
+            run_after: :on_completion,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
             name: "lint",
             command: "bundle exec rubocop",
             category: :lint,
@@ -1979,6 +2012,10 @@ RSpec.describe Aidp::Setup::Wizard do
           }
         ])
         expect(wizard.send(:get, %i[work_loop test_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop formatter_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop build_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop documentation_commands])).to be_nil
       end
     end
   end

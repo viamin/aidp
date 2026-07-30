@@ -574,7 +574,6 @@ module Aidp
         prompt.say("  Commands can run: after each unit, at full loop end, or on completion")
 
         existing_commands = effective_work_loop_commands
-        existing_commands = phase_two_suggestions[:commands] if existing_commands.empty?
 
         # If user has existing commands, offer to edit or start fresh
         if existing_commands.any?
@@ -599,6 +598,7 @@ module Aidp
           end
         else
           return unless prompt.yes?("Configure deterministic commands?", default: true)
+          existing_commands = default_phase_two_commands
         end
 
         commands = existing_commands.dup
@@ -2992,8 +2992,10 @@ module Aidp
       end
 
       def effective_work_loop_commands
-        commands = normalize_generic_work_loop_commands(get(%i[work_loop commands]))
-        commands + normalize_legacy_work_loop_commands
+        generic_commands = normalize_generic_work_loop_commands(get(%i[work_loop commands]))
+        return generic_commands if generic_commands.any?
+
+        normalize_legacy_work_loop_commands
       end
 
       def normalize_generic_work_loop_commands(commands)

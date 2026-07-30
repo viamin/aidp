@@ -909,21 +909,17 @@ module Aidp
       # Load commands from configuration, supporting both new generic format
       # and legacy category-specific format for backwards compatibility
       def load_commands
-        commands = []
-
         # Load from new generic commands array if present
         raw_commands = work_loop_config[:commands] || []
-        commands.concat(normalize_generic_commands(raw_commands))
-
-        # Load from legacy category-specific arrays for backwards compatibility
-        commands.concat(load_legacy_commands)
+        generic_commands = normalize_generic_commands(raw_commands)
+        legacy_commands = generic_commands.any? ? [] : load_legacy_commands
 
         Aidp.log_debug("configuration", "loaded_commands",
-          total: commands.size,
+          total: generic_commands.size + legacy_commands.size,
           from_generic: raw_commands.size,
-          from_legacy: commands.size - raw_commands.size)
+          from_legacy: legacy_commands.size)
 
-        commands
+        generic_commands + legacy_commands
       end
 
       # Normalize generic command format

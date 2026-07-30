@@ -482,6 +482,33 @@ RSpec.describe Aidp::Harness::Configuration do
       end
     end
 
+    context "when both generic and legacy commands are configured" do
+      let(:mock_config) do
+        super().tap do |config|
+          config[:harness][:work_loop] = {
+            enabled: true,
+            commands: [
+              {name: "generic_test", command: "bundle exec rspec", category: :test, run_after: :each_unit}
+            ],
+            test_commands: ["npm test"]
+          }
+        end
+      end
+
+      it "prefers generic commands and ignores legacy duplicates" do
+        expect(configuration.commands).to eq([
+          {
+            name: "generic_test",
+            command: "bundle exec rspec",
+            required: true,
+            run_after: :each_unit,
+            category: :test,
+            timeout_seconds: nil
+          }
+        ])
+      end
+    end
+
     context "with run_after aliases" do
       let(:mock_config) do
         super().tap do |config|
