@@ -60,11 +60,22 @@ module Aidp
         end
 
         def normalize_artifacts(artifacts, artifact_dir)
-          Array(artifacts).map do |artifact|
-            next artifact unless artifact.is_a?(String) && !Pathname.new(artifact).absolute?
+          expanded_artifact_dir = File.expand_path(artifact_dir)
 
-            File.expand_path(artifact, artifact_dir)
+          Array(artifacts).map do |artifact|
+            next artifact unless artifact.is_a?(String)
+
+            expanded_path = File.expand_path(artifact, expanded_artifact_dir)
+            validate_artifact_path!(artifact, expanded_path, expanded_artifact_dir)
+            expanded_path
           end
+        end
+
+        def validate_artifact_path!(artifact, expanded_path, artifact_dir)
+          return if expanded_path == artifact_dir
+          return if expanded_path.start_with?("#{artifact_dir}#{File::SEPARATOR}")
+
+          raise ProtocolError, "artifact path escapes artifact directory: #{artifact}"
         end
 
         def validate_response!(response, role)

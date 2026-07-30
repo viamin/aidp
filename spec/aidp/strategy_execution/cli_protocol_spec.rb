@@ -44,6 +44,44 @@ RSpec.describe Aidp::StrategyExecution::CliProtocol::Runner do
     expect(result[:artifacts]).to eq([File.join(result[:artifact_dir], "out.txt")])
   end
 
+  it "rejects relative artifact paths that escape the artifact directory" do
+    command = [
+      "ruby",
+      "-e",
+      'require "json"; puts JSON.generate(success: true, artifacts: ["../../escaped.txt"])'
+    ]
+
+    expect {
+      runner.execute(
+        command: command,
+        role: "agent",
+        request: {task: {description: "ship it"}}
+      )
+    }.to raise_error(
+      Aidp::StrategyExecution::CliProtocol::ProtocolError,
+      /artifact path escapes artifact directory/
+    )
+  end
+
+  it "rejects absolute artifact paths outside the artifact directory" do
+    command = [
+      "ruby",
+      "-e",
+      'require "json"; puts JSON.generate(success: true, artifacts: ["/tmp/escaped.txt"])'
+    ]
+
+    expect {
+      runner.execute(
+        command: command,
+        role: "agent",
+        request: {task: {description: "ship it"}}
+      )
+    }.to raise_error(
+      Aidp::StrategyExecution::CliProtocol::ProtocolError,
+      /artifact path escapes artifact directory/
+    )
+  end
+
   it "raises when evaluator response is incomplete" do
     command = ["ruby", "-e", "puts JSON.generate(success: true)"]
 
