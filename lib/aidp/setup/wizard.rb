@@ -80,7 +80,7 @@ module Aidp
 
         yaml_content = generate_yaml
         display_preview(yaml_content)
-        display_diff(yaml_content) if @existing_config.any?
+        display_diff(yaml_content) if @original_config_content
 
         return true if dry_run_mode?(yaml_content)
 
