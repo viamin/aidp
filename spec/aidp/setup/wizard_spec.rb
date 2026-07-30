@@ -1864,6 +1864,38 @@ RSpec.describe Aidp::Setup::Wizard do
       end
     end
 
+    context "when no existing commands and phase two suggestions include commands" do
+      let(:suggested_commands) do
+        [{
+          name: "ai_test",
+          command: "bundle exec rspec spec/models",
+          category: :test,
+          run_after: :each_unit,
+          required: true,
+          timeout_seconds: 600
+        }]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          yes?: true,
+          yes_map: {"Configure deterministic commands?" => true},
+          select_map: {"\nWhat would you like to do?" => :done}
+        })
+      end
+
+      before do
+        allow(wizard).to receive(:phase_two_suggestions).and_return({commands: suggested_commands})
+        allow(wizard).to receive(:default_phase_two_commands).and_return([])
+      end
+
+      it "seeds commands from phase two suggestions" do
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, [:work_loop, :commands])).to eq(suggested_commands)
+      end
+    end
+
     context "when existing commands and user keeps them" do
       let(:existing_commands) do
         [{name: "existing_test", command: "npm test", category: :test, run_after: :each_unit, required: true}]

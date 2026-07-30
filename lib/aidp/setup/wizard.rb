@@ -602,7 +602,7 @@ module Aidp
           end
         else
           return unless prompt.yes?("Configure deterministic commands?", default: true)
-          existing_commands = default_phase_two_commands
+          existing_commands = phase_two_suggestions[:commands]
         end
 
         commands = existing_commands.dup
