@@ -490,16 +490,24 @@ RSpec.describe Aidp::Harness::Configuration do
             commands: [
               {name: "generic_test", command: "bundle exec rspec", category: :test, run_after: :each_unit}
             ],
-            test_commands: ["npm test"]
+            test_commands: ["npm test", "bundle exec rspec"]
           }
         end
       end
 
-      it "prefers generic commands and ignores legacy duplicates" do
+      it "keeps unique legacy commands and removes only true duplicates" do
         expect(configuration.commands).to eq([
           {
             name: "generic_test",
             command: "bundle exec rspec",
+            required: true,
+            run_after: :each_unit,
+            category: :test,
+            timeout_seconds: nil
+          },
+          {
+            name: "test_0",
+            command: "npm test",
             required: true,
             run_after: :each_unit,
             category: :test,
