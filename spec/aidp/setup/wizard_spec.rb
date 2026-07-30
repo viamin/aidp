@@ -308,6 +308,42 @@ RSpec.describe Aidp::Setup::Wizard do
       expect { wizard.run }.to raise_error(RuntimeError, "phase two failed")
       expect(File).not_to exist(Aidp::ConfigPaths.config_file(tmp_dir))
     end
+
+    it "preserves the chosen config when save_config raises after writing the YAML" do
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Save this configuration?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+      config_file = Aidp::ConfigPaths.config_file(tmp_dir)
+
+      # Use the real save_config but let devcontainer artifact generation
+      # raise AFTER the YAML file has been written. The ensure block in #run
+      # must not then overwrite the just-written YAML with the original
+      # phase-one snapshot — that would be silent data loss for the user.
+      allow(wizard).to receive(:generate_devcontainer_file).and_raise("artifact boom")
+
+      expect { wizard.run }.to raise_error(RuntimeError, "artifact boom")
+
+      expect(File).to exist(config_file)
+      written_yaml = File.read(config_file)
+      expect(written_yaml).not_to include("api_key: old")
+      expect(written_yaml).to include("schema_version:")
+    end
   end
 
   describe "#create_filter_factory" do

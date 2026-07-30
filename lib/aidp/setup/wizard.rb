@@ -87,7 +87,6 @@ module Aidp
         if prompt.yes?("Save this configuration?", default: true)
           save_config(yaml_content)
           final_save_succeeded = true
-          @phase_one_persisted = false
           prompt.ok("✅ Configuration saved to #{relative_config_path}")
           show_next_steps
           display_warnings
@@ -100,6 +99,11 @@ module Aidp
 
         @saved
       ensure
+        # Only roll back when the phase-one snapshot has not been replaced
+        # by a successful final write. save_config clears @phase_one_persisted
+        # once the YAML is on disk, so a post-write artifact failure leaves
+        # the user's chosen config intact instead of being overwritten by
+        # the original.
         rollback_phase_one_config if @phase_one_persisted && !final_save_succeeded
       end
 
@@ -2023,6 +2027,12 @@ module Aidp
       def save_config(yaml_content, generate_artifacts: true)
         Aidp::ConfigPaths.ensure_config_dir(project_dir)
         File.write(config_path, yaml_content)
+        # Once the YAML is on disk, treat the final save as committed even if
+        # artifact generation fails afterwards. Clearing @phase_one_persisted
+        # here keeps a post-write raise from triggering the run-level rollback
+        # in #run's ensure block, which would otherwise overwrite the user's
+        # just-saved configuration with the original phase-one snapshot.
+        @phase_one_persisted = false
         return unless generate_artifacts
 
         generate_mcp_risk_profile
