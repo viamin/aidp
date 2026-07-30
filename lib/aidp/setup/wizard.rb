@@ -948,18 +948,13 @@ module Aidp
       end
 
       def create_filter_factory
-        config_adapter = if @phase_one_persisted
-          Aidp::Harness::Configuration.new(project_dir)
-        else
-          build_in_memory_config_adapter
-        end
-        config_manager = if @phase_one_persisted
-          Aidp::Harness::ConfigManager.new(project_dir)
-        else
-          build_in_memory_config_manager
-        end
+        # Always use in-memory config objects here. Phase-two edits
+        # (e.g. configure_thinking_tiers) live only in @config until the
+        # final save; switching to disk-backed Configuration would miss
+        # those user choices and pick a stale model via ThinkingDepthManager.
+        config_adapter = build_in_memory_config_adapter
+        config_manager = build_in_memory_config_manager
 
-        # Create provider factory with in-memory config manager
         provider_factory = Aidp::Harness::ProviderFactory.new(config_manager)
 
         Aidp.log_debug("setup_wizard", "creating_filter_factory",

@@ -310,6 +310,22 @@ RSpec.describe Aidp::Setup::Wizard do
     end
   end
 
+  describe "#create_filter_factory" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "uses the in-memory config after phase one is persisted" do
+      wizard.instance_variable_set(:@phase_one_persisted, true)
+      wizard.send(:set, [:providers, :anthropic, :thinking_tiers, :mini],
+        {models: ["in-memory-mini"]})
+
+      factory = wizard.send(:create_filter_factory)
+
+      adapter = factory.config
+      expect(adapter).to be_a(Aidp::Setup::InMemoryConfigAdapter)
+      expect(adapter.models_for_tier(:mini, "anthropic")).to eq(["in-memory-mini"])
+    end
+  end
+
   describe "#generate_yaml" do
     it "generates yaml with helpful comments" do
       wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
