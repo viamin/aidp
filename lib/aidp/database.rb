@@ -15,6 +15,8 @@ module Aidp
     # Thread-safe connection cache
     @connections = {}
     @mutex = Mutex.new
+    @migrated_projects = Set.new
+    @migration_mutex = Mutex.new
 
     class << self
       # Get or create a database connection for the given project directory
@@ -51,6 +53,22 @@ module Aidp
       def migrate!(project_dir = Dir.pwd)
         require_relative "database/migrations"
         Migrations.run!(project_dir)
+      end
+
+      # Run pending migrations at most once per process for each project directory.
+      #
+      # @param project_dir [String] Project directory path
+      # @return [Array<Integer>] List of applied migration versions
+      def migrate_once!(project_dir = Dir.pwd)
+        expanded_project_dir = File.expand_path(project_dir)
+
+        @migration_mutex.synchronize do
+          return [] if @migrated_projects.include?(expanded_project_dir)
+
+          migrate!(expanded_project_dir).tap do
+            @migrated_projects << expanded_project_dir
+          end
+        end
       end
 
       # Check if database exists and is initialized

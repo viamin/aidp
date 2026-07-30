@@ -13,7 +13,7 @@ module Aidp
     class ExperienceStore
       def initialize(project_dir: Dir.pwd)
         @project_dir = project_dir
-        Aidp::Database.migrate!(@project_dir)
+        Aidp::Database.migrate_once!(@project_dir)
       end
 
       def register_strategy(strategy_spec)

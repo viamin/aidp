@@ -18,6 +18,39 @@ RSpec.describe Aidp::StrategyExecution::ExperienceStore do
     FileUtils.rm_rf(project_dir)
   end
 
+  around do |example|
+    original_migrated_projects = Aidp::Database.instance_variable_get(:@migrated_projects)
+    Aidp::Database.instance_variable_set(:@migrated_projects, Set.new)
+
+    example.run
+  ensure
+    Aidp::Database.instance_variable_set(:@migrated_projects, original_migrated_projects)
+  end
+
+  it "migrates a project only once across repeated store instantiations" do
+    allow(Aidp::Database).to receive(:migrate!).and_return([1])
+
+    described_class.new(project_dir: project_dir)
+    described_class.new(project_dir: project_dir)
+
+    expect(Aidp::Database).to have_received(:migrate!).once.with(File.expand_path(project_dir))
+  end
+
+  it "tracks migration once per project directory" do
+    other_project_dir = Dir.mktmpdir
+    allow(Aidp::Database).to receive(:migrate!).and_return([1])
+
+    described_class.new(project_dir: project_dir)
+    described_class.new(project_dir: other_project_dir)
+
+    expect(Aidp::Database).to have_received(:migrate!).with(File.expand_path(project_dir))
+    expect(Aidp::Database).to have_received(:migrate!).with(File.expand_path(other_project_dir))
+    expect(Aidp::Database).to have_received(:migrate!).twice
+  ensure
+    Aidp::Database.close(other_project_dir)
+    FileUtils.rm_rf(other_project_dir)
+  end
+
   it "records replayable runs with evaluations and artifacts" do
     strategy_record = store.register_strategy(strategy)
     task = store.create_task(description: "Fix the failing spec", input_payload: {issue: 123})
