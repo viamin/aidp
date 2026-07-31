@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.0](https://github.com/viamin/aidp/compare/aidp/v0.48.0...aidp/v0.49.0) (2026-07-31)
+
+
+### Features
+
+* Break config command into separate phases ([#557](https://github.com/viamin/aidp/issues/557)) ([29a93c4](https://github.com/viamin/aidp/commit/29a93c4349b4411171e3ba14c399da0f6881f3b7))
+
 ## [0.48.0](https://github.com/viamin/aidp/compare/aidp/v0.47.1...aidp/v0.48.0) (2026-07-31)
 
 
