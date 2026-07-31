@@ -61,4 +61,43 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
       )
     end
   end
+
+  describe "long-running CLI activity timeouts" do
+    let(:strategy_input) do
+      {
+        project_dir: "/tmp/project",
+        task: {id: "task-1", description: "Implement feature"},
+        task_id: "task-1",
+        strategy: {
+          name: "fanout",
+          fanout: 1,
+          max_depth: 1,
+          agents: {coder: ["bin/a"]},
+          evaluators: [{name: "tests", command: "bin/tests"}]
+        },
+        strategy_id: "strategy-1",
+        branch: {key: "branch-1", name: "Branch 1", command: "bin/a"}
+      }
+    end
+
+    it "pairs a heartbeat timeout with the raised agent and evaluator budgets" do
+      allow(workflow).to receive(:execute_activity).and_return({id: "run-1"}, nil, nil)
+      allow(workflow).to receive(:activity_options).and_call_original
+
+      cli_options = []
+      allow(Temporalio::Workflow).to receive(:execute_activity) do |activity_class, _input, **opts|
+        cli_options << opts if activity_class == Aidp::Temporal::Activities::ExecuteCliCommandActivity
+        {output: "done", passed: true}
+      end
+
+      workflow.execute(strategy_input)
+
+      expect(cli_options.length).to eq(2) # one agent + one evaluator
+      cli_options.each do |opts|
+        expect(opts[:heartbeat_timeout]).to eq(120)
+      end
+      expect(cli_options).to include(hash_including(start_to_close_timeout: 900)) # agent
+      expect(cli_options).to include(hash_including(start_to_close_timeout: 300)) # evaluator
+    end
+  end
 end

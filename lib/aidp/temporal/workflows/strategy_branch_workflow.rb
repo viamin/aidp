@@ -9,6 +9,11 @@ module Aidp
   module Temporal
     module Workflows
       class StrategyBranchWorkflow < BaseWorkflow
+        # Must exceed the 30s heartbeat interval in ExecuteCliCommandActivity
+        # while staying below the agent/evaluator start_to_close budgets, so a
+        # missed beat does not time out a long-running CLI invocation.
+        HEARTBEAT_TIMEOUT = 120
+
         def execute(input)
           initialize_state(input)
           log_workflow("execute_started",
@@ -111,7 +116,10 @@ module Aidp
                 strategy: @strategy.to_h
               }
             },
-            **activity_options(start_to_close_timeout: activity_timeout(:agent, 900))
+            **activity_options(
+              start_to_close_timeout: activity_timeout(:agent, 900),
+              heartbeat_timeout: activity_heartbeat_timeout
+            )
           )
         end
 
@@ -136,7 +144,10 @@ module Aidp
                   strategy: @strategy.to_h
                 }
               },
-              **activity_options(start_to_close_timeout: activity_timeout(:evaluator, 300))
+              **activity_options(
+                start_to_close_timeout: activity_timeout(:evaluator, 300),
+                heartbeat_timeout: activity_heartbeat_timeout
+              )
             )
 
             execute_activity(
@@ -243,6 +254,10 @@ module Aidp
           value = @strategy.timeouts[role]
           number = value.to_i
           number.positive? ? number : fallback
+        end
+
+        def activity_heartbeat_timeout
+          HEARTBEAT_TIMEOUT
         end
 
         def activity_options(overrides = {})
