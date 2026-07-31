@@ -1872,6 +1872,84 @@ RSpec.describe Aidp::Setup::Wizard do
       expect(suggestions[:guard_include_patterns]).to eq(["lib/**/*"])
       expect(suggestions[:guard_exclude_patterns]).to eq(["vendor/**"])
     end
+
+    it "preserves valid timeout_seconds values from suggested commands" do
+      response = {
+        commands: [
+          {
+            name: "slow_tests",
+            command: "bundle exec rspec spec/integration",
+            category: "test",
+            run_after: "full_loop",
+            required: true,
+            timeout_seconds: "600"
+          }
+        ]
+      }.to_json
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "slow_tests",
+        command: "bundle exec rspec spec/integration",
+        category: :test,
+        run_after: :full_loop,
+        required: true,
+        timeout_seconds: 600
+      }])
+    end
+
+    it "drops suggested commands with invalid timeout_seconds values" do
+      response = {
+        commands: [
+          {
+            name: "bad_timeout",
+            command: "bundle exec rspec",
+            category: "test",
+            run_after: "each_unit",
+            timeout_seconds: "soon"
+          },
+          {
+            name: "valid_timeout",
+            command: "bundle exec rubocop",
+            category: "lint",
+            run_after: "each_unit",
+            timeout_seconds: 120
+          }
+        ]
+      }.to_json
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "valid_timeout",
+        command: "bundle exec rubocop",
+        category: :lint,
+        run_after: :each_unit,
+        required: true,
+        timeout_seconds: 120
+      }])
+    end
+
+    it "extracts the first complete JSON object when trailing brace-delimited text is present" do
+      response = <<~TEXT
+        Here are the suggestions:
+        {"commands":[{"name":"test","command":"bundle exec rspec","category":"test","run_after":"each_unit","timeout_seconds":900}]}
+
+        Example override: {"commands":[]}
+      TEXT
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "test",
+        command: "bundle exec rspec",
+        category: :test,
+        run_after: :each_unit,
+        required: true,
+        timeout_seconds: 900
+      }])
+    end
   end
 
   describe "#configure_commands" do
@@ -1966,7 +2044,14 @@ RSpec.describe Aidp::Setup::Wizard do
       it "preserves existing commands" do
         wizard.send(:configure_commands)
         commands = wizard.send(:get, [:work_loop, :commands])
-        expect(commands).to eq(existing_commands)
+        expect(commands).to eq([{
+          name: "existing_test",
+          command: "npm test",
+          category: :test,
+          run_after: :each_unit,
+          required: true,
+          timeout_seconds: nil
+        }])
       end
     end
 
@@ -1989,7 +2074,24 @@ RSpec.describe Aidp::Setup::Wizard do
       it "merges unique legacy commands into the effective command list" do
         wizard.send(:configure_commands)
         commands = wizard.send(:get, [:work_loop, :commands])
-        expect(commands).to eq(existing_commands)
+        expect(commands).to eq([
+          {
+            name: "generic_test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "test_1",
+            command: "npm test",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          }
+        ])
         expect(wizard.send(:effective_work_loop_commands)).to eq([
           {
             name: "generic_test",
@@ -2008,6 +2110,44 @@ RSpec.describe Aidp::Setup::Wizard do
             timeout_seconds: nil
           }
         ])
+      end
+    end
+
+    context "when only legacy commands exist and user keeps them" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :keep}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+        wizard.send(:set, [:work_loop, :lint_commands], [{command: "bundle exec rubocop", timeout_seconds: 300}])
+      end
+
+      it "migrates them into work_loop.commands and clears legacy keys" do
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, %i[work_loop commands])).to eq([
+          {
+            name: "test_0",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "lint_0",
+            command: "bundle exec rubocop",
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 300
+          }
+        ])
+        expect(wizard.send(:get, %i[work_loop test_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint_commands])).to be_nil
       end
     end
 

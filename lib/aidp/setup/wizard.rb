@@ -590,7 +590,10 @@ module Aidp
           end
 
           case action
-          when :skip, :keep, nil
+          when :keep
+            save_work_loop_commands(existing_commands)
+            return
+          when :skip, nil
             return
           when :replace
             existing_commands = []
@@ -2961,10 +2964,9 @@ module Aidp
 
       def parse_phase_two_suggestions(response)
         response_text = response.is_a?(String) ? response : response.to_s
-        json_match = response_text.match(/\{.*\}/m)
-        return {} unless json_match
+        parsed = parse_phase_two_suggestion_payload(response_text)
+        return {} unless parsed.is_a?(Hash)
 
-        parsed = JSON.parse(json_match[0], symbolize_names: true)
         {
           commands: normalize_suggested_commands(parsed[:commands]),
           watch_patterns: normalize_suggested_patterns(parsed[:watch_patterns]),
@@ -2987,9 +2989,12 @@ module Aidp
           category = command[:category].to_s
           run_after = command[:run_after].to_s
           command_value = command[:command]
+          timeout_seconds = normalize_timeout_seconds(command[:timeout_seconds] || command["timeout_seconds"],
+            invalid: :invalid)
           next unless command_value.is_a?(String) && !command_value.empty?
           next unless %w[test lint formatter build documentation custom].include?(category)
           next unless %w[each_unit full_loop on_completion].include?(run_after)
+          next if timeout_seconds == :invalid
 
           {
             name: command[:name].to_s.empty? ? "command" : command[:name].to_s,
@@ -2997,7 +3002,7 @@ module Aidp
             category: category.to_sym,
             run_after: run_after.to_sym,
             required: command[:required] != false,
-            timeout_seconds: nil
+            timeout_seconds: timeout_seconds
           }
         end
       end
@@ -3042,7 +3047,7 @@ module Aidp
             category: category,
             run_after: normalize_run_after(command[:run_after] || command["run_after"]),
             required: required_value(command),
-            timeout_seconds: command[:timeout_seconds] || command["timeout_seconds"]
+            timeout_seconds: normalize_timeout_seconds(command[:timeout_seconds] || command["timeout_seconds"])
           }
         end
       end
@@ -3073,7 +3078,7 @@ module Aidp
             category: defaults[:category],
             run_after: defaults[:run_after],
             required: required_value(command),
-            timeout_seconds: command[:timeout_seconds] || command["timeout_seconds"]
+            timeout_seconds: normalize_timeout_seconds(command[:timeout_seconds] || command["timeout_seconds"])
           }
         end
       end
@@ -3104,6 +3109,70 @@ module Aidp
         return command["required"] if command.key?("required")
 
         true
+      end
+
+      def normalize_timeout_seconds(value, invalid: nil)
+        return nil if value.nil?
+        return nil if value.respond_to?(:empty?) && value.empty?
+
+        timeout_seconds = Integer(value, exception: false)
+        return invalid unless timeout_seconds&.positive?
+
+        timeout_seconds
+      end
+
+      def parse_phase_two_suggestion_payload(response_text)
+        JSON.parse(response_text, symbolize_names: true)
+      rescue JSON::ParserError
+        json_payload = extract_phase_two_suggestion_json(response_text)
+        return unless json_payload
+
+        JSON.parse(json_payload, symbolize_names: true)
+      end
+
+      def extract_phase_two_suggestion_json(response_text)
+        extract_fenced_json_object(response_text) || extract_balanced_json_object(response_text)
+      end
+
+      def extract_fenced_json_object(response_text)
+        match = response_text.match(/```(?:json)?\s*(\{.*?\})\s*```/mi)
+        match && match[1]
+      end
+
+      def extract_balanced_json_object(response_text)
+        start_index = response_text.index("{")
+        return unless start_index
+
+        depth = 0
+        in_string = false
+        escaped = false
+
+        response_text.each_char.with_index do |char, index|
+          next if index < start_index
+
+          if in_string
+            if escaped
+              escaped = false
+            elsif char == "\\"
+              escaped = true
+            elsif char == '"'
+              in_string = false
+            end
+            next
+          end
+
+          case char
+          when '"'
+            in_string = true
+          when "{"
+            depth += 1
+          when "}"
+            depth -= 1
+            return response_text[start_index..index] if depth.zero?
+          end
+        end
+
+        nil
       end
 
       def normalize_phase_two_value(value, fallback)
