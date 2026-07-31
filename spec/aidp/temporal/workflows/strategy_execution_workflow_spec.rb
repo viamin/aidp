@@ -1,0 +1,190 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+require_relative "../../../../lib/aidp/temporal"
+
+RSpec.describe Aidp::Temporal::Workflows::StrategyExecutionWorkflow do
+  let(:workflow) { described_class.new }
+  let(:workflow_info) { double("WorkflowInfo", workflow_id: "wf-parent", run_id: "wf-parent-run", task_queue: "aidp-workflows") }
+
+  before do
+    allow(Temporalio::Workflow).to receive(:info).and_return(workflow_info)
+  end
+
+  describe "#execute" do
+    it "fans out branches, selects the highest score, and recurses into subtasks" do
+      strategy_record = {id: "strategy-1"}
+      task_record = {id: "task-1", description: "Implement feature"}
+      run_record = {id: "run-1"}
+
+      allow(workflow).to receive(:register_strategy).and_return(strategy_record)
+      allow(workflow).to receive(:ensure_task).and_return(task_record)
+      allow(workflow).to receive(:start_run).and_return(run_record)
+      allow(workflow).to receive(:complete_run)
+
+      branch_handle_a = instance_double("Handle", result: {branch_key: "branch_0", aggregate_score: 0.3, subtasks: []})
+      branch_handle_b = instance_double("Handle", result: {
+        branch_key: "branch_1",
+        aggregate_score: 0.9,
+        subtasks: [{description: "child task"}]
+      })
+      child_handle = instance_double("Handle", result: {status: "completed", run_id: "child-run"})
+
+      allow(Temporalio::Workflow).to receive(:execute_child_workflow).and_return(
+        branch_handle_a,
+        branch_handle_b,
+        child_handle
+      )
+
+      result = workflow.execute(
+        project_dir: "/tmp/project",
+        strategy: {
+          name: "fanout",
+          fanout: 2,
+          max_depth: 2,
+          agents: {coder: ["bin/a", "bin/b"]}
+        },
+        task: {description: "Implement feature"}
+      )
+
+      expect(result[:winning_branch][:branch_key]).to eq("branch_1")
+      expect(result[:merged_children].first[:run_id]).to eq("child-run")
+      expect(result[:branch_count]).to eq(2)
+    end
+
+    it "creates a fresh task row for replayed inputs so lineage is preserved" do
+      strategy_record = {id: "strategy-1"}
+      task_record = {id: "task-new", description: "Replay me"}
+      run_record = {id: "run-new"}
+
+      allow(workflow).to receive(:register_strategy).and_return(strategy_record)
+      allow(workflow).to receive(:start_run).and_return(run_record)
+      allow(workflow).to receive(:complete_run)
+
+      created_tasks = []
+      allow(workflow).to receive(:execute_store) do |operation, payload|
+        if operation == "create_task"
+          created_tasks << payload
+          task_record
+        end
+      end
+
+      branch_handle = instance_double("Handle", result: {branch_key: "branch_0", aggregate_score: 0.5, subtasks: []})
+      allow(Temporalio::Workflow).to receive(:execute_child_workflow).and_return(branch_handle)
+
+      workflow.execute(
+        project_dir: "/tmp/project",
+        strategy: {
+          name: "fanout",
+          fanout: 1,
+          agents: {coder: "bin/coder"}
+        },
+        task: {description: "Replay me", source_run_id: "run-original"}
+      )
+
+      expect(created_tasks.length).to eq(1)
+      expect(created_tasks.first[:source_run_id]).to eq("run-original")
+    end
+
+    it "creates a fresh task row when an input task id does not exist" do
+      strategy_record = {id: "strategy-1"}
+      task_record = {id: "task-new", description: "Imported task"}
+      run_record = {id: "run-new"}
+
+      allow(workflow).to receive(:register_strategy).and_return(strategy_record)
+      allow(workflow).to receive(:start_run).and_return(run_record)
+      allow(workflow).to receive(:complete_run)
+
+      created_tasks = []
+      allow(workflow).to receive(:execute_store) do |operation, payload|
+        case operation
+        when "task_details"
+          nil
+        when "create_task"
+          created_tasks << payload
+          task_record
+        end
+      end
+
+      branch_handle = instance_double("Handle", result: {branch_key: "branch_0", aggregate_score: 0.5, subtasks: []})
+      allow(Temporalio::Workflow).to receive(:execute_child_workflow).and_return(branch_handle)
+
+      workflow.execute(
+        project_dir: "/tmp/project",
+        strategy: {
+          name: "fanout",
+          fanout: 1,
+          agents: {coder: "bin/coder"}
+        },
+        task: {id: "external-task", description: "Imported task", source_run_id: "run-original"}
+      )
+
+      expect(created_tasks.length).to eq(1)
+      expect(created_tasks.first).to include(
+        description: "Imported task",
+        source_run_id: "run-original"
+      )
+    end
+
+    it "reuses an existing task row when the input task id resolves" do
+      strategy_record = {id: "strategy-1"}
+      existing_task = {id: "task-existing", description: "Replay me"}
+      run_record = {id: "run-existing"}
+
+      allow(workflow).to receive(:register_strategy).and_return(strategy_record)
+      allow(workflow).to receive(:start_run).and_return(run_record)
+      allow(workflow).to receive(:complete_run)
+
+      allow(workflow).to receive(:execute_store) do |operation, payload|
+        case operation
+        when "task_details"
+          expect(payload).to eq(task_id: "task-existing")
+          existing_task
+        when "create_task"
+          raise "create_task should not be called when task exists"
+        end
+      end
+
+      branch_handle = instance_double("Handle", result: {branch_key: "branch_0", aggregate_score: 0.5, subtasks: []})
+      allow(Temporalio::Workflow).to receive(:execute_child_workflow).and_return(branch_handle)
+
+      result = workflow.execute(
+        project_dir: "/tmp/project",
+        strategy: {
+          name: "fanout",
+          fanout: 1,
+          agents: {coder: "bin/coder"}
+        },
+        task: {id: "task-existing", description: "Replay me"}
+      )
+
+      expect(result[:task_id]).to eq("task-existing")
+    end
+  end
+
+  describe "#activity_options" do
+    it "delegates to the class-level default activity options" do
+      expect(workflow.send(:activity_options, start_to_close_timeout: 60)).to eq(
+        described_class.activity_options(start_to_close_timeout: 60)
+      )
+    end
+  end
+
+  describe "#store_activity_options" do
+    it "disables retries for non-idempotent task and run creation writes" do
+      task_options = workflow.send(:store_activity_options, "create_task")
+      run_options = workflow.send(:store_activity_options, "start_run")
+
+      expect(task_options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(run_options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(task_options[:retry_policy][:initial_interval]).to eq(1)
+      expect(run_options[:retry_policy][:backoff_coefficient]).to eq(2.0)
+    end
+
+    it "keeps the default retry policy for idempotent store operations" do
+      options = workflow.send(:store_activity_options, "register_strategy")
+
+      expect(options).to eq(described_class.activity_options(start_to_close_timeout: 60))
+    end
+  end
+end

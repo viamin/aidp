@@ -60,6 +60,13 @@ RSpec.describe Aidp::Database::Migrations do
         background_jobs
         auto_update_checkpoints
         prompt_feedback
+        template_versions
+        strategies
+        experience_tasks
+        experience_runs
+        experience_evaluations
+        experience_artifacts
+        experience_embeddings
       ]
 
       expected_tables.each do |table|
@@ -73,7 +80,7 @@ RSpec.describe Aidp::Database::Migrations do
       db = Aidp::Database.connection(temp_dir)
       version = db.get_first_value("SELECT MAX(version) FROM schema_migrations")
 
-      expect(version).to eq(3)
+      expect(version).to eq(Aidp::Database::Schema.latest_version)
     end
 
     it "returns empty array if already migrated" do
@@ -90,7 +97,7 @@ RSpec.describe Aidp::Database::Migrations do
       db = Aidp::Database.connection(temp_dir)
       count = db.get_first_value("SELECT COUNT(*) FROM schema_migrations")
 
-      expect(count).to eq(3)
+      expect(count).to eq(Aidp::Database::Schema.latest_version)
     end
   end
 
@@ -153,6 +160,14 @@ RSpec.describe Aidp::Database::Migrations do
 
       expect(indexes).to include("idx_progress_project_mode")
       expect(indexes).to include("idx_workstreams_project_slug")
+    end
+
+    it "creates a non-unique strategies lookup index" do
+      db = Aidp::Database.connection(temp_dir)
+      strategy_index = db.execute("PRAGMA index_list('strategies')").find { |row| row["name"] == "idx_strategies_project_name" }
+
+      expect(strategy_index).not_to be_nil
+      expect(strategy_index["unique"]).to eq(0)
     end
   end
 end

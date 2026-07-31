@@ -181,7 +181,7 @@ RSpec.describe Aidp::CLI::TemporalCommand do
         type: :error
       )
       expect(command).to have_received(:display_message).with(
-        "Available: issue, workloop",
+        "Available: issue, workloop, strategy",
         type: :info
       )
     end
@@ -231,6 +231,101 @@ RSpec.describe Aidp::CLI::TemporalCommand do
       command.send(:start_work_loop_workflow, [])
 
       expect(prompt).to have_received(:ask).with("Step name:")
+    end
+  end
+
+  describe "#start_strategy_workflow" do
+    before do
+      allow(command).to receive(:display_message)
+      allow(command).to receive(:load_strategy).and_return(
+        Aidp::StrategyExecution::StrategySpec.from_hash(
+          name: "fanout",
+          agents: {coder: "bin/coder"}
+        )
+      )
+      allow(command).to receive(:load_task).and_return({description: "Implement feature"})
+    end
+
+    it "starts the strategy workflow" do
+      handle = instance_double("WorkflowHandle", id: "workflow-strategy")
+      allow(Aidp::Temporal).to receive(:start_workflow).and_return(handle)
+
+      command.send(:start_strategy_workflow, ["spec/fixtures/strategy.yml", "spec/fixtures/task.json"])
+
+      expect(Aidp::Temporal).to have_received(:start_workflow).with(
+        Aidp::Temporal::Workflows::StrategyExecutionWorkflow,
+        hash_including(project_dir: project_dir, task: {description: "Implement feature"}),
+        project_dir: project_dir
+      )
+    end
+  end
+
+  describe "#load_task" do
+    let(:project_dir) { Dir.mktmpdir("aidp_temporal_command") }
+
+    after do
+      FileUtils.remove_entry(project_dir) if Dir.exist?(project_dir)
+    end
+
+    it "loads a relative task path from the project directory instead of the current working directory" do
+      File.write(File.join(project_dir, "task.json"), JSON.generate(description: "Implement feature"))
+
+      Dir.mktmpdir("aidp_temporal_command_cwd") do |cwd|
+        Dir.chdir(cwd) do
+          task = command.send(:load_task, "task.json")
+
+          expect(task).to eq(description: "Implement feature")
+        end
+      end
+    end
+  end
+
+  describe "#replay_workflow" do
+    before do
+      allow(command).to receive(:display_message)
+      allow(command).to receive(:load_strategy).and_return(
+        Aidp::StrategyExecution::StrategySpec.from_hash(name: "fanout", agents: {coder: "bin/coder"})
+      )
+      allow(command).to receive(:experience_store).and_return(
+        instance_double(
+          Aidp::StrategyExecution::ExperienceStore,
+          replay_bundle: {
+            id: "run-1",
+            task: {
+              id: "task-original",
+              description: "Replay me",
+              context: {},
+              input_payload: {}
+            }
+          }
+        )
+      )
+    end
+
+    it "starts a replay workflow" do
+      handle = instance_double("WorkflowHandle", id: "workflow-replay")
+      allow(Aidp::Temporal).to receive(:start_workflow).and_return(handle)
+
+      command.send(:replay_workflow, ["run-1", "strategy.yml"])
+
+      expect(Aidp::Temporal).to have_received(:start_workflow).with(
+        Aidp::Temporal::Workflows::StrategyExecutionWorkflow,
+        hash_including(project_dir: project_dir),
+        project_dir: project_dir
+      )
+    end
+
+    it "strips the original task id so the workflow creates a fresh task row" do
+      handle = instance_double("WorkflowHandle", id: "workflow-replay")
+      allow(Aidp::Temporal).to receive(:start_workflow).and_return(handle)
+
+      command.send(:replay_workflow, ["run-1", "strategy.yml"])
+
+      expect(Aidp::Temporal).to have_received(:start_workflow) do |_klass, input, _opts|
+        expect(input[:task]).not_to have_key(:id)
+        expect(input[:task][:source_run_id]).to eq("run-1")
+        expect(input[:task][:description]).to eq("Replay me")
+      end
     end
   end
 
@@ -444,7 +539,9 @@ RSpec.describe Aidp::CLI::TemporalCommand do
       expect(worker).to have_received(:register_workflows).with(
         Aidp::Temporal::Workflows::IssueToPrWorkflow,
         Aidp::Temporal::Workflows::WorkLoopWorkflow,
-        Aidp::Temporal::Workflows::SubIssueWorkflow
+        Aidp::Temporal::Workflows::SubIssueWorkflow,
+        Aidp::Temporal::Workflows::StrategyBranchWorkflow,
+        Aidp::Temporal::Workflows::StrategyExecutionWorkflow
       )
       expect(worker).to have_received(:register_activities)
       expect(worker).to have_received(:run)

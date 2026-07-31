@@ -13,6 +13,8 @@
 # - IssueToPrWorkflow: Full issue analysis → implementation → PR pipeline
 # - WorkLoopWorkflow: Fix-forward iteration pattern
 # - SubIssueWorkflow: Child workflow for decomposed tasks
+# - StrategyExecutionWorkflow: Generic strategy-as-data execution
+# - StrategyBranchWorkflow: Speculative branch execution for strategies
 #
 # Activities:
 # - RunAgentActivity: Execute AI agent
@@ -24,6 +26,8 @@
 # - PrepareNextIterationActivity: Set up next iteration
 # - RecordCheckpointActivity: Save progress
 # - CreatePrActivity: Create GitHub PR
+# - ExecuteCliCommandActivity: Generic agent/evaluator CLI protocol runner
+# - ManageExperienceStoreActivity: Persist strategy experience data
 
 module Aidp
   module Temporal
@@ -104,6 +108,8 @@ require_relative "temporal/workflows/base_workflow"
 require_relative "temporal/workflows/issue_to_pr_workflow"
 require_relative "temporal/workflows/work_loop_workflow"
 require_relative "temporal/workflows/sub_issue_workflow"
+require_relative "temporal/workflows/strategy_branch_workflow"
+require_relative "temporal/workflows/strategy_execution_workflow"
 
 # Require activities
 require_relative "temporal/activities/base_activity"
@@ -118,3 +124,5 @@ require_relative "temporal/activities/record_checkpoint_activity"
 require_relative "temporal/activities/create_pr_activity"
 require_relative "temporal/activities/run_work_loop_iteration_activity"
 require_relative "temporal/activities/analyze_sub_task_activity"
+require_relative "temporal/activities/execute_cli_command_activity"
+require_relative "temporal/activities/manage_experience_store_activity"
