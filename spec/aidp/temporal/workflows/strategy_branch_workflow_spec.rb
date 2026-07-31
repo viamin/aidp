@@ -117,6 +117,21 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
     end
   end
 
+  describe "#cli_activity_options" do
+    it "disables retries for side-effecting CLI invocations" do
+      options = workflow.send(
+        :cli_activity_options,
+        start_to_close_timeout: 900,
+        heartbeat_timeout: 120
+      )
+
+      expect(options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(options[:retry_policy][:initial_interval]).to eq(1)
+      expect(options[:start_to_close_timeout]).to eq(900)
+      expect(options[:heartbeat_timeout]).to eq(120)
+    end
+  end
+
   describe "long-running CLI activity timeouts" do
     let(:strategy_input) do
       {
@@ -150,6 +165,7 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
       expect(cli_options.length).to eq(2) # one agent + one evaluator
       cli_options.each do |opts|
         expect(opts[:heartbeat_timeout]).to eq(120)
+        expect(opts[:retry_policy][:maximum_attempts]).to eq(1)
       end
       expect(cli_options).to include(hash_including(start_to_close_timeout: 900)) # agent
       expect(cli_options).to include(hash_including(start_to_close_timeout: 300)) # evaluator

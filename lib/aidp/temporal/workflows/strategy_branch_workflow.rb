@@ -118,7 +118,7 @@ module Aidp
                 strategy: @strategy.to_h
               }
             },
-            **activity_options(
+            **cli_activity_options(
               start_to_close_timeout: activity_timeout(:agent, 900),
               heartbeat_timeout: activity_heartbeat_timeout
             )
@@ -152,7 +152,7 @@ module Aidp
                   strategy: @strategy.to_h
                 }
               },
-              **activity_options(
+              **cli_activity_options(
                 start_to_close_timeout: activity_timeout(:evaluator, 300),
                 heartbeat_timeout: activity_heartbeat_timeout
               )
@@ -267,6 +267,11 @@ module Aidp
           value = @strategy.timeouts[role]
           number = value.to_i
           number.positive? ? number : fallback
+        end
+
+        def cli_activity_options(overrides = {})
+          options = activity_options(overrides)
+          options.merge(retry_policy: options.fetch(:retry_policy, {}).merge(maximum_attempts: 1))
         end
 
         def store_activity_options(operation)
