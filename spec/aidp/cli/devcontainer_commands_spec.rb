@@ -273,6 +273,33 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
         expect(config["forwardPorts"]).to include(8080)
         expect(File.read(devcontainer_path)).to include("// preserve this note")
       end
+
+      it "infers the test framework from generic work loop commands" do
+        create_devcontainer({"name" => "Old Name"})
+        create_aidp_yml({
+          "devcontainer" => {
+            "manage" => true
+          },
+          "work_loop" => {
+            "commands" => [
+              {
+                "name" => "test",
+                "command" => "bundle exec rspec",
+                "category" => "test",
+                "run_after" => "each_unit",
+                "required" => true
+              }
+            ]
+          }
+        })
+
+        allow(commands).to receive(:display_message)
+
+        commands.apply(force: true)
+
+        config = JSON.parse(File.read(devcontainer_path))
+        expect(config.fetch("features")).to include("ghcr.io/devcontainers/features/ruby:1")
+      end
     end
 
     context "with invalid aidp.yml" do
@@ -480,6 +507,29 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
   end
 
   describe "private methods" do
+    describe "#extract_wizard_config_for_generation" do
+      it "derives test framework from generic work loop commands before legacy keys" do
+        aidp_config = {
+          "work_loop" => {
+            "commands" => [
+              {
+                "name" => "test",
+                "command" => "bundle exec rspec",
+                "category" => "test"
+              }
+            ],
+            "test_commands" => [
+              {"framework" => "minitest"}
+            ]
+          }
+        }
+
+        result = commands.send(:extract_wizard_config_for_generation, aidp_config)
+
+        expect(result[:test_framework]).to eq("rspec")
+      end
+    end
+
     describe "#format_size" do
       it "formats bytes correctly" do
         size_formatter = commands.send(:method, :format_size)

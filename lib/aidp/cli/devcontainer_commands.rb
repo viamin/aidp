@@ -280,11 +280,26 @@ module Aidp
         # Extract wizard-compatible config including custom_ports
         {
           providers: aidp_config.dig("providers")&.keys,
-          test_framework: aidp_config.dig("work_loop", "test_commands", 0, "framework"),
+          test_framework: extract_test_framework_for_generation(aidp_config),
           linters: aidp_config.dig("work_loop", "linting", "tools"),
           watch_mode: aidp_config.dig("work_loop", "watch", "enabled"),
           custom_ports: aidp_config.dig("devcontainer", "custom_ports")
         }.compact
+      end
+
+      def extract_test_framework_for_generation(aidp_config)
+        framework_from_work_loop_commands(aidp_config) ||
+          aidp_config.dig("work_loop", "test_commands", 0, "framework")
+      end
+
+      def framework_from_work_loop_commands(aidp_config)
+        command = Array(aidp_config.dig("work_loop", "commands")).find do |candidate|
+          candidate["category"] == "test"
+        end
+        framework = Aidp::ToolingDetector.framework_from_command(command&.dig("command"))
+        return if framework == :unknown
+
+        framework.to_s
       end
 
       def build_config_from_aidp_yml(devcontainer_config)
