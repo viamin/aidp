@@ -528,6 +528,29 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
 
         expect(result[:test_framework]).to eq("rspec")
       end
+
+      it "matches category written as a symbol (wizard-generated YAML round-trip)" do
+        # generate_yaml writes category as a symbol (`:test`) which YAML
+        # preserves on load, so the comparison must tolerate both forms.
+        aidp_config = {
+          "work_loop" => {
+            "commands" => [
+              {
+                "name" => "test",
+                "command" => "bundle exec rspec",
+                "category" => :test
+              }
+            ],
+            "test_commands" => [
+              {"framework" => "minitest"}
+            ]
+          }
+        }
+
+        result = commands.send(:extract_wizard_config_for_generation, aidp_config)
+
+        expect(result[:test_framework]).to eq("rspec")
+      end
     end
 
     describe "#format_size" do

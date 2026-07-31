@@ -294,7 +294,9 @@ module Aidp
 
       def framework_from_work_loop_commands(aidp_config)
         command = Array(aidp_config.dig("work_loop", "commands")).find do |candidate|
-          candidate["category"] == "test"
+          # `generate_yaml` writes category as a symbol (e.g. `:test`); YAML
+          # preserves symbols on load, so coerce to string before comparing.
+          candidate["category"].to_s == "test"
         end
         framework = Aidp::ToolingDetector.framework_from_command(command&.dig("command"))
         return if framework == :unknown
