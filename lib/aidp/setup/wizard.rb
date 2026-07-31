@@ -2876,13 +2876,57 @@ module Aidp
         tooling_detected = detect_tooling.test_commands.any? ||
           detect_tooling.lint_commands.any? ||
           detect_tooling.formatter_commands.any?
-        return defaults unless tooling_detected
 
-        generated = generate_phase_two_suggestions_with_ai
+        generated = if tooling_detected
+          generate_phase_two_suggestions_with_ai
+        else
+          generate_phase_two_suggestions_with_ai(collect_phase_two_tooling_context)
+        end
+
         defaults.merge(generated) { |_key, fallback, suggested| normalize_phase_two_value(suggested, fallback) }
       rescue => e
         Aidp.log_warn("setup_wizard", "phase_two_suggestions_failed", error: e.message)
         defaults
+      end
+
+      def collect_phase_two_tooling_context
+        @phase_two_tooling_context ||= begin
+          stack = select_phase_two_stack
+
+          {
+            stack: stack,
+            test_tool: ask_with_default("Primary test tool or command (optional)"),
+            lint_tool: ask_with_default("Primary lint tool or command (optional)"),
+            formatter_tool: ask_with_default("Primary formatter tool or command (optional)")
+          }.compact
+        end
+      end
+
+      def select_phase_two_stack
+        default_stack = detect_stack
+        default_label = phase_two_stack_options.find { |label, value| value == default_stack }&.first
+
+        selected_stack = prompt.select(
+          "Tooling detection came up empty. Which stack best matches this repo?",
+          default: default_label
+        ) do |menu|
+          phase_two_stack_options.each do |label, value|
+            menu.choice label, value
+          end
+        end
+
+        return ask_with_default("Name this stack", "custom") if selected_stack == :other
+
+        selected_stack.to_s
+      end
+
+      def phase_two_stack_options
+        [
+          ["Rails / Ruby", :rails],
+          ["Node / JavaScript", :node],
+          ["Python", :python],
+          ["Other / Custom", :other]
+        ]
       end
 
       def default_phase_two_commands
@@ -2924,14 +2968,14 @@ module Aidp
         commands
       end
 
-      def generate_phase_two_suggestions_with_ai
+      def generate_phase_two_suggestions_with_ai(tooling_context = nil)
         config_manager = Aidp::Harness::ConfigManager.new(project_dir)
         provider_name = config_manager.default_provider
         return {} unless provider_name
 
         provider_factory = Aidp::Harness::ProviderFactory.new(config_manager)
         provider = provider_factory.create_provider(provider_name, {})
-        response = provider.send_message(prompt: phase_two_suggestion_prompt, session: nil)
+        response = provider.send_message(prompt: phase_two_suggestion_prompt(tooling_context), session: nil)
 
         parse_phase_two_suggestions(response)
       rescue => e
@@ -2940,7 +2984,7 @@ module Aidp
         {}
       end
 
-      def phase_two_suggestion_prompt
+      def phase_two_suggestion_prompt(tooling_context = nil)
         <<~PROMPT
           Generate deterministic work loop defaults for this repository.
           Use the detected tooling and frameworks. Prefer concise, safe defaults.
@@ -2951,9 +2995,11 @@ module Aidp
           Detected lint commands: #{detect_tooling.lint_commands.to_json}
           Detected formatter commands: #{detect_tooling.formatter_commands.to_json}
           Detected frameworks: #{detect_tooling.frameworks.values.uniq.to_json}
+          User-supplied tooling hints: #{tooling_context.to_json}
 
           Rules:
           - Keep command values close to the detected commands.
+          - When detection is empty, use the user-supplied tooling hints as the primary signal.
           - Use category values from the schema.
           - Use run_after each_unit for tests and linters, on_completion for formatters.
           - Watch patterns should focus on test and source files for detected tools.
@@ -3010,8 +3056,9 @@ module Aidp
       def effective_work_loop_commands
         generic_commands = normalize_generic_work_loop_commands(get(%i[work_loop commands]))
         legacy_commands = normalize_legacy_work_loop_commands
+        structured_legacy_commands = normalize_structured_legacy_work_loop_commands
 
-        deduplicated_work_loop_commands(generic_commands, legacy_commands)
+        deduplicated_work_loop_commands(generic_commands, legacy_commands, structured_legacy_commands)
       end
 
       def deduplicated_work_loop_commands(*command_sets)
@@ -3058,6 +3105,49 @@ module Aidp
             normalize_legacy_work_loop_command(command, defaults, index)
           end
         end
+      end
+
+      def normalize_structured_legacy_work_loop_commands
+        normalize_structured_legacy_test_commands + normalize_structured_legacy_lint_commands
+      end
+
+      def normalize_structured_legacy_test_commands
+        test_config = get(%i[work_loop test]) || {}
+        timeout_seconds = normalize_timeout_seconds(test_config[:timeout_seconds] || test_config["timeout_seconds"])
+
+        [
+          normalize_structured_legacy_command(test_config[:unit] || test_config["unit"],
+            name: "unit_test", category: :test, run_after: :each_unit, timeout_seconds: timeout_seconds),
+          normalize_structured_legacy_command(test_config[:integration] || test_config["integration"],
+            name: "integration_test", category: :test, run_after: :full_loop, timeout_seconds: timeout_seconds),
+          normalize_structured_legacy_command(test_config[:e2e] || test_config["e2e"],
+            name: "e2e_test", category: :test, run_after: :full_loop, timeout_seconds: timeout_seconds)
+        ].compact
+      end
+
+      def normalize_structured_legacy_lint_commands
+        lint_config = get(%i[work_loop lint]) || {}
+
+        [
+          normalize_structured_legacy_command(lint_config[:command] || lint_config["command"],
+            name: "lint", category: :lint, run_after: :each_unit),
+          normalize_structured_legacy_command(lint_config[:format] || lint_config["format"],
+            name: "format", category: :formatter, run_after: :on_completion, required: false)
+        ].compact
+      end
+
+      def normalize_structured_legacy_command(command, name:, category:, run_after:, required: true,
+        timeout_seconds: nil)
+        return if command.nil? || command.to_s.empty?
+
+        {
+          name: name,
+          command: command.to_s,
+          category: category,
+          run_after: run_after,
+          required: required,
+          timeout_seconds: timeout_seconds
+        }
       end
 
       def normalize_legacy_work_loop_command(command, defaults, index)

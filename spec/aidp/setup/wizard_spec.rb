@@ -2228,6 +2228,26 @@ RSpec.describe Aidp::Setup::Wizard do
         {key: "lint_0", name: "Lint 0", command: "bundle exec rubocop", type: :lint}
       ])
     end
+
+    it "includes structured legacy work loop commands when array-based commands are absent" do
+      wizard.send(:set, [:work_loop, :test], {
+        unit: "bundle exec rspec spec/models",
+        integration: "bundle exec rspec spec/requests",
+        timeout_seconds: 600
+      })
+      wizard.send(:set, [:work_loop, :lint], {
+        command: "bundle exec rubocop",
+        format: "bundle exec rubocop -A"
+      })
+
+      collected = wizard.send(:collect_commands_for_filtering)
+
+      expect(collected).to eq([
+        {key: "unit_test", name: "Unit Test", command: "bundle exec rspec spec/models", type: :test},
+        {key: "integration_test", name: "Integration Test", command: "bundle exec rspec spec/requests", type: :test},
+        {key: "lint", name: "Lint", command: "bundle exec rubocop", type: :lint}
+      ])
+    end
   end
 
   describe "#configure_commands" do
@@ -2444,6 +2464,33 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(format_cmd[:run_after]).to eq(:on_completion)
         expect(format_cmd[:required]).to be false
       end
+    end
+  end
+
+  describe "phase-two suggestion generation" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "asks for tooling hints when detection is empty before generating suggestions" do
+      prompt = TestPrompt.new(responses: {
+        ask: ["vitest", "eslint", "prettier"],
+        select_map: {
+          "Tooling detection came up empty. Which stack best matches this repo?" => :node
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
+      allow(wizard).to receive(:detect_tooling).and_return(
+        Aidp::ToolingDetector::Result.new(test_commands: [], lint_commands: [], formatter_commands: [], frameworks: {})
+      )
+      allow(wizard).to receive(:generate_phase_two_suggestions_with_ai).and_return({})
+
+      wizard.send(:build_phase_two_suggestions)
+
+      expect(wizard).to have_received(:generate_phase_two_suggestions_with_ai).with(
+        stack: "node",
+        test_tool: "vitest",
+        lint_tool: "eslint",
+        formatter_tool: "prettier"
+      )
     end
   end
 
