@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "open3"
 require "tempfile"
 
 RSpec.describe Aidp::Database do
@@ -17,6 +18,21 @@ RSpec.describe Aidp::Database do
   end
 
   describe ".connection" do
+    it "loads without relying on another entrypoint to require set" do
+      database_path = File.expand_path("../../lib/aidp/database", __dir__)
+
+      stdout, stderr, status = Open3.capture3(
+        {"RUBYLIB" => File.expand_path("../../lib", __dir__)},
+        RbConfig.ruby,
+        "-e",
+        %(require "aidp/version"; require "aidp/config_paths"; require "#{database_path}"; puts Aidp::Database.name),
+        chdir: File.expand_path("..", __dir__)
+      )
+
+      expect(status.success?).to be(true), stderr
+      expect(stdout).to include("Aidp::Database")
+    end
+
     it "creates a new database file" do
       db = described_class.connection(temp_dir)
 

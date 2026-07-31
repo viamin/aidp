@@ -3,6 +3,7 @@
 require "sqlite3"
 require "json"
 require "fileutils"
+Kernel.require("set") unless defined?(Set)
 
 module Aidp
   # Database module for SQLite-based storage

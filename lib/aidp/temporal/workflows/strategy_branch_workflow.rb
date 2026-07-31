@@ -68,7 +68,7 @@ module Aidp
             branch_key: @branch&.dig(:key),
             error: e.message,
             error_class: e.class.name)
-          complete_run("failed", {error: e.message}) if @run
+          complete_run("failed", {error: e.message}) if @run && !run_completed?
           raise
         end
 
@@ -83,6 +83,7 @@ module Aidp
           @branch = input[:branch]
           @depth = input[:depth] || 0
           @parent_run_id = input[:parent_run_id]
+          @run_completed = false
         end
 
         def start_run
@@ -243,6 +244,11 @@ module Aidp
             output_payload: output,
             metadata: {branch_key: @branch[:key]}
           )
+          @run_completed = true
+        end
+
+        def run_completed?
+          @run_completed
         end
 
         def execute_activity(operation, payload)

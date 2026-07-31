@@ -55,10 +55,10 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
         "start_run",
         hash_including(task_id: "task-1", strategy_id: "strategy-1")
       ).and_return({id: "run-1"})
-      allow(workflow).to receive(:execute_activity).with(
+      expect(workflow).to receive(:execute_activity).with(
         "complete_run",
         hash_including(run_id: "run-1", status: "failed", output_payload: hash_including(error: "agent failed"))
-      ).and_return(nil)
+      ).once.and_return(nil)
       allow(workflow).to receive(:execute_evaluators)
       allow(workflow).to receive(:record_artifacts)
 
