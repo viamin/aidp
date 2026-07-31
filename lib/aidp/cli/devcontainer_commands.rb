@@ -293,15 +293,30 @@ module Aidp
       end
 
       def framework_from_work_loop_commands(aidp_config)
-        command = Array(aidp_config.dig("work_loop", "commands")).find do |candidate|
-          # `generate_yaml` writes category as a symbol (e.g. `:test`); YAML
-          # preserves symbols on load, so coerce to string before comparing.
-          candidate["category"].to_s == "test"
-        end
-        framework = Aidp::ToolingDetector.framework_from_command(command&.dig("command"))
+        candidates = Array(aidp_config.dig("work_loop", "commands"))
+        command_text = tagged_test_command(candidates) || first_recognized_string_command(candidates)
+        framework = Aidp::ToolingDetector.framework_from_command(command_text)
         return if framework == :unknown
 
         framework.to_s
+      end
+
+      # `work_loop.commands` entries may be hashes with a category, or bare
+      # command strings (no category available). Prefer an explicitly tagged
+      # test command; when only bare strings are present, fall back to the
+      # first one whose command text matches a known test framework.
+      def tagged_test_command(candidates)
+        candidates.find do |candidate|
+          candidate.is_a?(Hash) &&
+            # `generate_yaml` writes category as a symbol (e.g. `:test`); YAML
+            # preserves symbols on load, so coerce to string before comparing.
+            candidate["category"].to_s == "test"
+        end&.dig("command")
+      end
+
+      def first_recognized_string_command(candidates)
+        candidates.select { |candidate| candidate.is_a?(String) }
+          .find { |command| Aidp::ToolingDetector.framework_from_command(command) != :unknown }
       end
 
       def build_config_from_aidp_yml(devcontainer_config)

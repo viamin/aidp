@@ -551,6 +551,18 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
 
         expect(result[:test_framework]).to eq("rspec")
       end
+
+      it "derives test framework from bare string work loop commands" do
+        aidp_config = {
+          "work_loop" => {
+            "commands" => ["bundle exec rspec"]
+          }
+        }
+
+        result = commands.send(:extract_wizard_config_for_generation, aidp_config)
+
+        expect(result[:test_framework]).to eq("rspec")
+      end
     end
 
     describe "#format_size" do
