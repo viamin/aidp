@@ -51,4 +51,14 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
       expect(result[:evaluations]).to include(hash_including(name: "tests", passed: true))
     end
   end
+
+  describe "#activity_options" do
+    it "delegates to the class-level default activity options" do
+      allow(workflow).to receive(:activity_options).and_call_original
+
+      expect(workflow.send(:activity_options, start_to_close_timeout: 60)).to eq(
+        described_class.activity_options(start_to_close_timeout: 60)
+      )
+    end
+  end
 end

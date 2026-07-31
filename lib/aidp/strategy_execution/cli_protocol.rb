@@ -20,6 +20,9 @@ module Aidp
         end
 
         def execute(command:, role:, request:)
+          parts = command_parts(command)
+          raise ProtocolError, "command must not be blank" if parts.empty?
+
           artifact_dir = create_artifact_dir(role)
           payload = request.merge(
             protocol_version: PROTOCOL_VERSION,
@@ -29,15 +32,15 @@ module Aidp
 
           Aidp.log_debug("cli_protocol", "executing",
             role: role,
-            command: command.is_a?(Array) ? command.first : Shellwords.split(command.to_s).first,
+            command: parts.first,
             task_id: request[:task]&.dig(:id),
             artifact_dir: artifact_dir)
 
-          stdout, stderr, status = Open3.capture3(*command_parts(command), stdin_data: JSON.generate(payload), chdir: @project_dir)
+          stdout, stderr, status = Open3.capture3(*parts, stdin_data: JSON.generate(payload), chdir: @project_dir)
           unless status.success?
             Aidp.log_error("cli_protocol", "execution_failed",
               role: role,
-              command: command.is_a?(Array) ? command.first : Shellwords.split(command.to_s).first,
+              command: parts.first,
               exit_status: status.exitstatus,
               stderr: stderr.to_s.strip)
             raise ProtocolError, stderr.strip
@@ -61,7 +64,7 @@ module Aidp
         rescue Errno::ENOENT, Errno::EACCES => e
           Aidp.log_error("cli_protocol", "execution_failed",
             role: role,
-            command: command.is_a?(Array) ? command.first : Shellwords.split(command.to_s).first,
+            command: parts.first,
             error: e.message,
             error_class: e.class.name)
           raise ProtocolError, "Command failed: #{e.message}"

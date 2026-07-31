@@ -269,6 +269,10 @@ module Aidp
             run_id: @run&.fetch(:id, nil),
             depth: @depth)
         end
+
+        def activity_options(overrides = {})
+          self.class.activity_options(overrides)
+        end
       end
     end
   end

@@ -86,4 +86,12 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyExecutionWorkflow do
       expect(created_tasks.first[:source_run_id]).to eq("run-original")
     end
   end
+
+  describe "#activity_options" do
+    it "delegates to the class-level default activity options" do
+      expect(workflow.send(:activity_options, start_to_close_timeout: 60)).to eq(
+        described_class.activity_options(start_to_close_timeout: 60)
+      )
+    end
+  end
 end

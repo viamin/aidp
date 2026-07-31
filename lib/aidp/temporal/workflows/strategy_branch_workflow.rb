@@ -244,6 +244,10 @@ module Aidp
           number = value.to_i
           number.positive? ? number : fallback
         end
+
+        def activity_options(overrides = {})
+          self.class.activity_options(overrides)
+        end
       end
     end
   end

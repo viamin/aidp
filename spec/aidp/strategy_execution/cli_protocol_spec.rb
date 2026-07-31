@@ -99,4 +99,14 @@ RSpec.describe Aidp::StrategyExecution::CliProtocol::Runner do
       )
     }.to raise_error(Aidp::StrategyExecution::CliProtocol::ProtocolError, /Command failed/)
   end
+
+  it "raises a ProtocolError instead of ArgumentError for a blank command" do
+    expect {
+      runner.execute(
+        command: "",
+        role: "evaluator",
+        request: {task: {description: "ship it"}}
+      )
+    }.to raise_error(Aidp::StrategyExecution::CliProtocol::ProtocolError, /command must not be blank/)
+  end
 end
