@@ -27,6 +27,7 @@ module Aidp
             branch_key: @branch&.dig(:key))
 
           agent_result = execute_agent
+          fail_branch!(agent_result) unless agent_result[:success]
           log_workflow("agent_completed",
             run_id: @run[:id],
             branch_key: @branch&.dig(:key),
@@ -121,6 +122,12 @@ module Aidp
               heartbeat_timeout: activity_heartbeat_timeout
             )
           )
+        end
+
+        def fail_branch!(agent_result)
+          message = agent_result[:error] || agent_result[:summary] || "agent execution reported failure"
+          complete_run("failed", {error: message, agent_result: agent_result})
+          raise Aidp::StrategyExecution::CliProtocol::ProtocolError, message
         end
 
         def execute_evaluators(agent_result)

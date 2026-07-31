@@ -81,6 +81,18 @@ RSpec.describe Aidp::StrategyExecution::ExperienceStore do
     expect(details[:status]).to eq("completed")
   end
 
+  it "loads task details by id" do
+    task = store.create_task(description: "Find me", context: {source: "spec"})
+
+    details = store.task_details(task[:id])
+
+    expect(details).to include(
+      id: task[:id],
+      description: "Find me",
+      context: {source: "spec"}
+    )
+  end
+
   it "preserves start metadata when a run completes" do
     strategy_record = store.register_strategy(strategy)
     task = store.create_task(description: "Keep audit trail intact")

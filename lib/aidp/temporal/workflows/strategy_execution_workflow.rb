@@ -91,7 +91,8 @@ module Aidp
         end
 
         def ensure_task
-          return @task if @task[:id]
+          existing_task = existing_task_record
+          return existing_task if existing_task
 
           execute_store(
             "create_task",
@@ -101,6 +102,13 @@ module Aidp
             context: @task[:context] || {},
             source_run_id: @task[:source_run_id]
           )
+        end
+
+        def existing_task_record
+          task_id = @task[:id]
+          return nil unless task_id
+
+          execute_store("task_details", task_id: task_id)
         end
 
         def start_run

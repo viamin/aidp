@@ -37,6 +37,8 @@ module Aidp
             when "record_artifact"
               store.record_artifact(**payload)
               success_result
+            when "task_details"
+              store.task_details(payload[:task_id])
             when "replay_bundle"
               store.replay_bundle(payload[:run_id])
             when "run_details"

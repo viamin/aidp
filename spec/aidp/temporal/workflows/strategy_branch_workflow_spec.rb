@@ -27,7 +27,7 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
       ).and_return(nil)
 
       allow(Temporalio::Workflow).to receive(:execute_activity).and_return(
-        {output: "implemented", summary: "agent summary"},
+        {success: true, output: "implemented", summary: "agent summary"},
         {passed: true, summary: "tests passed"}
       )
 
@@ -48,6 +48,43 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
 
       expect(result[:aggregate_score]).to eq(1.1)
       expect(result[:evaluations]).to include(hash_including(name: "tests", passed: true))
+    end
+
+    it "fails immediately when the agent reports success false" do
+      allow(workflow).to receive(:execute_activity).with(
+        "start_run",
+        hash_including(task_id: "task-1", strategy_id: "strategy-1")
+      ).and_return({id: "run-1"})
+      allow(workflow).to receive(:execute_activity).with(
+        "complete_run",
+        hash_including(run_id: "run-1", status: "failed", output_payload: hash_including(error: "agent failed"))
+      ).and_return(nil)
+      allow(workflow).to receive(:execute_evaluators)
+      allow(workflow).to receive(:record_artifacts)
+
+      allow(Temporalio::Workflow).to receive(:execute_activity).and_return(
+        {success: false, error: "agent failed", artifacts: ["ignored.patch"]}
+      )
+
+      expect do
+        workflow.execute(
+          project_dir: "/tmp/project",
+          task: {id: "task-1", description: "Implement feature"},
+          task_id: "task-1",
+          strategy: {
+            name: "fanout",
+            fanout: 1,
+            max_depth: 1,
+            agents: {coder: ["bin/a"]},
+            evaluators: [{name: "tests", command: "bin/tests"}]
+          },
+          strategy_id: "strategy-1",
+          branch: {key: "branch-1", name: "Branch 1", command: "bin/a"}
+        )
+      end.to raise_error(Aidp::StrategyExecution::CliProtocol::ProtocolError, "agent failed")
+
+      expect(workflow).not_to have_received(:execute_evaluators)
+      expect(workflow).not_to have_received(:record_artifacts)
     end
   end
 
@@ -105,7 +142,7 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
       cli_options = []
       allow(Temporalio::Workflow).to receive(:execute_activity) do |activity_class, _input, **opts|
         cli_options << opts if activity_class == Aidp::Temporal::Activities::ExecuteCliCommandActivity
-        {output: "done", passed: true}
+        {success: true, output: "done", passed: true}
       end
 
       workflow.execute(strategy_input)

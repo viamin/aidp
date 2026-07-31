@@ -105,6 +105,13 @@ module Aidp
         bundle
       end
 
+      def task_details(task_id)
+        task = task_repository.load(task_id)
+        Aidp.log_debug("experience_store", "task_details_loaded",
+          task_id: task_id, found: !task.nil?)
+        task
+      end
+
       def run_details(run_id)
         run = run_repository.load(run_id)
         return nil unless run

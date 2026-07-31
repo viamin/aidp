@@ -85,6 +85,81 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyExecutionWorkflow do
       expect(created_tasks.length).to eq(1)
       expect(created_tasks.first[:source_run_id]).to eq("run-original")
     end
+
+    it "creates a fresh task row when an input task id does not exist" do
+      strategy_record = {id: "strategy-1"}
+      task_record = {id: "task-new", description: "Imported task"}
+      run_record = {id: "run-new"}
+
+      allow(workflow).to receive(:register_strategy).and_return(strategy_record)
+      allow(workflow).to receive(:start_run).and_return(run_record)
+      allow(workflow).to receive(:complete_run)
+
+      created_tasks = []
+      allow(workflow).to receive(:execute_store) do |operation, payload|
+        case operation
+        when "task_details"
+          nil
+        when "create_task"
+          created_tasks << payload
+          task_record
+        end
+      end
+
+      branch_handle = instance_double("Handle", result: {branch_key: "branch_0", aggregate_score: 0.5, subtasks: []})
+      allow(Temporalio::Workflow).to receive(:execute_child_workflow).and_return(branch_handle)
+
+      workflow.execute(
+        project_dir: "/tmp/project",
+        strategy: {
+          name: "fanout",
+          fanout: 1,
+          agents: {coder: "bin/coder"}
+        },
+        task: {id: "external-task", description: "Imported task", source_run_id: "run-original"}
+      )
+
+      expect(created_tasks.length).to eq(1)
+      expect(created_tasks.first).to include(
+        description: "Imported task",
+        source_run_id: "run-original"
+      )
+    end
+
+    it "reuses an existing task row when the input task id resolves" do
+      strategy_record = {id: "strategy-1"}
+      existing_task = {id: "task-existing", description: "Replay me"}
+      run_record = {id: "run-existing"}
+
+      allow(workflow).to receive(:register_strategy).and_return(strategy_record)
+      allow(workflow).to receive(:start_run).and_return(run_record)
+      allow(workflow).to receive(:complete_run)
+
+      allow(workflow).to receive(:execute_store) do |operation, payload|
+        case operation
+        when "task_details"
+          expect(payload).to eq(task_id: "task-existing")
+          existing_task
+        when "create_task"
+          raise "create_task should not be called when task exists"
+        end
+      end
+
+      branch_handle = instance_double("Handle", result: {branch_key: "branch_0", aggregate_score: 0.5, subtasks: []})
+      allow(Temporalio::Workflow).to receive(:execute_child_workflow).and_return(branch_handle)
+
+      result = workflow.execute(
+        project_dir: "/tmp/project",
+        strategy: {
+          name: "fanout",
+          fanout: 1,
+          agents: {coder: "bin/coder"}
+        },
+        task: {id: "task-existing", description: "Replay me"}
+      )
+
+      expect(result[:task_id]).to eq("task-existing")
+    end
   end
 
   describe "#activity_options" do
