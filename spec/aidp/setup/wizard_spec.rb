@@ -224,6 +224,142 @@ RSpec.describe Aidp::Setup::Wizard do
       wizard.run
       expect(wizard.saved?).to be true
     end
+
+    it "persists the phase-one config before running phase two" do
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Save this configuration?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+
+      allow(wizard).to receive(:run_phase_two) do
+        expect(File).to exist(Aidp::ConfigPaths.config_file(tmp_dir))
+      end.and_call_original
+
+      wizard.run
+    end
+
+    it "restores the original config if phase two raises before final save" do
+      config_dir = Aidp::ConfigPaths.config_dir(tmp_dir)
+      config_file = Aidp::ConfigPaths.config_file(tmp_dir)
+      FileUtils.mkdir_p(config_dir)
+      File.write(config_file, "schema_version: 1\nproviders:\n  anthropic:\n    api_key: old\n")
+
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Would you like to update it?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+
+      allow(wizard).to receive(:run_phase_two).and_raise("phase two failed")
+
+      expect { wizard.run }.to raise_error(RuntimeError, "phase two failed")
+      expect(File.read(config_file)).to eq("schema_version: 1\nproviders:\n  anthropic:\n    api_key: old\n")
+    end
+
+    it "removes the phase-one config if phase two raises for a new setup" do
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+
+      allow(wizard).to receive(:run_phase_two).and_raise("phase two failed")
+
+      expect { wizard.run }.to raise_error(RuntimeError, "phase two failed")
+      expect(File).not_to exist(Aidp::ConfigPaths.config_file(tmp_dir))
+    end
+
+    it "preserves the chosen config when save_config raises after writing the YAML" do
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Save this configuration?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
+      config_file = Aidp::ConfigPaths.config_file(tmp_dir)
+
+      # Use the real save_config but let devcontainer artifact generation
+      # raise AFTER the YAML file has been written. The ensure block in #run
+      # must not then overwrite the just-written YAML with the original
+      # phase-one snapshot — that would be silent data loss for the user.
+      allow(wizard).to receive(:generate_devcontainer_file).and_raise("artifact boom")
+
+      expect { wizard.run }.to raise_error(RuntimeError, "artifact boom")
+
+      expect(File).to exist(config_file)
+      written_yaml = File.read(config_file)
+      expect(written_yaml).not_to include("api_key: old")
+      expect(written_yaml).to include("schema_version:")
+    end
+  end
+
+  describe "#create_filter_factory" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "uses the in-memory config after phase one is persisted" do
+      wizard.instance_variable_set(:@phase_one_persisted, true)
+      wizard.send(:set, [:providers, :anthropic, :thinking_tiers, :mini],
+        {models: ["in-memory-mini"]})
+
+      factory = wizard.send(:create_filter_factory)
+
+      adapter = factory.config
+      expect(adapter).to be_a(Aidp::Setup::InMemoryConfigAdapter)
+      expect(adapter.models_for_tier(:mini, "anthropic")).to eq(["in-memory-mini"])
+    end
   end
 
   describe "#generate_yaml" do
@@ -322,7 +458,7 @@ RSpec.describe Aidp::Setup::Wizard do
       FileUtils.rm_f(File.join(tmp_dir, "Gemfile"))
       File.write(File.join(tmp_dir, "pytest.ini"), "[pytest]")
       wizard = described_class.new(tmp_dir, prompt: prompt)
-      expect(wizard.send(:detect_unit_test_command)).to eq("pytest")
+      expect(wizard.send(:detect_unit_test_command)).to eq("pytest -q")
     end
 
     it "detects pytest from tests directory" do
@@ -1329,6 +1465,26 @@ RSpec.describe Aidp::Setup::Wizard do
       end
     end
 
+    describe "#build_wizard_config_for_devcontainer" do
+      it "derives the test framework from generic work loop commands after legacy cleanup" do
+        wizard = described_class.new(tmp_dir, prompt: TestPrompt.new(responses: {yes?: false}), dry_run: true)
+
+        wizard.send(:set, [:work_loop, :test_commands], [{framework: "rspec"}])
+        wizard.send(:save_work_loop_commands, [
+          {
+            name: "test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true
+          }
+        ])
+
+        expect(wizard.config.dig(:work_loop, :test_commands)).to be_nil
+        expect(wizard.send(:build_wizard_config_for_devcontainer)[:test_framework]).to eq("rspec")
+      end
+    end
+
     describe "#generate_devcontainer_file" do
       it "preserves comments in an existing devcontainer.json" do
         devcontainer_dir = File.join(tmp_dir, ".devcontainer")
@@ -1686,6 +1842,116 @@ RSpec.describe Aidp::Setup::Wizard do
     end
   end
 
+  describe "phase-two suggestion parsing" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "drops suggestions whose commands are missing, empty, or non-string" do
+      response = {
+        commands: [
+          {name: "missing", category: "test", run_after: "each_unit"},
+          {name: "empty", command: "", category: "lint", run_after: "each_unit"},
+          {name: "numeric", command: 123, category: "build", run_after: "full_loop"},
+          {name: "valid", command: "bundle exec rspec", category: "test", run_after: "each_unit"}
+        ],
+        watch_patterns: ["spec/**/*_spec.rb", "", nil, 123],
+        guard_include_patterns: ["lib/**/*", {}],
+        guard_exclude_patterns: [false, "vendor/**"]
+      }.to_json
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "valid",
+        command: "bundle exec rspec",
+        category: :test,
+        run_after: :each_unit,
+        required: true,
+        timeout_seconds: nil
+      }])
+      expect(suggestions[:watch_patterns]).to eq(["spec/**/*_spec.rb"])
+      expect(suggestions[:guard_include_patterns]).to eq(["lib/**/*"])
+      expect(suggestions[:guard_exclude_patterns]).to eq(["vendor/**"])
+    end
+
+    it "preserves valid timeout_seconds values from suggested commands" do
+      response = {
+        commands: [
+          {
+            name: "slow_tests",
+            command: "bundle exec rspec spec/integration",
+            category: "test",
+            run_after: "full_loop",
+            required: true,
+            timeout_seconds: "600"
+          }
+        ]
+      }.to_json
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "slow_tests",
+        command: "bundle exec rspec spec/integration",
+        category: :test,
+        run_after: :full_loop,
+        required: true,
+        timeout_seconds: 600
+      }])
+    end
+
+    it "drops suggested commands with invalid timeout_seconds values" do
+      response = {
+        commands: [
+          {
+            name: "bad_timeout",
+            command: "bundle exec rspec",
+            category: "test",
+            run_after: "each_unit",
+            timeout_seconds: "soon"
+          },
+          {
+            name: "valid_timeout",
+            command: "bundle exec rubocop",
+            category: "lint",
+            run_after: "each_unit",
+            timeout_seconds: 120
+          }
+        ]
+      }.to_json
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "valid_timeout",
+        command: "bundle exec rubocop",
+        category: :lint,
+        run_after: :each_unit,
+        required: true,
+        timeout_seconds: 120
+      }])
+    end
+
+    it "extracts the first complete JSON object when trailing brace-delimited text is present" do
+      response = <<~TEXT
+        Here are the suggestions:
+        {"commands":[{"name":"test","command":"bundle exec rspec","category":"test","run_after":"each_unit","timeout_seconds":900}]}
+
+        Example override: {"commands":[]}
+      TEXT
+
+      suggestions = wizard.send(:parse_phase_two_suggestions, response)
+
+      expect(suggestions[:commands]).to eq([{
+        name: "test",
+        command: "bundle exec rspec",
+        category: :test,
+        run_after: :each_unit,
+        required: true,
+        timeout_seconds: 900
+      }])
+    end
+  end
+
   describe "#configure_commands" do
     let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
 
@@ -1698,6 +1964,7 @@ RSpec.describe Aidp::Setup::Wizard do
       end
 
       it "exits early without setting commands" do
+        expect(wizard).not_to receive(:phase_two_suggestions)
         wizard.send(:configure_commands)
         expect(wizard.send(:get, [:work_loop, :commands])).to be_nil
       end
@@ -1727,6 +1994,38 @@ RSpec.describe Aidp::Setup::Wizard do
       end
     end
 
+    context "when no existing commands and phase two suggestions include commands" do
+      let(:suggested_commands) do
+        [{
+          name: "ai_test",
+          command: "bundle exec rspec spec/models",
+          category: :test,
+          run_after: :each_unit,
+          required: true,
+          timeout_seconds: 600
+        }]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          yes?: true,
+          yes_map: {"Configure deterministic commands?" => true},
+          select_map: {"\nWhat would you like to do?" => :done}
+        })
+      end
+
+      before do
+        allow(wizard).to receive(:phase_two_suggestions).and_return({commands: suggested_commands})
+        allow(wizard).to receive(:default_phase_two_commands).and_return([])
+      end
+
+      it "seeds commands from phase two suggestions" do
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, [:work_loop, :commands])).to eq(suggested_commands)
+      end
+    end
+
     context "when existing commands and user keeps them" do
       let(:existing_commands) do
         [{name: "existing_test", command: "npm test", category: :test, run_after: :each_unit, required: true}]
@@ -1745,7 +2044,110 @@ RSpec.describe Aidp::Setup::Wizard do
       it "preserves existing commands" do
         wizard.send(:configure_commands)
         commands = wizard.send(:get, [:work_loop, :commands])
-        expect(commands).to eq(existing_commands)
+        expect(commands).to eq([{
+          name: "existing_test",
+          command: "npm test",
+          category: :test,
+          run_after: :each_unit,
+          required: true,
+          timeout_seconds: nil
+        }])
+      end
+    end
+
+    context "when both generic and legacy commands exist" do
+      let(:existing_commands) do
+        [{name: "generic_test", command: "bundle exec rspec", category: :test, run_after: :each_unit, required: true}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :keep}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec", "npm test"])
+      end
+
+      it "merges unique legacy commands into the effective command list" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq([
+          {
+            name: "generic_test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "test_1",
+            command: "npm test",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          }
+        ])
+        expect(wizard.send(:effective_work_loop_commands)).to eq([
+          {
+            name: "generic_test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "test_1",
+            command: "npm test",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          }
+        ])
+      end
+    end
+
+    context "when only legacy commands exist and user keeps them" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :keep}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+        wizard.send(:set, [:work_loop, :lint_commands], [{command: "bundle exec rubocop", timeout_seconds: 300}])
+      end
+
+      it "migrates them into work_loop.commands and clears legacy keys" do
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, %i[work_loop commands])).to eq([
+          {
+            name: "test_0",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "lint_0",
+            command: "bundle exec rubocop",
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 300
+          }
+        ])
+        expect(wizard.send(:get, %i[work_loop test_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint_commands])).to be_nil
       end
     end
 
@@ -1793,6 +2195,244 @@ RSpec.describe Aidp::Setup::Wizard do
         commands = wizard.send(:get, [:work_loop, :commands])
         expect(commands).to eq([])
       end
+    end
+  end
+
+  describe "#collect_commands_for_filtering" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "collects generic work loop test and lint commands" do
+      wizard.send(:set, [:work_loop, :commands], [
+        {name: "unit_tests", command: "bundle exec rspec", category: :test},
+        {name: "lint", command: "bundle exec rubocop", category: :lint},
+        {name: "format", command: "bundle exec rubocop -A", category: :formatter}
+      ])
+
+      collected = wizard.send(:collect_commands_for_filtering)
+
+      expect(collected.map { |entry| entry[:key] }).to eq(%w[unit_tests lint])
+      expect(collected.map { |entry| entry[:command] }).to eq([
+        "bundle exec rspec",
+        "bundle exec rubocop"
+      ])
+    end
+
+    it "includes legacy work loop commands when generic commands are absent" do
+      wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+      wizard.send(:set, [:work_loop, :lint_commands], [{command: "bundle exec rubocop", required: false}])
+
+      collected = wizard.send(:collect_commands_for_filtering)
+
+      expect(collected).to eq([
+        {key: "test_0", name: "Test 0", command: "bundle exec rspec", type: :test},
+        {key: "lint_0", name: "Lint 0", command: "bundle exec rubocop", type: :lint}
+      ])
+    end
+
+    it "includes structured legacy work loop commands when array-based commands are absent" do
+      wizard.send(:set, [:work_loop, :test], {
+        unit: "bundle exec rspec spec/models",
+        integration: "bundle exec rspec spec/requests",
+        timeout_seconds: 600
+      })
+      wizard.send(:set, [:work_loop, :lint], {
+        command: "bundle exec rubocop",
+        format: "bundle exec rubocop -A"
+      })
+
+      collected = wizard.send(:collect_commands_for_filtering)
+
+      expect(collected).to eq([
+        {key: "unit_test", name: "Unit Test", command: "bundle exec rspec spec/models", type: :test},
+        {key: "integration_test", name: "Integration Test", command: "bundle exec rspec spec/requests", type: :test},
+        {key: "lint", name: "Lint", command: "bundle exec rubocop", type: :lint}
+      ])
+    end
+  end
+
+  describe "#configure_commands" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "when only legacy commands exist" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => :keep
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+      end
+
+      it "treats them as existing commands instead of falling back to suggestions" do
+        expect(wizard).not_to receive(:phase_two_suggestions)
+        wizard.send(:configure_commands)
+      end
+    end
+
+    context "when saving generic commands from legacy config" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => :add,
+            "\nWhat would you like to do?" => [:add, :done]
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test_commands], ["bundle exec rspec"])
+        wizard.send(:set, [:work_loop, :formatter_commands], ["bundle exec rubocop -A"])
+      end
+
+      it "clears legacy command keys after writing work_loop.commands" do
+        allow(wizard).to receive(:collect_command_details).and_return({
+          name: "lint",
+          command: "bundle exec rubocop",
+          category: :lint,
+          run_after: :each_unit,
+          required: true,
+          timeout_seconds: 300
+        })
+
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, %i[work_loop commands])).to eq([
+          {
+            name: "test_0",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "formatter_0",
+            command: "bundle exec rubocop -A",
+            category: :formatter,
+            run_after: :on_completion,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "lint",
+            command: "bundle exec rubocop",
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 300
+          }
+        ])
+        expect(wizard.send(:get, %i[work_loop test_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop formatter_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop build_commands])).to be_nil
+        expect(wizard.send(:get, %i[work_loop documentation_commands])).to be_nil
+      end
+    end
+
+    context "when saving generic commands from structured legacy config" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => :keep
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test], {
+          unit: "bundle exec rspec",
+          integration: "bundle exec rspec spec/requests",
+          timeout_seconds: 600,
+          watch: {patterns: ["spec/**/*_spec.rb"]}
+        })
+        wizard.send(:set, [:work_loop, :lint], {
+          command: "bundle exec rubocop",
+          format: "bundle exec rubocop -A",
+          strict: true
+        })
+      end
+
+      it "clears only structured legacy command fields after writing work_loop.commands" do
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, %i[work_loop commands])).to eq([
+          {
+            name: "unit_test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 600
+          },
+          {
+            name: "integration_test",
+            command: "bundle exec rspec spec/requests",
+            category: :test,
+            run_after: :full_loop,
+            required: true,
+            timeout_seconds: 600
+          },
+          {
+            name: "lint",
+            command: "bundle exec rubocop",
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "format",
+            command: "bundle exec rubocop -A",
+            category: :formatter,
+            run_after: :on_completion,
+            required: false,
+            timeout_seconds: nil
+          }
+        ])
+        expect(wizard.send(:get, %i[work_loop test unit])).to be_nil
+        expect(wizard.send(:get, %i[work_loop test integration])).to be_nil
+        expect(wizard.send(:get, %i[work_loop test timeout_seconds])).to be_nil
+        expect(wizard.send(:get, %i[work_loop test watch])).to eq({patterns: ["spec/**/*_spec.rb"]})
+        expect(wizard.send(:get, %i[work_loop lint command])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint format])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint strict])).to be(true)
+      end
+    end
+  end
+
+  describe "#configure_watch_patterns" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    before do
+      wizard.send(:set, [:work_loop, :test, :watch], {patterns: ["spec/**/*_spec.rb"]})
+    end
+
+    it "uses existing watch patterns without loading phase two suggestions" do
+      expect(wizard).not_to receive(:phase_two_suggestions)
+      wizard.send(:configure_watch_patterns)
+    end
+  end
+
+  describe "#configure_guards" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    before do
+      wizard.send(:set, [:work_loop, :guards], {
+        include: ["lib/**/*"],
+        exclude: ["tmp/**/*"],
+        max_lines_changed_per_commit: 300,
+        protected_paths: [],
+        confirm_protected: true
+      })
+    end
+
+    it "uses existing guard patterns without loading phase two suggestions" do
+      expect(wizard).not_to receive(:phase_two_suggestions)
+      wizard.send(:configure_guards)
     end
   end
 
@@ -1894,6 +2534,60 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(format_cmd[:run_after]).to eq(:on_completion)
         expect(format_cmd[:required]).to be false
       end
+    end
+  end
+
+  describe "phase-two suggestion generation" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "asks for tooling hints when detection is empty before generating suggestions" do
+      prompt = TestPrompt.new(responses: {
+        ask: ["vitest", "eslint", "prettier"],
+        select_map: {
+          "Tooling detection came up empty. Which stack best matches this repo?" => :node
+        }
+      })
+      wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
+      allow(wizard).to receive(:detect_tooling).and_return(
+        Aidp::ToolingDetector::Result.new(test_commands: [], lint_commands: [], formatter_commands: [], frameworks: {})
+      )
+      allow(wizard).to receive(:generate_phase_two_suggestions_with_ai).and_return({})
+
+      wizard.send(:build_phase_two_suggestions)
+
+      expect(wizard).to have_received(:generate_phase_two_suggestions_with_ai).with(
+        stack: "node",
+        test_tool: "vitest",
+        lint_tool: "eslint",
+        formatter_tool: "prettier"
+      )
+    end
+
+    it "uses the in-memory config manager when generating suggestions" do
+      wizard.send(:set, %i[harness default_provider], "openai")
+      wizard.send(:set, %i[providers openai], {
+        type: "openai",
+        auth: {api_key_env: "OPENAI_API_KEY"}
+      })
+
+      provider = instance_double("Provider", send_message: '{"commands":[]}')
+      provider_factory = instance_double(Aidp::Harness::ProviderFactory, create_provider: provider)
+
+      expect(Aidp::Harness::ConfigManager).not_to receive(:new)
+      allow(Aidp::Harness::ProviderFactory).to receive(:new) do |config_manager|
+        expect(config_manager).to be_a(Aidp::Setup::InMemoryConfigManager)
+        expect(config_manager.default_provider).to eq("openai")
+        provider_factory
+      end
+
+      suggestions = wizard.send(:generate_phase_two_suggestions_with_ai)
+
+      expect(suggestions).to eq(
+        commands: [],
+        watch_patterns: [],
+        guard_include_patterns: [],
+        guard_exclude_patterns: []
+      )
     end
   end
 

@@ -9,6 +9,7 @@ require "json"
 require "ostruct"
 require_relative "in_memory_config_adapter"
 require_relative "in_memory_config_manager"
+require_relative "../tooling_detector"
 require_relative "../security"
 
 module Aidp
@@ -34,6 +35,20 @@ module Aidp
         balanced: 10,
         quick_sketch: 3
       }.freeze
+      PHASE_TWO_SUGGESTION_SCHEMA = {
+        "commands" => [
+          {
+            "name" => "identifier",
+            "command" => "shell command",
+            "category" => "test|lint|formatter|build|documentation|custom",
+            "run_after" => "each_unit|full_loop|on_completion",
+            "required" => true
+          }
+        ],
+        "watch_patterns" => ["spec/**/*_spec.rb"],
+        "guard_include_patterns" => ["lib/**/*"],
+        "guard_exclude_patterns" => ["node_modules/**"]
+      }.freeze
 
       attr_reader :project_dir, :prompt, :dry_run
       # Expose state for testability
@@ -46,47 +61,50 @@ module Aidp
         @warnings = []
         @existing_config = load_existing_config
         @config = deep_symbolize(@existing_config)
+        @original_config_content = File.exist?(config_path) ? File.read(config_path) : nil
         @saved = false
+        @phase_one_persisted = false
       end
 
       def run
+        final_save_succeeded = false
         display_welcome
         # Normalize any legacy tier/model_family entries before prompting
         normalize_existing_model_families!
         normalize_existing_thinking_tiers!
         return @saved if skip_wizard?
 
-        configure_providers
-        configure_harness_settings
-        configure_thinking_tiers
-        configure_work_loop
-        configure_prd_generation
-        configure_branching
-        configure_artifacts
-        configure_nfrs
-        configure_logging
-        configure_auto_update
-        configure_modes
-        configure_devcontainer
+        run_phase_one
+        persist_phase_one_config unless dry_run
+        run_phase_two
 
         yaml_content = generate_yaml
         display_preview(yaml_content)
-        display_diff(yaml_content) if @existing_config.any?
+        display_diff(yaml_content) if @original_config_content
 
         return true if dry_run_mode?(yaml_content)
 
         if prompt.yes?("Save this configuration?", default: true)
           save_config(yaml_content)
+          final_save_succeeded = true
           prompt.ok("✅ Configuration saved to #{relative_config_path}")
           show_next_steps
           display_warnings
           @saved = true
         else
+          rollback_phase_one_config
           prompt.warn("Configuration not saved")
           display_warnings
         end
 
         @saved
+      ensure
+        # Only roll back when the phase-one snapshot has not been replaced
+        # by a successful final write. save_config clears @phase_one_persisted
+        # once the YAML is on disk, so a post-write artifact failure leaves
+        # the user's chosen config intact instead of being overwritten by
+        # the original.
+        rollback_phase_one_config if @phase_one_persisted && !final_save_succeeded
       end
 
       def saved?
@@ -117,6 +135,25 @@ module Aidp
       # -------------------------------------------
       # Provider configuration
       # -------------------------------------------
+      def run_phase_one
+        configure_providers
+        configure_harness_settings
+        configure_work_loop_phase_one
+        configure_prd_generation
+        configure_branching
+        configure_artifacts
+        configure_nfrs
+        configure_logging
+        configure_auto_update
+        configure_modes
+        configure_devcontainer
+      end
+
+      def run_phase_two
+        configure_thinking_tiers
+        configure_work_loop_phase_two
+      end
+
       def discover_available_providers
         require "agent_harness"
 
@@ -494,14 +531,22 @@ module Aidp
         prompt.say("\n⚙️  Work loop configuration")
         prompt.say("-" * 40)
 
+        configure_work_loop_phase_one
+        configure_work_loop_phase_two
+      end
+
+      def configure_work_loop_phase_one
         configure_work_loop_limits
-        configure_output_filtering
-        configure_commands
-        configure_watch_patterns
-        configure_guards
         configure_coverage
         configure_interactive_testing
         configure_vcs_behavior
+      end
+
+      def configure_work_loop_phase_two
+        configure_commands
+        configure_watch_patterns
+        configure_guards
+        configure_output_filtering
       end
 
       def configure_prd_generation
@@ -532,7 +577,7 @@ module Aidp
         prompt.say("  Commands run automatically during work loops to validate changes")
         prompt.say("  Commands can run: after each unit, at full loop end, or on completion")
 
-        existing_commands = get(%i[work_loop commands]) || []
+        existing_commands = effective_work_loop_commands
 
         # If user has existing commands, offer to edit or start fresh
         if existing_commands.any?
@@ -545,7 +590,10 @@ module Aidp
           end
 
           case action
-          when :skip, :keep, nil
+          when :keep
+            save_work_loop_commands(existing_commands)
+            return
+          when :skip, nil
             return
           when :replace
             existing_commands = []
@@ -557,6 +605,7 @@ module Aidp
           end
         else
           return unless prompt.yes?("Configure deterministic commands?", default: true)
+          existing_commands = phase_two_suggestions[:commands]
         end
 
         commands = existing_commands.dup
@@ -589,7 +638,7 @@ module Aidp
           end
         end
 
-        set(%i[work_loop commands], commands)
+        save_work_loop_commands(commands)
         prompt.say("✅ Configured #{commands.size} command(s)")
       end
 
@@ -892,56 +941,27 @@ module Aidp
       end
 
       def collect_commands_for_filtering
-        commands = []
+        effective_work_loop_commands.filter_map do |command|
+          next unless %i[test lint].include?(command[:category].to_sym)
+          next if command[:command].to_s.start_with?("echo")
 
-        # Test commands
-        test_config = get(%i[work_loop test]) || {}
-        if test_config[:unit] && !test_config[:unit].start_with?("echo")
-          commands << {
-            key: "unit_test",
-            name: "Unit Tests",
-            command: test_config[:unit],
-            type: :test
+          {
+            key: command[:name].to_s.gsub(/[^a-z0-9]+/i, "_").downcase,
+            name: command[:name].to_s.tr("_", " ").split.map(&:capitalize).join(" "),
+            command: command[:command],
+            type: command[:category].to_sym
           }
         end
-        if test_config[:integration] && !test_config[:integration].to_s.empty? && !test_config[:integration].start_with?("echo")
-          commands << {
-            key: "integration_test",
-            name: "Integration Tests",
-            command: test_config[:integration],
-            type: :test
-          }
-        end
-        if test_config[:e2e] && !test_config[:e2e].to_s.empty? && !test_config[:e2e].start_with?("echo")
-          commands << {
-            key: "e2e_test",
-            name: "E2E Tests",
-            command: test_config[:e2e],
-            type: :test
-          }
-        end
-
-        # Lint commands
-        lint_config = get(%i[work_loop lint]) || {}
-        if lint_config[:command] && !lint_config[:command].start_with?("echo")
-          commands << {
-            key: "lint",
-            name: "Linter",
-            command: lint_config[:command],
-            type: :lint
-          }
-        end
-
-        commands
       end
 
       def create_filter_factory
-        # Build in-memory configuration adapters for the factory
-        # This enables AGD to work before the config file is written
+        # Always use in-memory config objects here. Phase-two edits
+        # (e.g. configure_thinking_tiers) live only in @config until the
+        # final save; switching to disk-backed Configuration would miss
+        # those user choices and pick a stale model via ThinkingDepthManager.
         config_adapter = build_in_memory_config_adapter
         config_manager = build_in_memory_config_manager
 
-        # Create provider factory with in-memory config manager
         provider_factory = Aidp::Harness::ProviderFactory.new(config_manager)
 
         Aidp.log_debug("setup_wizard", "creating_filter_factory",
@@ -1035,18 +1055,19 @@ module Aidp
 
       def configure_watch_patterns
         existing = get(%i[work_loop test watch]) || {}
-        default_patterns = detect_watch_patterns
+        default_patterns = existing[:patterns] || detect_watch_patterns
 
-        watch_patterns = ask_list("Test watch patterns (comma-separated)", existing.fetch(:patterns, default_patterns))
+        watch_patterns = ask_list("Test watch patterns (comma-separated)", default_patterns)
         set(%i[work_loop test watch], {patterns: watch_patterns}) if watch_patterns.any?
       end
 
       def configure_guards
         existing = get(%i[work_loop guards]) || {}
 
-        include_patterns = ask_list("Guard include patterns", existing[:include] || detect_source_patterns)
+        include_patterns = ask_list("Guard include patterns",
+          existing[:include] || detect_source_patterns)
         exclude_patterns = ask_list("Guard exclude patterns",
-          existing[:exclude] || ["node_modules/**", "dist/**", "build/**"])
+          existing[:exclude] || detect_guard_exclude_patterns)
         max_lines = ask_with_default("Max lines changed per commit",
           (existing[:max_lines_changed_per_commit] || 300).to_s) do |value|
           value.to_i
@@ -1976,7 +1997,7 @@ module Aidp
       end
 
       def display_diff(yaml_content)
-        existing_yaml = File.read(config_path)
+        existing_yaml = @original_config_content || File.read(config_path)
         diff_lines = line_diff(existing_yaml, yaml_content)
         return if diff_lines.empty?
 
@@ -2000,18 +2021,45 @@ module Aidp
         return false unless dry_run
 
         prompt.ok("Dry run mode active – configuration was NOT written.")
+        rollback_phase_one_config
         display_warnings
         @saved = false
         true
       end
 
-      def save_config(yaml_content)
+      def save_config(yaml_content, generate_artifacts: true)
         Aidp::ConfigPaths.ensure_config_dir(project_dir)
         File.write(config_path, yaml_content)
+        # Once the YAML is on disk, treat the final save as committed even if
+        # artifact generation fails afterwards. Clearing @phase_one_persisted
+        # here keeps a post-write raise from triggering the run-level rollback
+        # in #run's ensure block, which would otherwise overwrite the user's
+        # just-saved configuration with the original phase-one snapshot.
+        @phase_one_persisted = false
+        return unless generate_artifacts
+
         generate_mcp_risk_profile
 
         # Generate devcontainer if managed
         generate_devcontainer_file
+      end
+
+      def persist_phase_one_config
+        save_config(generate_yaml, generate_artifacts: false)
+        reload_config_from_disk
+        @phase_one_persisted = true
+      end
+
+      def rollback_phase_one_config
+        return unless @phase_one_persisted
+
+        if @original_config_content
+          File.write(config_path, @original_config_content)
+        elsif File.exist?(config_path)
+          File.delete(config_path)
+        end
+
+        @phase_one_persisted = false
       end
 
       def generate_mcp_risk_profile
@@ -2107,6 +2155,9 @@ module Aidp
       end
 
       def detect_unit_test_command
+        command = detect_tooling.test_commands.first
+        return command if command
+
         return "bundle exec rspec" if project_file?("Gemfile") && Dir.exist?(File.join(project_dir, "spec"))
         return "npm test" if project_file?("package.json")
         return "pytest" if project_file?("pytest.ini") || Dir.exist?(File.join(project_dir, "tests"))
@@ -2115,6 +2166,9 @@ module Aidp
       end
 
       def detect_lint_command
+        command = detect_tooling.lint_commands.first
+        return command if command
+
         return "bundle exec rubocop" if project_file?(".rubocop.yml")
         return "npm run lint" if project_file?("package.json")
         return "ruff check ." if project_file?("pyproject.toml")
@@ -2123,6 +2177,9 @@ module Aidp
       end
 
       def detect_format_command
+        command = detect_tooling.formatter_commands.first
+        return command if command
+
         return "bundle exec rubocop -A" if project_file?(".rubocop.yml")
         return "npm run format" if project_file?("package.json")
         return "ruff format ." if project_file?("pyproject.toml")
@@ -2131,6 +2188,9 @@ module Aidp
       end
 
       def detect_watch_patterns
+        suggestions = phase_two_suggestions[:watch_patterns]
+        return suggestions if suggestions.any?
+
         if project_file?("Gemfile")
           ["spec/**/*_spec.rb", "lib/**/*.rb"]
         elsif project_file?("package.json")
@@ -2141,6 +2201,9 @@ module Aidp
       end
 
       def detect_source_patterns
+        suggestions = phase_two_suggestions[:guard_include_patterns]
+        return suggestions if suggestions.any?
+
         if project_file?("Gemfile")
           %w[app/**/* lib/**/*]
         elsif project_file?("package.json")
@@ -2150,6 +2213,13 @@ module Aidp
         else
           %w[**/*]
         end
+      end
+
+      def detect_guard_exclude_patterns
+        suggestions = phase_two_suggestions[:guard_exclude_patterns]
+        return suggestions if suggestions.any?
+
+        ["node_modules/**", "dist/**", "build/**"]
       end
 
       def detect_coverage_command(tool)
@@ -2644,6 +2714,11 @@ module Aidp
         Aidp::ConfigPaths.config_file(project_dir)
       end
 
+      def reload_config_from_disk
+        @existing_config = load_existing_config
+        @config = deep_symbolize(@existing_config)
+      end
+
       def relative_config_path
         config_path.sub("#{project_dir}/", "")
       end
@@ -2671,6 +2746,35 @@ module Aidp
           acc[key.to_sym]
         end
         parent.delete(path.last.to_sym)
+      end
+
+      def save_work_loop_commands(commands)
+        set(%i[work_loop commands], commands)
+        delete_legacy_work_loop_command_keys
+        delete_structured_legacy_work_loop_command_keys
+      end
+
+      def delete_legacy_work_loop_command_keys
+        %i[test_commands lint_commands formatter_commands build_commands documentation_commands].each do |key|
+          delete_path([:work_loop, key])
+        end
+      end
+
+      def delete_structured_legacy_work_loop_command_keys
+        delete_structured_legacy_command_fields(:test, %i[unit integration e2e timeout_seconds])
+        delete_structured_legacy_command_fields(:lint, %i[command format])
+      end
+
+      def delete_structured_legacy_command_fields(section, fields)
+        config = get([:work_loop, section])
+        return unless config.is_a?(Hash)
+
+        fields.each do |field|
+          config.delete(field)
+          config.delete(field.to_s)
+        end
+
+        delete_path([:work_loop, section]) if config.empty?
       end
 
       def deep_symbolize(object)
@@ -2771,6 +2875,421 @@ module Aidp
         %w[mini standard thinking pro max]
       end
 
+      def detect_tooling
+        @detect_tooling ||= Aidp::ToolingDetector.detect(project_dir)
+      end
+
+      def phase_two_suggestions
+        @phase_two_suggestions ||= build_phase_two_suggestions
+      end
+
+      def build_phase_two_suggestions
+        defaults = {
+          commands: default_phase_two_commands,
+          watch_patterns: [],
+          guard_include_patterns: [],
+          guard_exclude_patterns: ["node_modules/**", "dist/**", "build/**"]
+        }
+
+        tooling_detected = detect_tooling.test_commands.any? ||
+          detect_tooling.lint_commands.any? ||
+          detect_tooling.formatter_commands.any?
+
+        generated = if tooling_detected
+          generate_phase_two_suggestions_with_ai
+        else
+          generate_phase_two_suggestions_with_ai(collect_phase_two_tooling_context)
+        end
+
+        defaults.merge(generated) { |_key, fallback, suggested| normalize_phase_two_value(suggested, fallback) }
+      rescue => e
+        Aidp.log_warn("setup_wizard", "phase_two_suggestions_failed", error: e.message)
+        defaults
+      end
+
+      def collect_phase_two_tooling_context
+        @phase_two_tooling_context ||= begin
+          stack = select_phase_two_stack
+
+          {
+            stack: stack,
+            test_tool: ask_with_default("Primary test tool or command (optional)"),
+            lint_tool: ask_with_default("Primary lint tool or command (optional)"),
+            formatter_tool: ask_with_default("Primary formatter tool or command (optional)")
+          }.compact
+        end
+      end
+
+      def select_phase_two_stack
+        default_stack = detect_stack
+        default_label = phase_two_stack_options.find { |label, value| value == default_stack }&.first
+
+        selected_stack = prompt.select(
+          "Tooling detection came up empty. Which stack best matches this repo?",
+          default: default_label
+        ) do |menu|
+          phase_two_stack_options.each do |label, value|
+            menu.choice label, value
+          end
+        end
+
+        return ask_with_default("Name this stack", "custom") if selected_stack == :other
+
+        selected_stack.to_s
+      end
+
+      def phase_two_stack_options
+        [
+          ["Rails / Ruby", :rails],
+          ["Node / JavaScript", :node],
+          ["Python", :python],
+          ["Other / Custom", :other]
+        ]
+      end
+
+      def default_phase_two_commands
+        commands = []
+
+        detect_tooling.test_commands.each_with_index do |command, index|
+          commands << {
+            name: index.zero? ? "test" : "test_#{index + 1}",
+            command: command,
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 1800
+          }
+        end
+
+        detect_tooling.lint_commands.each_with_index do |command, index|
+          commands << {
+            name: index.zero? ? "lint" : "lint_#{index + 1}",
+            command: command,
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 300
+          }
+        end
+
+        detect_tooling.formatter_commands.each_with_index do |command, index|
+          commands << {
+            name: index.zero? ? "format" : "format_#{index + 1}",
+            command: command,
+            category: :formatter,
+            run_after: :on_completion,
+            required: false,
+            timeout_seconds: 120
+          }
+        end
+
+        commands
+      end
+
+      def generate_phase_two_suggestions_with_ai(tooling_context = nil)
+        config_manager = build_in_memory_config_manager
+        provider_name = config_manager.default_provider
+        return {} unless provider_name
+
+        provider_factory = Aidp::Harness::ProviderFactory.new(config_manager)
+        provider = provider_factory.create_provider(provider_name, {})
+        response = provider.send_message(prompt: phase_two_suggestion_prompt(tooling_context), session: nil)
+
+        parse_phase_two_suggestions(response)
+      rescue => e
+        Aidp.log_warn("setup_wizard", "phase_two_suggestions_ai_failed",
+          error: e.message, provider: provider_name)
+        {}
+      end
+
+      def phase_two_suggestion_prompt(tooling_context = nil)
+        <<~PROMPT
+          Generate deterministic work loop defaults for this repository.
+          Use the detected tooling and frameworks. Prefer concise, safe defaults.
+          Return ONLY JSON matching this schema:
+          #{JSON.pretty_generate(PHASE_TWO_SUGGESTION_SCHEMA)}
+
+          Detected test commands: #{detect_tooling.test_commands.to_json}
+          Detected lint commands: #{detect_tooling.lint_commands.to_json}
+          Detected formatter commands: #{detect_tooling.formatter_commands.to_json}
+          Detected frameworks: #{detect_tooling.frameworks.values.uniq.to_json}
+          User-supplied tooling hints: #{tooling_context.to_json}
+
+          Rules:
+          - Keep command values close to the detected commands.
+          - When detection is empty, use the user-supplied tooling hints as the primary signal.
+          - Use category values from the schema.
+          - Use run_after each_unit for tests and linters, on_completion for formatters.
+          - Watch patterns should focus on test and source files for detected tools.
+          - Guard include patterns should focus on source paths.
+          - Guard exclude patterns should include generated/vendor directories when relevant.
+        PROMPT
+      end
+
+      def parse_phase_two_suggestions(response)
+        response_text = response.is_a?(String) ? response : response.to_s
+        parsed = parse_phase_two_suggestion_payload(response_text)
+        return {} unless parsed.is_a?(Hash)
+
+        {
+          commands: normalize_suggested_commands(parsed[:commands]),
+          watch_patterns: normalize_suggested_patterns(parsed[:watch_patterns]),
+          guard_include_patterns: normalize_suggested_patterns(parsed[:guard_include_patterns]),
+          guard_exclude_patterns: normalize_suggested_patterns(parsed[:guard_exclude_patterns])
+        }
+      rescue JSON::ParserError => e
+        Aidp.log_warn("setup_wizard", "phase_two_suggestions_parse_failed", error: e.message)
+        {}
+      end
+
+      def normalize_suggested_patterns(patterns)
+        Array(patterns).select { |pattern| pattern.is_a?(String) && !pattern.empty? }
+      end
+
+      def normalize_suggested_commands(commands)
+        Array(commands).filter_map do |command|
+          next unless command.is_a?(Hash)
+
+          category = command[:category].to_s
+          run_after = command[:run_after].to_s
+          command_value = command[:command]
+          timeout_seconds = normalize_timeout_seconds(command[:timeout_seconds] || command["timeout_seconds"],
+            invalid: :invalid)
+          next unless command_value.is_a?(String) && !command_value.empty?
+          next unless %w[test lint formatter build documentation custom].include?(category)
+          next unless %w[each_unit full_loop on_completion].include?(run_after)
+          next if timeout_seconds == :invalid
+
+          {
+            name: command[:name].to_s.empty? ? "command" : command[:name].to_s,
+            command: command_value,
+            category: category.to_sym,
+            run_after: run_after.to_sym,
+            required: command[:required] != false,
+            timeout_seconds: timeout_seconds
+          }
+        end
+      end
+
+      def effective_work_loop_commands
+        generic_commands = normalize_generic_work_loop_commands(get(%i[work_loop commands]))
+        legacy_commands = normalize_legacy_work_loop_commands
+        structured_legacy_commands = normalize_structured_legacy_work_loop_commands
+
+        deduplicated_work_loop_commands(generic_commands, legacy_commands, structured_legacy_commands)
+      end
+
+      def deduplicated_work_loop_commands(*command_sets)
+        command_sets.flatten.uniq { |command| deduplication_key(command) }
+      end
+
+      def deduplication_key(command)
+        command.slice(:command, :required, :run_after, :category, :timeout_seconds)
+      end
+
+      def normalize_generic_work_loop_commands(commands)
+        Array(commands).filter_map.with_index do |command, index|
+          normalize_generic_work_loop_command(command, index)
+        end
+      end
+
+      def normalize_generic_work_loop_command(command, index)
+        case command
+        when String
+          {
+            name: "command_#{index}",
+            command: command,
+            category: :custom,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          }
+        when Hash
+          category = (command[:category] || command["category"] || :custom).to_sym
+          {
+            name: (command[:name] || command["name"] || "command_#{index}").to_s,
+            command: (command[:command] || command["command"]).to_s,
+            category: category,
+            run_after: normalize_run_after(command[:run_after] || command["run_after"]),
+            required: required_value(command),
+            timeout_seconds: normalize_timeout_seconds(command[:timeout_seconds] || command["timeout_seconds"])
+          }
+        end
+      end
+
+      def normalize_legacy_work_loop_commands
+        legacy_command_mappings.flat_map do |config_key, defaults|
+          Array(get([:work_loop, config_key])).filter_map.with_index do |command, index|
+            normalize_legacy_work_loop_command(command, defaults, index)
+          end
+        end
+      end
+
+      def normalize_structured_legacy_work_loop_commands
+        normalize_structured_legacy_test_commands + normalize_structured_legacy_lint_commands
+      end
+
+      def normalize_structured_legacy_test_commands
+        test_config = get(%i[work_loop test]) || {}
+        timeout_seconds = normalize_timeout_seconds(test_config[:timeout_seconds] || test_config["timeout_seconds"])
+
+        [
+          normalize_structured_legacy_command(test_config[:unit] || test_config["unit"],
+            name: "unit_test", category: :test, run_after: :each_unit, timeout_seconds: timeout_seconds),
+          normalize_structured_legacy_command(test_config[:integration] || test_config["integration"],
+            name: "integration_test", category: :test, run_after: :full_loop, timeout_seconds: timeout_seconds),
+          normalize_structured_legacy_command(test_config[:e2e] || test_config["e2e"],
+            name: "e2e_test", category: :test, run_after: :full_loop, timeout_seconds: timeout_seconds)
+        ].compact
+      end
+
+      def normalize_structured_legacy_lint_commands
+        lint_config = get(%i[work_loop lint]) || {}
+
+        [
+          normalize_structured_legacy_command(lint_config[:command] || lint_config["command"],
+            name: "lint", category: :lint, run_after: :each_unit),
+          normalize_structured_legacy_command(lint_config[:format] || lint_config["format"],
+            name: "format", category: :formatter, run_after: :on_completion, required: false)
+        ].compact
+      end
+
+      def normalize_structured_legacy_command(command, name:, category:, run_after:, required: true,
+        timeout_seconds: nil)
+        return if command.nil? || command.to_s.empty?
+
+        {
+          name: name,
+          command: command.to_s,
+          category: category,
+          run_after: run_after,
+          required: required,
+          timeout_seconds: timeout_seconds
+        }
+      end
+
+      def normalize_legacy_work_loop_command(command, defaults, index)
+        case command
+        when String
+          {
+            name: "#{defaults[:category]}_#{index}",
+            command: command,
+            category: defaults[:category],
+            run_after: defaults[:run_after],
+            required: true,
+            timeout_seconds: nil
+          }
+        when Hash
+          {
+            name: (command[:name] || command["name"] || "#{defaults[:category]}_#{index}").to_s,
+            command: (command[:command] || command["command"]).to_s,
+            category: defaults[:category],
+            run_after: defaults[:run_after],
+            required: required_value(command),
+            timeout_seconds: normalize_timeout_seconds(command[:timeout_seconds] || command["timeout_seconds"])
+          }
+        end
+      end
+
+      def legacy_command_mappings
+        {
+          test_commands: {category: :test, run_after: :each_unit},
+          lint_commands: {category: :lint, run_after: :each_unit},
+          formatter_commands: {category: :formatter, run_after: :on_completion},
+          build_commands: {category: :build, run_after: :each_unit},
+          documentation_commands: {category: :documentation, run_after: :on_completion}
+        }
+      end
+
+      def normalize_run_after(value)
+        case value.to_s
+        when "full_loop", "loop"
+          :full_loop
+        when "on_completion", "completion"
+          :on_completion
+        else
+          :each_unit
+        end
+      end
+
+      def required_value(command)
+        return command[:required] if command.key?(:required)
+        return command["required"] if command.key?("required")
+
+        true
+      end
+
+      def normalize_timeout_seconds(value, invalid: nil)
+        return nil if value.nil?
+        return nil if value.respond_to?(:empty?) && value.empty?
+
+        timeout_seconds = Integer(value, exception: false)
+        return invalid unless timeout_seconds&.positive?
+
+        timeout_seconds
+      end
+
+      def parse_phase_two_suggestion_payload(response_text)
+        JSON.parse(response_text, symbolize_names: true)
+      rescue JSON::ParserError
+        json_payload = extract_phase_two_suggestion_json(response_text)
+        return unless json_payload
+
+        JSON.parse(json_payload, symbolize_names: true)
+      end
+
+      def extract_phase_two_suggestion_json(response_text)
+        extract_fenced_json_object(response_text) || extract_balanced_json_object(response_text)
+      end
+
+      def extract_fenced_json_object(response_text)
+        match = response_text.match(/```(?:json)?\s*(\{.*?\})\s*```/mi)
+        match && match[1]
+      end
+
+      def extract_balanced_json_object(response_text)
+        start_index = response_text.index("{")
+        return unless start_index
+
+        depth = 0
+        in_string = false
+        escaped = false
+
+        response_text.each_char.with_index do |char, index|
+          next if index < start_index
+
+          if in_string
+            if escaped
+              escaped = false
+            elsif char == "\\"
+              escaped = true
+            elsif char == '"'
+              in_string = false
+            end
+            next
+          end
+
+          case char
+          when '"'
+            in_string = true
+          when "{"
+            depth += 1
+          when "}"
+            depth -= 1
+            return response_text[start_index..index] if depth.zero?
+          end
+        end
+
+        nil
+      end
+
+      def normalize_phase_two_value(value, fallback)
+        return fallback if value.nil?
+        return fallback if value.respond_to?(:empty?) && value.empty?
+
+        value
+      end
+
       def configure_devcontainer
         prompt.say("\n🐳 Devcontainer Configuration")
         Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.start")
@@ -2850,13 +3369,51 @@ module Aidp
       def build_wizard_config_for_devcontainer
         {
           providers: @config[:providers]&.keys,
-          test_framework: @config.dig(:work_loop, :test_commands)&.first&.dig(:framework),
+          test_framework: devcontainer_test_framework,
           linters: @config.dig(:work_loop, :linting, :tools),
           watch_mode: @config.dig(:work_loop, :watch, :enabled),
           app_type: detect_app_type,
           services: detect_services,
           custom_ports: @config.dig(:devcontainer, :custom_ports)
         }.compact
+      end
+
+      def devcontainer_test_framework
+        command = first_work_loop_command_for(:test)
+        framework = framework_for_work_loop_command(command)
+        return framework if framework
+
+        detected_framework = framework_from_detected_tooling(command)
+        return detected_framework if detected_framework
+
+        @config.dig(:work_loop, :test_commands)&.first&.dig(:framework)&.to_s
+      end
+
+      def first_work_loop_command_for(category)
+        effective_work_loop_commands.find do |command|
+          command[:category].to_sym == category
+        end
+      end
+
+      def framework_for_work_loop_command(command)
+        framework = Aidp::ToolingDetector.framework_from_command(command&.dig(:command))
+        return if framework == :unknown
+
+        framework.to_s
+      end
+
+      def framework_from_detected_tooling(command)
+        candidates = [
+          command&.dig(:command),
+          detect_tooling.test_commands.first
+        ].compact.uniq
+
+        candidates.each do |candidate|
+          framework = detect_tooling.framework_for_command(candidate)
+          return framework.to_s if framework != :unknown
+        end
+
+        nil
       end
 
       def detect_app_type
