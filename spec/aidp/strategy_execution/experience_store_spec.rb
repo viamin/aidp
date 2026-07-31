@@ -28,7 +28,7 @@ RSpec.describe Aidp::StrategyExecution::ExperienceStore do
   end
 
   it "migrates a project only once across repeated store instantiations" do
-    allow(Aidp::Database).to receive(:migrate!).and_return([1])
+    allow(Aidp::Database).to receive(:migrate!).and_call_original
 
     described_class.new(project_dir: project_dir)
     described_class.new(project_dir: project_dir)
@@ -38,7 +38,7 @@ RSpec.describe Aidp::StrategyExecution::ExperienceStore do
 
   it "tracks migration once per project directory" do
     other_project_dir = Dir.mktmpdir
-    allow(Aidp::Database).to receive(:migrate!).and_return([1])
+    allow(Aidp::Database).to receive(:migrate!).and_call_original
 
     described_class.new(project_dir: project_dir)
     described_class.new(project_dir: other_project_dir)

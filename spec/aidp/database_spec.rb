@@ -95,6 +95,18 @@ RSpec.describe Aidp::Database do
     end
   end
 
+  describe ".migrate_once!" do
+    it "reruns migrations when the database file is recreated in the same process" do
+      described_class.migrate_once!(temp_dir)
+
+      File.delete(db_path)
+
+      described_class.migrate_once!(temp_dir)
+
+      expect(described_class.schema_version(temp_dir)).to eq(Aidp::Database::Schema.latest_version)
+    end
+  end
+
   describe ".close" do
     it "closes the connection" do
       db = described_class.connection(temp_dir)

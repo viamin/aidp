@@ -246,7 +246,7 @@ module Aidp
               operation: operation,
               payload: payload
             },
-            **activity_options(start_to_close_timeout: 60)
+            **store_activity_options(operation)
           )
         end
 
@@ -254,6 +254,13 @@ module Aidp
           value = @strategy.timeouts[role]
           number = value.to_i
           number.positive? ? number : fallback
+        end
+
+        def store_activity_options(operation)
+          options = activity_options(start_to_close_timeout: 60)
+          return options unless %w[start_run record_evaluation record_artifact].include?(operation)
+
+          options.merge(retry_policy: options.fetch(:retry_policy, {}).merge(maximum_attempts: 1))
         end
 
         def activity_heartbeat_timeout

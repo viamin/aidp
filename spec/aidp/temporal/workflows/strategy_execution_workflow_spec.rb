@@ -94,4 +94,22 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyExecutionWorkflow do
       )
     end
   end
+
+  describe "#store_activity_options" do
+    it "disables retries for non-idempotent task and run creation writes" do
+      task_options = workflow.send(:store_activity_options, "create_task")
+      run_options = workflow.send(:store_activity_options, "start_run")
+
+      expect(task_options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(run_options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(task_options[:retry_policy][:initial_interval]).to eq(1)
+      expect(run_options[:retry_policy][:backoff_coefficient]).to eq(2.0)
+    end
+
+    it "keeps the default retry policy for idempotent store operations" do
+      options = workflow.send(:store_activity_options, "register_strategy")
+
+      expect(options).to eq(described_class.activity_options(start_to_close_timeout: 60))
+    end
+  end
 end

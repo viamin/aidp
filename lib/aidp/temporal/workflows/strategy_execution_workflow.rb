@@ -227,7 +227,7 @@ module Aidp
               operation: operation,
               payload: payload
             },
-            **activity_options(start_to_close_timeout: 60)
+            **store_activity_options(operation)
           )
         end
 
@@ -236,6 +236,13 @@ module Aidp
             task_queue: workflow_info.task_queue,
             execution_timeout: 3600
           }
+        end
+
+        def store_activity_options(operation)
+          options = activity_options(start_to_close_timeout: 60)
+          return options unless %w[create_task start_run].include?(operation)
+
+          options.merge(retry_policy: options.fetch(:retry_policy, {}).merge(maximum_attempts: 1))
         end
 
         def normalize_task(task)

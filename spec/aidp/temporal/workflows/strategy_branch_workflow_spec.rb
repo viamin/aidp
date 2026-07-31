@@ -9,7 +9,6 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
 
   before do
     allow(Temporalio::Workflow).to receive(:info).and_return(workflow_info)
-    allow(workflow).to receive(:activity_options).and_return({})
   end
 
   describe "#execute" do
@@ -59,6 +58,25 @@ RSpec.describe Aidp::Temporal::Workflows::StrategyBranchWorkflow do
       expect(workflow.send(:activity_options, start_to_close_timeout: 60)).to eq(
         described_class.activity_options(start_to_close_timeout: 60)
       )
+    end
+  end
+
+  describe "#store_activity_options" do
+    it "disables retries for non-idempotent branch-side writes" do
+      start_options = workflow.send(:store_activity_options, "start_run")
+      evaluation_options = workflow.send(:store_activity_options, "record_evaluation")
+      artifact_options = workflow.send(:store_activity_options, "record_artifact")
+
+      expect(start_options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(evaluation_options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(artifact_options[:retry_policy][:maximum_attempts]).to eq(1)
+      expect(evaluation_options[:retry_policy][:initial_interval]).to eq(1)
+    end
+
+    it "keeps the default retry policy for idempotent branch store operations" do
+      options = workflow.send(:store_activity_options, "complete_run")
+
+      expect(options).to eq(described_class.activity_options(start_to_close_timeout: 60))
     end
   end
 

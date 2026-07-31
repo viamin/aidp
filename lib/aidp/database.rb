@@ -28,6 +28,8 @@ module Aidp
         db_path = ConfigPaths.database_file(project_dir)
 
         @mutex.synchronize do
+          invalidate_missing_connection!(db_path)
+
           # Return cached connection if valid
           if @connections[db_path]&.closed? == false
             return @connections[db_path]
@@ -61,9 +63,10 @@ module Aidp
       # @return [Array<Integer>] List of applied migration versions
       def migrate_once!(project_dir = Dir.pwd)
         expanded_project_dir = File.expand_path(project_dir)
+        require_relative "database/migrations"
 
         @migration_mutex.synchronize do
-          return [] if @migrated_projects.include?(expanded_project_dir)
+          return [] if migration_current?(expanded_project_dir)
 
           migrate!(expanded_project_dir).tap do
             @migrated_projects << expanded_project_dir
@@ -151,6 +154,22 @@ module Aidp
 
         # Set busy timeout to 5 seconds
         db.busy_timeout = 5000
+      end
+
+      def invalidate_missing_connection!(db_path)
+        db = @connections[db_path]
+        return unless db
+        return if db.closed?
+        return if File.exist?(db_path)
+
+        db.close
+        @connections.delete(db_path)
+      end
+
+      def migration_current?(project_dir)
+        @migrated_projects.include?(project_dir) &&
+          exists?(project_dir) &&
+          !Migrations.pending?(project_dir)
       end
     end
   end
