@@ -2332,6 +2332,76 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(wizard.send(:get, %i[work_loop documentation_commands])).to be_nil
       end
     end
+
+    context "when saving generic commands from structured legacy config" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => :keep
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :test], {
+          unit: "bundle exec rspec",
+          integration: "bundle exec rspec spec/requests",
+          timeout_seconds: 600,
+          watch: {patterns: ["spec/**/*_spec.rb"]}
+        })
+        wizard.send(:set, [:work_loop, :lint], {
+          command: "bundle exec rubocop",
+          format: "bundle exec rubocop -A",
+          strict: true
+        })
+      end
+
+      it "clears only structured legacy command fields after writing work_loop.commands" do
+        wizard.send(:configure_commands)
+
+        expect(wizard.send(:get, %i[work_loop commands])).to eq([
+          {
+            name: "unit_test",
+            command: "bundle exec rspec",
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 600
+          },
+          {
+            name: "integration_test",
+            command: "bundle exec rspec spec/requests",
+            category: :test,
+            run_after: :full_loop,
+            required: true,
+            timeout_seconds: 600
+          },
+          {
+            name: "lint",
+            command: "bundle exec rubocop",
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: nil
+          },
+          {
+            name: "format",
+            command: "bundle exec rubocop -A",
+            category: :formatter,
+            run_after: :on_completion,
+            required: false,
+            timeout_seconds: nil
+          }
+        ])
+        expect(wizard.send(:get, %i[work_loop test unit])).to be_nil
+        expect(wizard.send(:get, %i[work_loop test integration])).to be_nil
+        expect(wizard.send(:get, %i[work_loop test timeout_seconds])).to be_nil
+        expect(wizard.send(:get, %i[work_loop test watch])).to eq({patterns: ["spec/**/*_spec.rb"]})
+        expect(wizard.send(:get, %i[work_loop lint command])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint format])).to be_nil
+        expect(wizard.send(:get, %i[work_loop lint strict])).to be(true)
+      end
+    end
   end
 
   describe "#configure_watch_patterns" do
@@ -2490,6 +2560,33 @@ RSpec.describe Aidp::Setup::Wizard do
         test_tool: "vitest",
         lint_tool: "eslint",
         formatter_tool: "prettier"
+      )
+    end
+
+    it "uses the in-memory config manager when generating suggestions" do
+      wizard.send(:set, %i[harness default_provider], "openai")
+      wizard.send(:set, %i[providers openai], {
+        type: "openai",
+        auth: {api_key_env: "OPENAI_API_KEY"}
+      })
+
+      provider = instance_double("Provider", send_message: '{"commands":[]}')
+      provider_factory = instance_double(Aidp::Harness::ProviderFactory, create_provider: provider)
+
+      expect(Aidp::Harness::ConfigManager).not_to receive(:new)
+      allow(Aidp::Harness::ProviderFactory).to receive(:new) do |config_manager|
+        expect(config_manager).to be_a(Aidp::Setup::InMemoryConfigManager)
+        expect(config_manager.default_provider).to eq("openai")
+        provider_factory
+      end
+
+      suggestions = wizard.send(:generate_phase_two_suggestions_with_ai)
+
+      expect(suggestions).to eq(
+        commands: [],
+        watch_patterns: [],
+        guard_include_patterns: [],
+        guard_exclude_patterns: []
       )
     end
   end

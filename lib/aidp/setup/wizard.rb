@@ -2751,12 +2751,30 @@ module Aidp
       def save_work_loop_commands(commands)
         set(%i[work_loop commands], commands)
         delete_legacy_work_loop_command_keys
+        delete_structured_legacy_work_loop_command_keys
       end
 
       def delete_legacy_work_loop_command_keys
         %i[test_commands lint_commands formatter_commands build_commands documentation_commands].each do |key|
           delete_path([:work_loop, key])
         end
+      end
+
+      def delete_structured_legacy_work_loop_command_keys
+        delete_structured_legacy_command_fields(:test, %i[unit integration e2e timeout_seconds])
+        delete_structured_legacy_command_fields(:lint, %i[command format])
+      end
+
+      def delete_structured_legacy_command_fields(section, fields)
+        config = get([:work_loop, section])
+        return unless config.is_a?(Hash)
+
+        fields.each do |field|
+          config.delete(field)
+          config.delete(field.to_s)
+        end
+
+        delete_path([:work_loop, section]) if config.empty?
       end
 
       def deep_symbolize(object)
@@ -2969,7 +2987,7 @@ module Aidp
       end
 
       def generate_phase_two_suggestions_with_ai(tooling_context = nil)
-        config_manager = Aidp::Harness::ConfigManager.new(project_dir)
+        config_manager = build_in_memory_config_manager
         provider_name = config_manager.default_provider
         return {} unless provider_name
 
