@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.1](https://github.com/viamin/aidp/compare/aidp/v0.47.0...aidp/v0.47.1) (2026-07-31)
+
+
+### Dependencies
+
+* **deps-dev:** bump mcp from 0.9.2 to 0.23.0 in the security-updates group across 1 directory ([#561](https://github.com/viamin/aidp/issues/561)) ([3a0bafd](https://github.com/viamin/aidp/commit/3a0bafd1fe088527e11288c28b2295a7aeb6f290))
+
 ## [0.47.0](https://github.com/viamin/aidp/compare/aidp/v0.46.0...aidp/v0.47.0) (2026-07-29)
 
 
