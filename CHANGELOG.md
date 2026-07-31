@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.48.0](https://github.com/viamin/aidp/compare/aidp/v0.47.1...aidp/v0.48.0) (2026-07-31)
+
+
+### Features
+
+* Proposal: Bitter-Lesson-Oriented Architecture for Aidp ([#556](https://github.com/viamin/aidp/issues/556)) ([06d2034](https://github.com/viamin/aidp/commit/06d203486a43977cce88af22db5fe5a9e017065a))
+
 ## [0.47.1](https://github.com/viamin/aidp/compare/aidp/v0.47.0...aidp/v0.47.1) (2026-07-31)
 
 
