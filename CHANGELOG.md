@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.1](https://github.com/viamin/aidp/compare/aidp/v0.49.0...aidp/v0.49.1) (2026-08-10)
+
+
+### Dependencies
+
+* **deps:** bump the minor-updates group with 3 updates ([#565](https://github.com/viamin/aidp/issues/565)) ([46baf28](https://github.com/viamin/aidp/commit/46baf28b78133ba3f62e07d75eb52179577e993b))
+
 ## [0.49.0](https://github.com/viamin/aidp/compare/aidp/v0.48.0...aidp/v0.49.0) (2026-07-31)
 
 
