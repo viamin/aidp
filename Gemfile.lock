@@ -29,7 +29,7 @@ GEM
   specs:
     addressable (2.9.0)
       public_suffix (>= 2.0.2, < 8.0)
-    agent-harness (0.36.0)
+    agent-harness (0.36.8)
       logger (>= 1.6, < 2.0)
     aruba (2.4.1)
       bundler (>= 1.17)
