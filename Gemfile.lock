@@ -29,7 +29,7 @@ GEM
   specs:
     addressable (2.9.0)
       public_suffix (>= 2.0.2, < 8.0)
-    agent-harness (0.36.8)
+    agent-harness (0.36.13)
       logger (>= 1.6, < 2.0)
     aruba (2.4.1)
       bundler (>= 1.17)
@@ -216,7 +216,7 @@ GEM
       oppen (~> 1.0)
       sorbet-runtime
       zeitwerk
-    simplecov (1.1.1)
+    simplecov (1.2.0)
     simplecov-mcp (0.3.0)
       awesome_print (>= 1.9.2, < 2)
       mcp (>= 0.3)
@@ -286,7 +286,7 @@ GEM
     unicode-display_width (2.6.0)
     unicode_utils (1.4.0)
     uri (1.1.1)
-    webmock (3.26.3)
+    webmock (3.26.4)
       addressable (>= 2.8.0)
       crack (>= 0.3.2)
       hashdiff (>= 0.4.0, < 2.0.0)
