@@ -404,11 +404,11 @@ module Aidp
       # Extract capabilities from model info
       def extract_capabilities(model)
         caps = []
-        caps << "chat" if model.capabilities.include?(:chat)
-        caps << "code" if model.capabilities.include?(:code) || model.id.to_s.include?("code")
-        caps << "vision" if model.capabilities.include?(:vision)
-        caps << "tool_use" if model.capabilities.include?(:function_calling) || model.capabilities.include?(:tools)
-        caps << "streaming" if model.capabilities.include?(:streaming)
+        caps << "chat" if model.capabilities.include?("chat")
+        caps << "code" if model.capabilities.include?("code") || model.id.to_s.include?("code")
+        caps << "vision" if model.capabilities.include?("vision")
+        caps << "tool_use" if model.capabilities.include?("function_calling") || model.capabilities.include?("tools")
+        caps << "streaming" if model.capabilities.include?("streaming")
         caps
       end
     end
