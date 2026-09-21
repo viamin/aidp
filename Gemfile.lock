@@ -8,7 +8,7 @@ PATH
       logger (~> 1.5)
       ostruct (~> 0.6)
       pastel (~> 0.8)
-      ruby_llm (~> 1.9)
+      ruby_llm (>= 1.9, < 3.0)
       ruby_tree_sitter (~> 2.0)
       sqlite3 (~> 2.0)
       temporalio (~> 1.0)
@@ -78,7 +78,7 @@ GEM
     diff-lcs (1.6.2)
     erb (6.0.4)
     event_stream_parser (1.0.0)
-    faraday (2.14.3)
+    faraday (2.14.4)
       faraday-net_http (>= 2.0, < 3.5)
       json
       logger
@@ -108,7 +108,7 @@ GEM
       prism (>= 1.3.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
-    json (2.21.1)
+    json (2.21.2)
     json_schemer (2.5.0)
       bigdecimal
       hana (~> 1.3)
@@ -117,7 +117,7 @@ GEM
     language_server-protocol (3.17.0.6)
     lint_roller (1.1.0)
     logger (1.7.0)
-    marcel (1.2.1)
+    marcel (2.1.0)
     mcp (0.23.0)
       json_schemer (>= 2.4)
     memoist3 (1.0.0)
@@ -193,17 +193,17 @@ GEM
     ruby-lsp-rspec (0.1.29)
       ruby-lsp (~> 0.26.0)
     ruby-progressbar (1.13.0)
-    ruby_llm (1.16.0)
+    ruby_llm (2.0.0)
       base64
       event_stream_parser (~> 1)
       faraday (>= 1.10.0)
       faraday-multipart (>= 1)
       faraday-net_http (>= 1)
       faraday-retry (>= 1)
-      marcel (~> 1)
-      ruby_llm-schema (~> 0)
+      json (< 3)
+      marcel (>= 1.0, < 3)
+      schematist (~> 1.1)
       zeitwerk (~> 2)
-    ruby_llm-schema (0.4.0)
     ruby_tree_sitter (2.1.1-aarch64-linux-gnu)
       oppen (~> 1.0)
       sorbet-runtime
@@ -216,6 +216,7 @@ GEM
       oppen (~> 1.0)
       sorbet-runtime
       zeitwerk
+    schematist (1.1.0)
     simplecov (1.3.0)
     simplecov-mcp (0.3.0)
       awesome_print (>= 1.9.2, < 2)

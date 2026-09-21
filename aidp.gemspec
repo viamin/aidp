@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logger", "~> 1.5"
   s.add_runtime_dependency "ostruct", "~> 0.6"
   s.add_runtime_dependency "pastel", "~> 0.8"
-  s.add_runtime_dependency "ruby_llm", "~> 1.9"
+  s.add_runtime_dependency "ruby_llm", ">= 1.9", "< 3.0"
   s.add_runtime_dependency "ruby_tree_sitter", "~> 2.0"
   s.add_runtime_dependency "thor", "~> 1.3"
   s.add_runtime_dependency "zeitwerk", "~> 2.7"
