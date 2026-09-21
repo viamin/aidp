@@ -29,7 +29,7 @@ GEM
   specs:
     addressable (2.9.0)
       public_suffix (>= 2.0.2, < 8.0)
-    agent-harness (0.36.17)
+    agent-harness (0.36.24)
       logger (>= 1.6, < 2.0)
     aruba (2.4.1)
       bundler (>= 1.17)
@@ -91,13 +91,13 @@ GEM
     ffi (1.17.4-aarch64-linux-gnu)
     ffi (1.17.4-arm64-darwin)
     ffi (1.17.4-x86_64-linux-gnu)
-    google-protobuf (4.36.1-aarch64-linux-gnu)
+    google-protobuf (4.36.2-aarch64-linux-gnu)
       bigdecimal
       rake (~> 13.3)
-    google-protobuf (4.36.1-arm64-darwin)
+    google-protobuf (4.36.2-arm64-darwin)
       bigdecimal
       rake (~> 13.3)
-    google-protobuf (4.36.1-x86_64-linux-gnu)
+    google-protobuf (4.36.2-x86_64-linux-gnu)
       bigdecimal
       rake (~> 13.3)
     hana (1.3.7)
@@ -216,7 +216,7 @@ GEM
       oppen (~> 1.0)
       sorbet-runtime
       zeitwerk
-    simplecov (1.2.0)
+    simplecov (1.3.0)
     simplecov-mcp (0.3.0)
       awesome_print (>= 1.9.2, < 2)
       mcp (>= 0.3)
@@ -245,13 +245,13 @@ GEM
     sys-uname (1.5.1)
       ffi (~> 1.1)
       memoist3 (~> 1.0.0)
-    temporalio (1.8.0-aarch64-linux)
+    temporalio (1.9.0-aarch64-linux)
       google-protobuf (>= 3.25.0)
       logger
-    temporalio (1.8.0-arm64-darwin)
+    temporalio (1.9.0-arm64-darwin)
       google-protobuf (>= 3.25.0)
       logger
-    temporalio (1.8.0-x86_64-linux)
+    temporalio (1.9.0-x86_64-linux)
       google-protobuf (>= 3.25.0)
       logger
     thor (1.5.0)
