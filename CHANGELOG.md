@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.8](https://github.com/viamin/aidp/compare/aidp/v0.49.7...aidp/v0.49.8) (2026-09-21)
+
+
+### Dependencies
+
+* **deps:** update ruby_llm requirement from ~&gt; 1.9 to &gt;= 1.9, &lt; 3.0 ([#580](https://github.com/viamin/aidp/issues/580)) ([c636f61](https://github.com/viamin/aidp/commit/c636f612ff4b164d365171685d2a0cd8e378d17d))
+
 ## [0.49.7](https://github.com/viamin/aidp/compare/aidp/v0.49.6...aidp/v0.49.7) (2026-09-21)
 
 
