@@ -18,20 +18,20 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
 
   describe "#resolve_model" do
     context "with Anthropic models" do
-      it "resolves claude-3-5-haiku to versioned name" do
-        result = registry.resolve_model("claude-3-5-haiku", provider: "anthropic")
+      it "resolves claude-haiku-4-5 to versioned name" do
+        result = registry.resolve_model("claude-haiku-4-5", provider: "anthropic")
         # Should return either versioned or -latest variant
-        expect(result).to be_a(String).and(match(/claude-3-5-haiku/))
+        expect(result).to be_a(String).and(match(/claude-haiku-4-5/))
       end
 
-      it "resolves claude-opus-4 to versioned name" do
-        result = registry.resolve_model("claude-opus-4", provider: "anthropic")
-        expect(result).to be_a(String).and(match(/claude-opus-4/))
+      it "resolves claude-opus-4-5 to versioned name" do
+        result = registry.resolve_model("claude-opus-4-5", provider: "anthropic")
+        expect(result).to be_a(String).and(match(/claude-opus-4-5/))
       end
 
       it "returns already versioned model as-is" do
-        result = registry.resolve_model("claude-3-5-haiku-20241022", provider: "anthropic")
-        expect(result).to eq("claude-3-5-haiku-20241022")
+        result = registry.resolve_model("claude-haiku-4-5-20251001", provider: "anthropic")
+        expect(result).to eq("claude-haiku-4-5-20251001")
       end
 
       it "returns nil for unknown model" do
@@ -78,7 +78,7 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
 
     context "with nil provider" do
       it "searches across all providers" do
-        result = registry.resolve_model("claude-3-5-haiku", provider: nil)
+        result = registry.resolve_model("claude-haiku-4-5", provider: nil)
         expect(result).to be_a(String).and(match(/haiku/))
       end
     end
@@ -87,7 +87,7 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
   describe "#get_model_info" do
     it "returns model information for valid ID" do
       # Get a known model ID first
-      model_id = registry.resolve_model("claude-3-5-haiku", provider: "anthropic")
+      model_id = registry.resolve_model("claude-haiku-4-5", provider: "anthropic")
       info = registry.get_model_info(model_id)
 
       expect(info).to be_a(Hash)
@@ -104,7 +104,7 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
     end
 
     it "includes capabilities array" do
-      model_id = registry.resolve_model("claude-3-5-haiku", provider: "anthropic")
+      model_id = registry.resolve_model("claude-haiku-4-5", provider: "anthropic")
       info = registry.get_model_info(model_id)
 
       expect(info).to have_key(:capabilities)
@@ -210,13 +210,13 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
 
   describe "#classify_tier" do
     it "classifies haiku models as mini" do
-      model_id = registry.resolve_model("claude-3-5-haiku", provider: "anthropic")
+      model_id = registry.resolve_model("claude-haiku-4-5", provider: "anthropic")
       info = registry.get_model_info(model_id)
       expect(info[:tier]).to eq("mini")
     end
 
     it "classifies opus models as advanced" do
-      model_id = registry.resolve_model("claude-opus-4", provider: "anthropic")
+      model_id = registry.resolve_model("claude-opus-4-5", provider: "anthropic")
       info = registry.get_model_info(model_id)
       expect(info[:tier]).to eq("advanced")
     end
@@ -234,7 +234,7 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
     it "maintains functionality after refresh" do
       allow(RubyLLM::Models).to receive(:refresh!)
       registry.refresh!
-      result = registry.resolve_model("claude-3-5-haiku", provider: "anthropic")
+      result = registry.resolve_model("claude-haiku-4-5", provider: "anthropic")
       expect(result).to be_a(String)
     end
   end
