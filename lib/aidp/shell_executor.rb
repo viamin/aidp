@@ -1,23 +1,18 @@
 # frozen_string_literal: true
 
-require "open3"
-
 module Aidp
   # Shell command executor wrapper for testability
   #
-  # Provides two modes of execution:
-  # 1. `run(*command)` - Captures combined output via Open3 without a shell
+  # Commands are always executed in argument form so shell
+  # metacharacters in any value are treated as literal data:
+  # 1. `run_argv(*command)` - Captures output without shell interpretation
   # 2. `system(*args)` - Wraps Kernel.system() with optional output suppression
-  #
-  # Both modes execute commands directly (no shell), so arguments are never
-  # subject to shell interpretation or injection.
   #
   # In tests, set `ShellExecutor.suppress_output = true` to suppress all
   # system() output without changing any production code behavior.
   #
   # @example Production usage
   #   executor = Aidp::ShellExecutor.new
-  #   executor.run("git", "diff", "--staged", "--name-only")  # => String
   #   executor.system("git", "fetch", "origin")  # Output shown normally
   #
   # @example Test setup (in spec_helper.rb)
@@ -31,25 +26,45 @@ module Aidp
     end
     self.suppress_output = false
 
-    # Run a command and capture its combined stdout/stderr output
-    #
-    # The command runs without a shell, so each argument is passed to the
-    # program verbatim and cannot introduce shell metacharacters.
-    #
-    # @param command [Array<String>] The program and its arguments
-    # @return [String] The command's combined output
-    def run(*command)
-      output, status = Open3.capture2e(*command)
-      @last_status = status
-      output
+    # Immutable result of a shell-free command execution
+    class Result
+      attr_reader :stdout, :stderr, :exit_status
+
+      # @param stdout [String] standard output from the command
+      # @param stderr [String] standard error from the command
+      # @param exit_status [Integer] exit status code
+      def initialize(stdout:, stderr:, exit_status:)
+        @stdout = stdout.to_s.freeze
+        @stderr = stderr.to_s.freeze
+        @exit_status = exit_status || 1
+        freeze
+      end
+
+      # @return [Boolean] true if exit_status is 0
+      def success?
+        @exit_status.zero?
+      end
+
+      # Combined output, equivalent to shell `2>&1` redirection
+      # @return [String]
+      def output
+        [@stdout, @stderr].reject(&:empty?).join("\n")
+      end
     end
 
-    # Check if the last command succeeded
+    # Run a command without shell interpretation and capture its output
     #
-    # @return [Boolean] true if last command exited with status 0
-    def success?
-      status = @last_status || $?
-      !status.nil? && status.success?
+    # The command and its arguments are passed directly to the operating
+    # system, so shell metacharacters in any argument are treated as
+    # literal data. Prefer this over #run whenever an argument may contain
+    # externally supplied values.
+    #
+    # @param command [Array<String>] the command and its arguments
+    # @return [Result] captured stdout/stderr with the exit status
+    def run_argv(*command)
+      require "open3"
+      stdout, stderr, status = Open3.capture3(*command.map(&:to_s))
+      Result.new(stdout: stdout, stderr: stderr, exit_status: status.exitstatus)
     end
 
     # Run a command via system(), optionally suppressing output
@@ -61,7 +76,6 @@ module Aidp
     # @param opts [Hash] Options passed to Kernel.system
     # @return [Boolean, nil] Same as Kernel.system
     def system(*args, **opts)
-      @last_status = nil
       if self.class.suppress_output && !opts.key?(:out) && !opts.key?(:err)
         opts = opts.merge(out: File::NULL, err: File::NULL)
       end

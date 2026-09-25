@@ -150,17 +150,18 @@ module Aidp
             branch == "* #{base_branch}"
         end
 
-        # Enhance branch tracking and fetching
+        # Enhance branch tracking and fetching; argv execution keeps the
+        # library-provided branch name from being interpreted by a shell
         unless base_branch_exists
-          # Try multiple fetch strategies (array form avoids shell injection)
+          # Try multiple fetch strategies
           fetch_commands = [
             ["git", "fetch", "origin", "#{base_branch}:#{base_branch}"],
             ["git", "fetch", "origin"],
             ["git", "fetch", "--all"]
           ]
 
-          fetch_commands.each do |fetch_cmd|
-            @shell_executor.system(*fetch_cmd, out: File::NULL, err: File::NULL)
+          fetch_commands.each do |fetch_args|
+            @shell_executor.system(*fetch_args, err: File::NULL)
             branch_list_output = `git branch -a`.split("\n").map(&:strip)
             base_branch_exists = branch_list_output.any? do |branch|
               branch.end_with?("/#{base_branch}", "remotes/origin/#{base_branch}") ||
@@ -173,14 +174,15 @@ module Aidp
 
         raise ArgumentError, "Base branch '#{base_branch}' does not exist in the repository" unless base_branch_exists
 
-        # Robust worktree creation with enhanced error handling and logging
-        # Array form avoids shell injection from branch names and paths
-        unless @shell_executor.system("git", "worktree", "add", worktree_path, "-b", head_branch, base_branch)
+        # Robust worktree creation with enhanced error handling and logging;
+        # argv execution keeps library-provided branches and paths literal
+        worktree_create_args = ["git", "worktree", "add", worktree_path, "-b", head_branch, base_branch]
+        unless @shell_executor.system(*worktree_create_args)
           error_details = {
             pr_number: pr_number,
             base_branch: base_branch,
             head_branch: head_branch,
-            worktree_path: worktree_path
+            command: worktree_create_args.join(" ")
           }
           Aidp.log_error(
             "pr_worktree_manager", "worktree_creation_failed",
@@ -376,9 +378,7 @@ module Aidp
           end
         end
 
-        # Stage only successfully modified files (array form avoids shell injection).
-        # The "--" terminator stops git from parsing an option-looking
-        # file name (e.g. "-A") as an option instead of a pathspec.
+        # Stage only successfully modified files without shell interpretation
         unless successful_files.empty?
           @shell_executor.system("git", "add", "--", *successful_files)
         end
@@ -429,25 +429,22 @@ module Aidp
 
       Dir.chdir(worktree_path) do
         # Check staged changes with more robust capture
-        staged_changes_output = @shell_executor.run("git", "diff", "--staged", "--name-only").strip
+        staged_changes_output = @shell_executor.run_argv("git", "diff", "--staged", "--name-only").stdout.strip
 
         if !staged_changes_output.empty?
           push_result[:git_actions][:staged_changes] = true
           push_result[:changed_files] = staged_changes_output.split("\n")
 
-          # More robust commit with additional logging (array form avoids shell injection)
-          commit_message = "Changes applied via AIDP request-changes workflow for PR ##{pr_number}"
-          commit_output = @shell_executor.run("git", "commit", "-m", commit_message).strip
+          # Commit staged changes without shell interpretation of library input
+          commit_output = commit_staged_changes(pr_number)
 
-          if @shell_executor.success?
+          if commit_output.success?
             push_result[:git_actions][:committed] = true
 
-            # Enhanced push with verbose tracking (array form avoids shell injection).
-            # The "--" terminator stops git from parsing an option-looking
-            # branch name (e.g. "-foo") as a push option instead of a refspec.
-            push_output = @shell_executor.run("git", "push", "origin", "--", head_branch).strip
+            # Push the registry-sourced head branch without shell interpretation
+            push_output = push_head_branch(head_branch)
 
-            if @shell_executor.success?
+            if push_output.success?
               push_result[:git_actions][:pushed] = true
               push_result[:success] = true
 
@@ -459,22 +456,22 @@ module Aidp
               )
             else
               # Detailed push error logging
-              push_result[:errors] << "Push failed: #{push_output}"
+              push_result[:errors] << "Push failed: #{push_output.output.strip}"
               Aidp.log_error(
                 "pr_worktree_manager", "push_changes_failed",
                 pr_number: pr_number,
                 branch: head_branch,
-                error_details: push_output
+                error_details: push_output.output.strip
               )
             end
           else
             # Detailed commit error logging
-            push_result[:errors] << "Commit failed: #{commit_output}"
+            push_result[:errors] << "Commit failed: #{commit_output.output.strip}"
             Aidp.log_error(
               "pr_worktree_manager", "commit_changes_failed",
               pr_number: pr_number,
               branch: head_branch,
-              error_details: commit_output
+              error_details: commit_output.output.strip
             )
           end
         else
@@ -497,7 +494,7 @@ module Aidp
       existing_worktree = @worktrees[pr_number.to_s]
       return false unless existing_worktree
 
-      # Remove git worktree (array form avoids shell injection from paths)
+      # Remove git worktree without shell interpretation of registry data
       if File.exist?(existing_worktree["path"])
         @shell_executor.system("git", "worktree", "remove", existing_worktree["path"])
       end
@@ -534,6 +531,19 @@ module Aidp
     end
 
     private
+
+    # Commit currently staged changes; argv execution keeps externally
+    # sourced values (pr_number) from being interpreted by a shell
+    def commit_staged_changes(pr_number)
+      commit_message = "Changes applied via AIDP request-changes workflow for PR ##{pr_number}"
+      @shell_executor.run_argv("git", "commit", "-m", commit_message)
+    end
+
+    # Push the head branch; argv execution keeps registry-sourced branch
+    # names from being interpreted by a shell
+    def push_head_branch(head_branch)
+      @shell_executor.run_argv("git", "push", "origin", "--", head_branch)
+    end
 
     # Load the worktree registry from file
     def load_registry

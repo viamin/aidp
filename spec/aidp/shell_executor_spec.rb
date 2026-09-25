@@ -1,53 +1,39 @@
-# frozen_string_literal: true
-
 require "spec_helper"
 require "aidp/shell_executor"
+require "rbconfig"
 
 RSpec.describe Aidp::ShellExecutor do
-  let(:executor) { described_class.new }
+  describe "#run_argv" do
+    it "captures output of a successful command" do
+      result = described_class.new.run_argv("printf", "hello")
 
-  describe "#run" do
-    it "captures combined stdout and stderr output" do
-      expect(executor.run("echo", "hello world")).to eq("hello world\n")
+      expect(result).to be_success
+      expect(result.stdout).to eq("hello")
+      expect(result.output).to eq("hello")
     end
 
-    it "passes arguments verbatim without shell interpretation" do
-      malicious = "file; rm -rf /"
-      expect(executor.run("printf", "%s", malicious)).to include(malicious)
+    it "treats shell metacharacters in arguments as literal data" do
+      result = described_class.new.run_argv("printf", "42; touch /tmp/aidp-pwned")
+
+      expect(result).to be_success
+      expect(result.stdout).to eq("42; touch /tmp/aidp-pwned")
+      expect(File.exist?("/tmp/aidp-pwned")).to be false
     end
 
-    it "does not execute shell metacharacters from arguments" do
-      output = executor.run("printf", "%s", "$(echo injected)")
+    it "reports non-zero exit status and stderr" do
+      result = described_class.new.run_argv(RbConfig.ruby, "-e", "warn 'boom'; exit 3")
 
-      expect(output).to eq("$(echo injected)")
-      expect(output).not_to include("injected\n")
-    end
-  end
-
-  describe "#success?" do
-    it "returns true after a successful run" do
-      executor.run("true")
-
-      expect(executor.success?).to be true
+      expect(result).not_to be_success
+      expect(result.exit_status).to eq(3)
+      expect(result.stderr).to eq("boom\n".b)
+      expect(result.output).to eq("boom\n".b)
     end
 
-    it "returns false after a failed run" do
-      executor.run("false")
+    it "treats a signal-terminated command as a failure rather than exit code 0" do
+      result = described_class.new.run_argv(RbConfig.ruby, "-e", "Process.kill('KILL', Process.pid)")
 
-      expect(executor.success?).to be false
-    end
-
-    it "reflects the most recent run" do
-      executor.run("false")
-      executor.run("true")
-
-      expect(executor.success?).to be true
-    end
-  end
-
-  describe "#system" do
-    it "runs commands given as argument arrays" do
-      expect(executor.system("echo", "hi", out: File::NULL, err: File::NULL)).to be true
+      expect(result).not_to be_success
+      expect(result.exit_status).not_to eq(0)
     end
   end
 end

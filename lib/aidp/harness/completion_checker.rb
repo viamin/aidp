@@ -64,27 +64,27 @@ module Aidp
         test_commands = detect_test_commands
         return true if test_commands.empty?
 
-        test_commands.any? do |cmd|
-          system("cd #{@project_dir} && #{cmd} > /dev/null 2>&1")
-        end
+        test_commands.any? { |cmd| run_project_command(cmd) }
       end
 
       def linting_clean?
         lint_commands = detect_lint_commands
         return true if lint_commands.empty?
 
-        lint_commands.all? do |cmd|
-          system("cd #{@project_dir} && #{cmd} > /dev/null 2>&1")
-        end
+        lint_commands.all? { |cmd| run_project_command(cmd) }
       end
 
       def build_successful?
         build_commands = detect_build_commands
         return true if build_commands.empty?
 
-        build_commands.any? do |cmd|
-          system("cd #{@project_dir} && #{cmd} > /dev/null 2>&1")
-        end
+        build_commands.any? { |cmd| run_project_command(cmd) }
+      end
+
+      # Run a detected command in the project directory without building a
+      # shell command string from the library-provided project path
+      def run_project_command(cmd)
+        system(cmd, chdir: @project_dir, out: File::NULL, err: File::NULL)
       end
 
       def documentation_complete?
