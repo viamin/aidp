@@ -92,6 +92,34 @@ RSpec.describe Aidp::Harness::TestRunner do
         expect(result[:failures].first[:command]).to eq "false"
       end
     end
+
+    context "when a test command uses shell operators" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["echo 'one' && echo 'two'"])
+      end
+
+      it "reports the command as failed instead of crashing" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].size).to eq 1
+        expect(result[:failures].first[:stderr]).to include("shell operators are not supported")
+      end
+    end
+
+    context "when a test command cannot be executed" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["RAILS_ENV=test bundle exec rspec"])
+      end
+
+      it "reports the command as failed instead of crashing" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].size).to eq 1
+        expect(result[:failures].first[:stderr]).to include("RAILS_ENV=test")
+      end
+    end
   end
 
   describe "#run_linters" do

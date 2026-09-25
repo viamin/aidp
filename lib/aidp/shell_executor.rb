@@ -78,13 +78,22 @@ module Aidp
     # @param command [String] the command line to run
     # @param opts [Hash] options forwarded to Open3.capture3 (e.g. chdir:)
     # @return [Result] captured stdout/stderr with the exit status
-    # @raise [ArgumentError] when the command line is blank or has
-    #   unbalanced quotes
+    # @raise [ArgumentError] when the command line is blank, has
+    #   unbalanced quotes, or uses shell operators/redirections
     def run_line(command, **opts)
       require "open3"
       require "shellwords"
       argv = Shellwords.split(command.to_s)
       raise ArgumentError, "command must not be blank" if argv.empty?
+
+      # Operator tokens signal an intent to use shell features, which are
+      # intentionally unsupported here; reject them loudly rather than
+      # running them as literal arguments.
+      if argv.any? { |token| %w[&& || ; |].include?(token) || token.match?(/^[<>&]/) }
+        raise ArgumentError,
+          "shell operators are not supported in configured commands; " \
+          "split into separate commands instead: #{command.inspect}"
+      end
 
       stdout, stderr, status = Open3.capture3(*argv, **opts)
       Result.new(stdout: stdout, stderr: stderr, exit_status: status.exitstatus)

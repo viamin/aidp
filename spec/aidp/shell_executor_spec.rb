@@ -77,5 +77,32 @@ RSpec.describe Aidp::ShellExecutor do
     it "raises for a command line with unbalanced quotes" do
       expect { described_class.new.run_line("echo 'unclosed") }.to raise_error(ArgumentError)
     end
+
+    it "rejects shell operators rather than running them as literal arguments" do
+      ["bundle exec rspec && bundle exec rubocop",
+        "bundle exec rspec || bundle exec rubocop",
+        "echo one ; echo two",
+        "cat file | wc -l"].each do |command|
+        expect { described_class.new.run_line(command) }
+          .to raise_error(ArgumentError, /shell operators are not supported/)
+      end
+    end
+
+    it "rejects redirections rather than running them as literal arguments" do
+      ["echo hello > /tmp/aidp-line-out",
+        "cat < /tmp/aidp-line-in",
+        "echo hello >> /tmp/aidp-line-out",
+        "echo hello &"].each do |command|
+        expect { described_class.new.run_line(command) }
+          .to raise_error(ArgumentError, /shell operators are not supported/)
+      end
+    end
+
+    it "allows shell metacharacters inside a single quoted argument" do
+      result = described_class.new.run_line("bash -c 'echo error >&2 && exit 1'")
+
+      expect(result).not_to be_success
+      expect(result.stderr).to eq("error\n")
+    end
   end
 end

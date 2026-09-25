@@ -293,9 +293,16 @@ module Aidp
       end
 
       # Execute a configured command line without shell interpretation so
-      # shell metacharacters in configuration values are treated as data
+      # shell metacharacters in configuration values are treated as data.
+      # Execution failures (missing executables, rejected shell operators)
+      # are reported as a failed command rather than raised, so a bad
+      # aidp.yml entry surfaces as a failed check instead of crashing the
+      # work loop.
       def execute_command_line(command)
         result = command_runner.run_line(command, chdir: @project_dir)
+        [result.stdout, result.stderr, result]
+      rescue ArgumentError, Errno::ENOENT => e
+        result = ShellExecutor::Result.new(stdout: "", stderr: e.message, exit_status: 1)
         [result.stdout, result.stderr, result]
       end
 
