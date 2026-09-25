@@ -67,6 +67,29 @@ module Aidp
       Result.new(stdout: stdout, stderr: stderr, exit_status: status.exitstatus)
     end
 
+    # Run a command line without shell interpretation and capture its output
+    #
+    # The line is tokenized with Shellwords, so quoting in the command
+    # string is honored as argument boundaries, but the resulting argv is
+    # passed directly to the operating system. Shell metacharacters
+    # (operators, redirections, substitutions) are never interpreted,
+    # which makes this safe for command lines built from untrusted input.
+    #
+    # @param command [String] the command line to run
+    # @param opts [Hash] options forwarded to Open3.capture3 (e.g. chdir:)
+    # @return [Result] captured stdout/stderr with the exit status
+    # @raise [ArgumentError] when the command line is blank or has
+    #   unbalanced quotes
+    def run_line(command, **opts)
+      require "open3"
+      require "shellwords"
+      argv = Shellwords.split(command.to_s)
+      raise ArgumentError, "command must not be blank" if argv.empty?
+
+      stdout, stderr, status = Open3.capture3(*argv, **opts)
+      Result.new(stdout: stdout, stderr: stderr, exit_status: status.exitstatus)
+    end
+
     # Run a command via system(), optionally suppressing output
     #
     # When suppress_output is true, output is redirected to /dev/null
