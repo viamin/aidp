@@ -376,9 +376,11 @@ module Aidp
           end
         end
 
-        # Stage only successfully modified files (array form avoids shell injection)
+        # Stage only successfully modified files (array form avoids shell injection).
+        # The "--" terminator stops git from parsing an option-looking
+        # file name (e.g. "-A") as an option instead of a pathspec.
         unless successful_files.empty?
-          @shell_executor.system("git", "add", *successful_files)
+          @shell_executor.system("git", "add", "--", *successful_files)
         end
       end
 

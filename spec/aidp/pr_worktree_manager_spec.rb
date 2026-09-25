@@ -424,6 +424,26 @@ RSpec.describe Aidp::PRWorktreeManager do
           @pr_worktree_manager.apply_worktree_changes(999, changes)
         }.to raise_error(RuntimeError, /No worktree found for PR 999/)
       end
+
+      it "stages an option-looking file name as a pathspec, not a git option" do
+        shell_executor = instance_double(Aidp::ShellExecutor)
+        allow(shell_executor).to receive(:system).and_return(true)
+        manager = Aidp::PRWorktreeManager.new(
+          base_repo_path: temp_repo_path,
+          project_dir: temp_repo_path,
+          shell_executor: shell_executor
+        )
+
+        changes = {
+          files: ["-A"],
+          operations: [:create]
+        }
+
+        manager.apply_worktree_changes(pr_number, changes)
+
+        expect(shell_executor).to have_received(:system)
+          .with("git", "add", "--", "-A")
+      end
     end
 
     describe "#push_worktree_changes" do
