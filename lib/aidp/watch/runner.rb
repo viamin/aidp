@@ -749,7 +749,7 @@ module Aidp
       # Capture git worktree context
       # @return [Hash] Worktree information
       def capture_worktree_context
-        return {} unless system("git rev-parse --git-dir > /dev/null 2>&1")
+        return {} unless system("git", "rev-parse", "--git-dir", out: File::NULL, err: File::NULL)
 
         {
           branch: `git rev-parse --abbrev-ref HEAD`.strip,

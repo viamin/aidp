@@ -77,7 +77,7 @@ module Aidp
       return nil unless File.exist?(".git")
 
       # Try to get origin URL
-      stdout, _stderr, status = Open3.capture3("git remote get-url origin")
+      stdout, _stderr, status = Open3.capture3("git", "remote", "get-url", "origin")
       return nil unless status.success?
 
       origin_url = stdout.strip
