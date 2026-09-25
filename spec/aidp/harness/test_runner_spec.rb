@@ -92,6 +92,120 @@ RSpec.describe Aidp::Harness::TestRunner do
         expect(result[:failures].first[:command]).to eq "false"
       end
     end
+
+    context "when a test command chains commands with shell operators" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["echo one && echo two"])
+      end
+
+      it "reports a failed result instead of silently running the first command" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].size).to eq 1
+        expect(result[:failures].first[:exit_code]).to eq 127
+        expect(result[:failures].first[:stderr]).to include("shell operators are not supported")
+      end
+    end
+
+    context "when a test command uses an fd redirection" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["rspec 2>/dev/null"])
+      end
+
+      it "reports a failed result instead of passing the redirect as an argument" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].first[:stderr]).to include("shell operators are not supported")
+      end
+    end
+
+    context "when a test command starts with an environment assignment" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["RAILS_ENV=test bundle exec rspec"])
+      end
+
+      it "reports a failed result with env guidance" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].first[:exit_code]).to eq 127
+        expect(result[:failures].first[:stderr]).to include("env VAR=value")
+      end
+    end
+
+    context "when a command argument (not the program) looks like an assignment" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["echo FOO=bar"])
+      end
+
+      it "passes the argument through" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be true
+      end
+    end
+
+    context "when a test command has unbalanced quotes" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["echo 'unclosed"])
+      end
+
+      it "reports a failed result instead of raising" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].first[:exit_code]).to eq 127
+        expect(result[:failures].first[:stderr]).to include("unparseable command")
+      end
+    end
+
+    context "when a test command is a single token containing shell metacharacters" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["aidp-missing|aidp-missing"])
+      end
+
+      it "reports a failed result instead of routing the token through a shell" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].first[:exit_code]).to eq 127
+        expect(result[:failures].first[:stderr]).to include("shell metacharacters")
+      end
+    end
+
+    context "when the configured command binary does not exist" do
+      before do
+        allow(config).to receive(:test_commands).and_return(["aidp-missing-binary-12345"])
+      end
+
+      it "reports a failed result instead of raising" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].first[:exit_code]).to eq 127
+        expect(result[:failures].first[:stderr]).to include("aidp-missing-binary-12345")
+      end
+    end
+
+    context "when the configured command is not executable" do
+      let(:script) { File.join(temp_dir, "not-executable.sh") }
+
+      before do
+        File.write(script, "#!/bin/sh\nexit 0\n")
+        FileUtils.chmod(0o644, script)
+        allow(config).to receive(:test_commands).and_return([script])
+      end
+
+      it "reports a failed result instead of raising Errno::EACCES" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be false
+        expect(result[:failures].first[:exit_code]).to eq 127
+        expect(result[:failures].first[:stderr]).to include("Permission denied")
+      end
+    end
   end
 
   describe "#run_linters" do
@@ -136,15 +250,16 @@ RSpec.describe Aidp::Harness::TestRunner do
       end
     end
 
-    context "when command contains shell metacharacters" do
+    context "when command contains shell redirection" do
       before do
         allow(config).to receive(:lint_commands).and_return(["echo safe > #{File.join(temp_dir, "pwned.txt")}"])
       end
 
-      it "does not interpret shell metacharacters" do
+      it "fails the command instead of interpreting the redirection" do
         result = runner.run_linters
 
-        expect(result[:success]).to be true
+        expect(result[:success]).to be false
+        expect(result[:failures].first[:stderr]).to include("shell operators are not supported")
         expect(File.exist?(File.join(temp_dir, "pwned.txt"))).to be false
       end
     end
