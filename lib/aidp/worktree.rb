@@ -344,7 +344,10 @@ module Aidp
             worktree_path: worktree_path,
             base_branch: effective_base_branch
           )
-          stdout, stderr, status = Dir.chdir(project_dir) { Open3.capture3(*cmd) }
+          # Pass the git subcommand as a separate leading argument so the
+          # library-provided branch and path values are never interpreted
+          # by a shell.
+          stdout, stderr, status = Dir.chdir(project_dir) { Open3.capture3("git", *cmd) }
 
           return if status.success?
 
@@ -367,11 +370,13 @@ module Aidp
         end
       end
 
+      # Build the worktree creation arguments (without the leading "git"),
+      # so the caller can pass them as separate argv entries.
       def build_worktree_command(branch_exists:, branch:, worktree_path:, base_branch:)
         if branch_exists
-          ["git", "worktree", "add", worktree_path, branch]
+          ["worktree", "add", worktree_path, branch]
         else
-          cmd = ["git", "worktree", "add", "-b", branch, worktree_path]
+          cmd = ["worktree", "add", "-b", branch, worktree_path]
           cmd << base_branch if base_branch
           cmd
         end

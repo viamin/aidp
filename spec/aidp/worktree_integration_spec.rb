@@ -87,6 +87,18 @@ RSpec.describe Aidp::Worktree, "integration with real git", :integration do
     end
   end
 
+  it "treats shell metacharacters in library-provided branch names as literal data" do
+    expect {
+      described_class.create(
+        slug: "hostile-branch",
+        branch: "aidp/x; touch /tmp/aidp-pwned",
+        project_dir: project_dir
+      )
+    }.to raise_error(Aidp::Worktree::Error)
+
+    expect(File.exist?("/tmp/aidp-pwned")).to be false
+  end
+
   describe "remote-only branches" do
     let(:remote_dir) { Dir.mktmpdir("aidp_worktree_remote") }
 

@@ -26,6 +26,27 @@ RSpec.describe Aidp::WorktreeBranchManager do
     FileUtils.rm_rf(temp_project_dir)
   end
 
+  describe "#run_git_command" do
+    it "passes the command and arguments as separate argv entries" do
+      allow(Open3).to receive(:capture2e).and_return(["ok\n", double(success?: true)])
+
+      result = manager.send(:run_git_command, "git", "fetch", "origin", "main")
+
+      expect(result).to eq("ok\n")
+      expect(Open3).to have_received(:capture2e).with("git", "fetch", "origin", "main")
+    end
+
+    it "treats shell metacharacters in library input as literal arguments" do
+      allow(Open3).to receive(:capture2e).and_return(["ok\n", double(success?: true)])
+
+      manager.send(:run_git_command, "git", "fetch", "origin", "main; touch /tmp/aidp-pwned")
+
+      expect(Open3).to have_received(:capture2e)
+        .with("git", "fetch", "origin", "main; touch /tmp/aidp-pwned")
+      expect(File.exist?("/tmp/aidp-pwned")).to be false
+    end
+  end
+
   describe "#find_worktree" do
     context "when a worktree exists" do
       before do
