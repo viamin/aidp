@@ -447,10 +447,12 @@ RSpec.describe Aidp::PRWorktreeManager do
         }
         @pr_worktree_manager.apply_worktree_changes(pr_number, changes)
 
-        # Use injected shell executor for git commands
-        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("README.md")
-        allow(shell_executor).to receive(:run).with(/git commit/).and_return("Commit successful")
-        allow(shell_executor).to receive(:run).with(/git push origin/).and_return("Push successful")
+        # Use injected shell executor for git commands (array form, no shell)
+        allow(shell_executor).to receive(:run).with("git", "diff", "--staged", "--name-only").and_return("README.md")
+        allow(shell_executor).to receive(:run)
+          .with("git", "commit", "-m", "Changes applied via AIDP request-changes workflow for PR ##{pr_number}")
+          .and_return("Commit successful")
+        allow(shell_executor).to receive(:run).with("git", "push", "origin", head_branch).and_return("Push successful")
         allow(shell_executor).to receive(:success?).and_return(true)
 
         result = manager_with_executor.push_worktree_changes(pr_number)
@@ -464,7 +466,7 @@ RSpec.describe Aidp::PRWorktreeManager do
 
       it "handles no changes to push" do
         # Use injected shell executor with empty staged changes
-        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("")
+        allow(shell_executor).to receive(:run).with("git", "diff", "--staged", "--name-only").and_return("")
         allow(shell_executor).to receive(:success?).and_return(true)
 
         result = manager_with_executor.push_worktree_changes(pr_number)

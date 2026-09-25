@@ -1,17 +1,23 @@
 # frozen_string_literal: true
 
+require "open3"
+
 module Aidp
   # Shell command executor wrapper for testability
   #
   # Provides two modes of execution:
-  # 1. `run(command)` - Captures output silently via backticks
+  # 1. `run(*command)` - Captures combined output via Open3 without a shell
   # 2. `system(*args)` - Wraps Kernel.system() with optional output suppression
+  #
+  # Both modes execute commands directly (no shell), so arguments are never
+  # subject to shell interpretation or injection.
   #
   # In tests, set `ShellExecutor.suppress_output = true` to suppress all
   # system() output without changing any production code behavior.
   #
   # @example Production usage
   #   executor = Aidp::ShellExecutor.new
+  #   executor.run("git", "diff", "--staged", "--name-only")  # => String
   #   executor.system("git", "fetch", "origin")  # Output shown normally
   #
   # @example Test setup (in spec_helper.rb)
@@ -25,19 +31,25 @@ module Aidp
     end
     self.suppress_output = false
 
-    # Run a command and capture its output
+    # Run a command and capture its combined stdout/stderr output
     #
-    # @param command [String] The shell command to run
-    # @return [String] The command's stdout output
-    def run(command)
-      `#{command}`
+    # The command runs without a shell, so each argument is passed to the
+    # program verbatim and cannot introduce shell metacharacters.
+    #
+    # @param command [Array<String>] The program and its arguments
+    # @return [String] The command's combined output
+    def run(*command)
+      output, status = Open3.capture2e(*command)
+      @last_status = status
+      output
     end
 
     # Check if the last command succeeded
     #
     # @return [Boolean] true if last command exited with status 0
     def success?
-      $?.success?
+      status = @last_status || $?
+      !status.nil? && status.success?
     end
 
     # Run a command via system(), optionally suppressing output
@@ -49,6 +61,7 @@ module Aidp
     # @param opts [Hash] Options passed to Kernel.system
     # @return [Boolean, nil] Same as Kernel.system
     def system(*args, **opts)
+      @last_status = nil
       if self.class.suppress_output && !opts.key?(:out) && !opts.key?(:err)
         opts = opts.merge(out: File::NULL, err: File::NULL)
       end

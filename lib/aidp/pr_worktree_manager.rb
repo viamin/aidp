@@ -1,6 +1,5 @@
 require "json"
 require "fileutils"
-require "shellwords"
 
 module Aidp
   # Manages worktrees specifically for Pull Request branches
@@ -153,15 +152,15 @@ module Aidp
 
         # Enhance branch tracking and fetching
         unless base_branch_exists
-          # Try multiple fetch strategies
+          # Try multiple fetch strategies (array form avoids shell injection)
           fetch_commands = [
-            "git fetch origin #{base_branch}:#{base_branch} 2>/dev/null",
-            "git fetch origin 2>/dev/null",
-            "git fetch --all 2>/dev/null"
+            ["git", "fetch", "origin", "#{base_branch}:#{base_branch}"],
+            ["git", "fetch", "origin"],
+            ["git", "fetch", "--all"]
           ]
 
           fetch_commands.each do |fetch_cmd|
-            @shell_executor.system(fetch_cmd)
+            @shell_executor.system(*fetch_cmd, out: File::NULL, err: File::NULL)
             branch_list_output = `git branch -a`.split("\n").map(&:strip)
             base_branch_exists = branch_list_output.any? do |branch|
               branch.end_with?("/#{base_branch}", "remotes/origin/#{base_branch}") ||
@@ -175,13 +174,13 @@ module Aidp
         raise ArgumentError, "Base branch '#{base_branch}' does not exist in the repository" unless base_branch_exists
 
         # Robust worktree creation with enhanced error handling and logging
-        worktree_create_command = "git worktree add #{Shellwords.escape(worktree_path)} -b #{Shellwords.escape(head_branch)} #{Shellwords.escape(base_branch)}"
-        unless @shell_executor.system(worktree_create_command)
+        # Array form avoids shell injection from branch names and paths
+        unless @shell_executor.system("git", "worktree", "add", worktree_path, "-b", head_branch, base_branch)
           error_details = {
             pr_number: pr_number,
             base_branch: base_branch,
             head_branch: head_branch,
-            command: worktree_create_command
+            worktree_path: worktree_path
           }
           Aidp.log_error(
             "pr_worktree_manager", "worktree_creation_failed",
@@ -377,9 +376,9 @@ module Aidp
           end
         end
 
-        # Stage only successfully modified files
+        # Stage only successfully modified files (array form avoids shell injection)
         unless successful_files.empty?
-          @shell_executor.system("git add #{successful_files.map { |f| Shellwords.escape(f) }.join(" ")}")
+          @shell_executor.system("git", "add", *successful_files)
         end
       end
 
@@ -428,23 +427,21 @@ module Aidp
 
       Dir.chdir(worktree_path) do
         # Check staged changes with more robust capture
-        staged_changes_output = @shell_executor.run("git diff --staged --name-only").strip
+        staged_changes_output = @shell_executor.run("git", "diff", "--staged", "--name-only").strip
 
         if !staged_changes_output.empty?
           push_result[:git_actions][:staged_changes] = true
           push_result[:changed_files] = staged_changes_output.split("\n")
 
-          # More robust commit command with additional logging
+          # More robust commit with additional logging (array form avoids shell injection)
           commit_message = "Changes applied via AIDP request-changes workflow for PR ##{pr_number}"
-          commit_command = "git commit -m '#{commit_message}' 2>&1"
-          commit_output = @shell_executor.run(commit_command).strip
+          commit_output = @shell_executor.run("git", "commit", "-m", commit_message).strip
 
           if @shell_executor.success?
             push_result[:git_actions][:committed] = true
 
-            # Enhanced push with verbose tracking
-            push_command = "git push origin #{head_branch} 2>&1"
-            push_output = @shell_executor.run(push_command).strip
+            # Enhanced push with verbose tracking (array form avoids shell injection)
+            push_output = @shell_executor.run("git", "push", "origin", head_branch).strip
 
             if @shell_executor.success?
               push_result[:git_actions][:pushed] = true
@@ -496,8 +493,10 @@ module Aidp
       existing_worktree = @worktrees[pr_number.to_s]
       return false unless existing_worktree
 
-      # Remove git worktree
-      @shell_executor.system("git worktree remove #{existing_worktree["path"]}") if File.exist?(existing_worktree["path"])
+      # Remove git worktree (array form avoids shell injection from paths)
+      if File.exist?(existing_worktree["path"])
+        @shell_executor.system("git", "worktree", "remove", existing_worktree["path"])
+      end
 
       # Remove from registry and save
       @worktrees.delete(pr_number.to_s)
