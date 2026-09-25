@@ -3,6 +3,7 @@
 require "yaml"
 require "time"
 require "json"
+require "open3"
 require "aidp/rescue_logging"
 
 module Aidp
@@ -183,7 +184,8 @@ module Aidp
       def run_rubocop_check
         # Run rubocop and parse output to get a quality score
         # This is a simplified version - could be enhanced
-        result = `cd #{@project_dir} && rubocop --format json 2>/dev/null`
+        stdout, _stderr, _status = Open3.capture3("rubocop", "--format", "json", chdir: @project_dir)
+        result = stdout
         return nil if result.empty?
 
         data = JSON.parse(result)
