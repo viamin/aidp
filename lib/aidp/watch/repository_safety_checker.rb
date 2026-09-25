@@ -128,7 +128,7 @@ module Aidp
 
       def check_visibility_via_gh
         cmd = ["gh", "repo", "view", @repository_client.full_repo, "--json", "visibility"]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
 
         unless status.success?
           Aidp.log_warn("repository_safety", "failed to check repo visibility via gh",

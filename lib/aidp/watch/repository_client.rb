@@ -23,6 +23,11 @@ module Aidp
 
       attr_reader :owner, :repo
 
+      # `gh` commands are executed in argument form: the executable is passed
+      # as a literal leading argument and every remaining token is a separate
+      # argument, so shell metacharacters in library-provided values
+      # (owner/repo, issue numbers, labels, comment bodies) are treated as
+      # literal data rather than interpreted by a shell.
       def self.parse_issues_url(issues_url)
         case issues_url
         when %r{\Ahttps://github\.com/([^/]+)/([^/]+)(?:/issues)?/?\z}
@@ -382,7 +387,7 @@ module Aidp
           cmd += ["--label", label]
         end
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         unless status.success?
           warn("GitHub CLI list failed: #{stderr}")
           return []
@@ -416,7 +421,7 @@ module Aidp
           fields = %w[number title body comments labels state assignees url updatedAt author]
           cmd = ["gh", "issue", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
 
-          stdout, stderr, status = Open3.capture3(*cmd)
+          stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
           raise "GitHub CLI error: #{stderr.strip}" unless status.success?
 
           data = JSON.parse(stdout)
@@ -442,7 +447,7 @@ module Aidp
         with_gh_retry("post_comment") do
           cmd = ["gh", "api", "repos/#{full_repo}/issues/#{number}/comments",
             "-X", "POST", "-f", "body=#{body}"]
-          stdout, stderr, status = Open3.capture3(*cmd)
+          stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
           raise "Failed to post comment via gh: #{stderr.strip}" unless status.success?
 
           response = JSON.parse(stdout)
@@ -467,7 +472,7 @@ module Aidp
             values.each { |value| cmd.concat([flag, value]) }
           end
 
-          _stdout, stderr, status = Open3.capture3(*cmd)
+          _stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
           raise "Failed to update issue via gh: #{stderr.strip}" unless status.success?
 
           true
@@ -533,7 +538,7 @@ module Aidp
 
       def update_comment_via_gh(comment_id, body)
         cmd = ["gh", "api", "repos/#{full_repo}/issues/comments/#{comment_id}", "-X", "PATCH", "-f", "body=#{body}"]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to update comment via gh: #{stderr.strip}" unless status.success?
 
         stdout.strip
@@ -557,7 +562,7 @@ module Aidp
       def fetch_comment_reactions_via_gh(comment_id)
         with_gh_retry("fetch_comment_reactions") do
           cmd = ["gh", "api", "repos/#{full_repo}/issues/comments/#{comment_id}/reactions"]
-          stdout, stderr, status = Open3.capture3(*cmd)
+          stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
           raise "Failed to fetch reactions via gh: #{stderr.strip}" unless status.success?
 
           reactions = JSON.parse(stdout)
@@ -651,7 +656,7 @@ module Aidp
           command: cmd.join(" ")
         )
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
 
         Aidp.log_debug(
           "repository_client",
@@ -700,7 +705,7 @@ module Aidp
         cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo]
         labels.each { |label| cmd += ["--add-label", label] }
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to add labels via gh: #{stderr.strip}" unless status.success?
 
         stdout.strip
@@ -729,7 +734,7 @@ module Aidp
         cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo]
         labels.each { |label| cmd += ["--remove-label", label] }
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to remove labels via gh: #{stderr.strip}" unless status.success?
 
         stdout.strip
@@ -784,7 +789,7 @@ module Aidp
           "-F", "number=#{number}"
         ]
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         unless status.success?
           Aidp.log_warn("repository_client", "Failed to fetch label events via GraphQL", error: stderr.strip)
           return nil
@@ -815,7 +820,7 @@ module Aidp
           cmd += ["--label", label]
         end
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         unless status.success?
           warn("GitHub CLI PR list failed: #{stderr}")
           return []
@@ -848,7 +853,7 @@ module Aidp
         fields = %w[number title body labels state url headRefName baseRefName headRefOid commits author mergeable mergeStateStatus]
         cmd = ["gh", "pr", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "GitHub CLI error: #{stderr.strip}" unless status.success?
 
         data = JSON.parse(stdout)
@@ -868,7 +873,7 @@ module Aidp
 
       def fetch_pull_request_diff_via_gh(number)
         cmd = ["gh", "pr", "diff", number.to_s, "--repo", full_repo]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to fetch PR diff via gh: #{stderr.strip}" unless status.success?
 
         stdout
@@ -891,7 +896,7 @@ module Aidp
       def fetch_pull_request_files_via_gh(number)
         # Use gh api to fetch changed files
         cmd = ["gh", "api", "repos/#{full_repo}/pulls/#{number}/files", "--jq", "."]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to fetch PR files via gh: #{stderr.strip}" unless status.success?
 
         JSON.parse(stdout).map { |file| normalize_pr_file(file) }
@@ -916,7 +921,7 @@ module Aidp
 
         # Fetch check runs for the commit
         cmd = ["gh", "api", "repos/#{full_repo}/commits/#{head_sha}/check-runs", "--jq", "."]
-        stdout, _stderr, status = Open3.capture3(*cmd)
+        stdout, _stderr, status = Open3.capture3("gh", *cmd[1..])
 
         check_runs = if status.success?
           data = JSON.parse(stdout)
@@ -975,7 +980,7 @@ module Aidp
         else
           # Post general review comment
           cmd = ["gh", "pr", "comment", number.to_s, "--repo", full_repo, "--body", body]
-          stdout, stderr, status = Open3.capture3(*cmd)
+          stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
           raise "Failed to post review comment via gh: #{stderr.strip}" unless status.success?
 
           stdout.strip
@@ -1025,7 +1030,7 @@ module Aidp
 
       def fetch_pr_comments_via_gh(number)
         cmd = ["gh", "api", "repos/#{full_repo}/issues/#{number}/comments", "--jq", "."]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to fetch PR comments via gh: #{stderr.strip}" unless status.success?
 
         JSON.parse(stdout).map { |raw| normalize_pr_comment(raw) }
@@ -1046,7 +1051,7 @@ module Aidp
 
       def mark_pr_ready_for_review_via_gh(number)
         cmd = ["gh", "pr", "ready", number.to_s, "--repo", full_repo]
-        _stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
 
         unless status.success?
           Aidp.log_warn("repository_client", "mark_pr_ready_failed",
@@ -1065,7 +1070,7 @@ module Aidp
       def request_reviewers_via_gh(number, reviewers:)
         reviewer_args = reviewers.flat_map { |r| ["--add-reviewer", r] }
         cmd = ["gh", "pr", "edit", number.to_s, "--repo", full_repo] + reviewer_args
-        _stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
 
         unless status.success?
           Aidp.log_warn("repository_client", "request_reviewers_failed",
@@ -1111,7 +1116,7 @@ module Aidp
           "-F", "number=#{number}"
         ]
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         unless status.success?
           Aidp.log_warn("repository_client", "pr_label_actor_query_failed",
             pr: number, error: stderr.strip)
@@ -1210,7 +1215,7 @@ module Aidp
 
       def fetch_commit_statuses_via_gh(head_sha)
         cmd = ["gh", "api", "repos/#{full_repo}/commits/#{head_sha}/status", "--jq", "."]
-        stdout, _stderr, status = Open3.capture3(*cmd)
+        stdout, _stderr, status = Open3.capture3("gh", *cmd[1..])
 
         if status.success?
           data = JSON.parse(stdout)
@@ -1918,7 +1923,7 @@ module Aidp
         labels.each { |label| cmd += ["--label", label] }
         assignees.each { |assignee| cmd += ["--assignee", assignee] }
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to create issue via gh: #{stderr.strip}" unless status.success?
 
         # Parse the issue URL to get the number
@@ -1936,7 +1941,7 @@ module Aidp
         Aidp.log_debug("repository_client", "close_issue", issue_number: number)
 
         cmd = ["gh", "issue", "close", number.to_s, "--repo", full_repo]
-        _stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to close issue via gh: #{stderr.strip}" unless status.success?
 
         Aidp.log_debug("repository_client", "close_issue_complete", issue_number: number)
@@ -1963,7 +1968,7 @@ module Aidp
         # Add auto-delete branch flag
         cmd << "--delete-branch"
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         raise "Failed to merge PR via gh: #{stderr.strip}" unless status.success?
 
         Aidp.log_debug("repository_client", "merge_pull_request_complete", number: number)
@@ -1980,7 +1985,7 @@ module Aidp
           cmd += [flag, "#{key}=#{value}"]
         end
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Open3.capture3("gh", *cmd[1..])
         unless status.success?
           Aidp.log_warn("repository_client", "GraphQL query failed", error: stderr.strip)
           raise "GraphQL query failed: #{stderr.strip}"

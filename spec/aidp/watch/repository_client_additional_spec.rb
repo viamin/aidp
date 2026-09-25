@@ -35,6 +35,19 @@ RSpec.describe Aidp::Watch::RepositoryClient do
       issues = client.list_issues(labels: [], state: "open")
       expect(issues).to eq([])
     end
+
+    it "passes the gh executable and library-provided values as separate arguments" do
+      client = described_class.new(owner: "owner; touch /tmp/aidp-pwned", repo: repo, gh_available: true)
+      status = instance_double(Process::Status, success?: true)
+      expect(Open3).to receive(:capture3).with(
+        "gh", "issue", "list", "--repo", "owner; touch /tmp/aidp-pwned/testrepo",
+        "--state", "open", "--json", anything
+      ).and_return(["[]", "", status])
+
+      client.list_issues(labels: [], state: "open")
+
+      expect(File.exist?("/tmp/aidp-pwned")).to be(false)
+    end
   end
 
   describe "#list_issues_via_api" do
