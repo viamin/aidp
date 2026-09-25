@@ -342,12 +342,13 @@ module Aidp
           return 0
         end
 
-        # Run RSpec with timeout protection
-        cmd = "bundle exec rspec #{rspec_path} --format failures"
-        @prompt.say("$ #{cmd}\n")
+        # Run RSpec with timeout protection, passing arguments without shell
+        # interpretation of the library-provided project path
+        command_args = ["bundle", "exec", "rspec", rspec_path, "--format", "failures"]
+        @prompt.say("$ #{command_args.join(" ")}\n")
         @prompt.say("(timeout: #{AUDIT_TIMEOUT_SECONDS / 60} minutes)\n")
 
-        exit_status = run_with_timeout(cmd, AUDIT_TIMEOUT_SECONDS)
+        exit_status = run_with_timeout(command_args, AUDIT_TIMEOUT_SECONDS)
 
         case exit_status
         when 0
@@ -365,11 +366,11 @@ module Aidp
       private
 
       # Run a command with timeout protection
-      # @param cmd [String] The command to execute
+      # @param command_args [Array<String>] The command and its arguments
       # @param timeout [Integer] Timeout in seconds
       # @return [Integer, Symbol] Exit status or :timeout
-      def run_with_timeout(cmd, timeout)
-        pid = spawn(cmd)
+      def run_with_timeout(command_args, timeout)
+        pid = Process.spawn(*command_args)
         start_time = Time.now
 
         loop do

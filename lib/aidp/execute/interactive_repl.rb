@@ -2,6 +2,7 @@
 
 require "tty-prompt"
 require "tty-spinner"
+require "open3"
 require_relative "async_work_loop_runner"
 require_relative "repl_macros"
 require_relative "../rescue_logging"
@@ -307,9 +308,9 @@ module Aidp
           }
         end
 
-        # Execute reset
-        output = `git reset --hard HEAD~#{count} 2>&1`
-        success = $?.success?
+        # Execute reset without shell interpretation of the rollback count
+        output, status = Open3.capture2e("git", "reset", "--hard", "HEAD~#{count}")
+        success = status.success?
 
         {
           success: success,

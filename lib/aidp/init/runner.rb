@@ -357,9 +357,9 @@ module Aidp
 
           next unless tool_command
 
-          # Check if command exists
+          # Check if command exists without shell interpretation
           begin
-            unless system("which #{tool_command} > /dev/null 2>&1")
+            unless system("which", tool_command, out: File::NULL, err: File::NULL)
               warnings << "   ⚠️  #{format_tool(tool_data[:tool])} detected but command '#{tool_command}' not found in PATH"
             end
           rescue IOError

@@ -448,7 +448,8 @@ RSpec.describe Aidp::PRWorktreeManager do
         @pr_worktree_manager.apply_worktree_changes(pr_number, changes)
 
         # Use injected shell executor for git commands
-        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("README.md")
+        allow(shell_executor).to receive(:run_argv).with("git", "diff", "--staged", "--name-only")
+          .and_return(instance_double(Aidp::ShellExecutor::Result, stdout: "README.md"))
         commit_result = instance_double(Aidp::ShellExecutor::Result, success?: true, output: "Commit successful")
         push_command_result = instance_double(Aidp::ShellExecutor::Result, success?: true, output: "Push successful")
         allow(shell_executor).to receive(:run_argv)
@@ -471,9 +472,8 @@ RSpec.describe Aidp::PRWorktreeManager do
         hostile_pr_number = "42; touch /tmp/aidp-pwned"
         @pr_worktree_manager.create_worktree(hostile_pr_number, base_branch, "pr-42-hostile")
 
-        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("README.md")
         allow(shell_executor).to receive(:run_argv).and_return(
-          instance_double(Aidp::ShellExecutor::Result, success?: true, output: "ok")
+          instance_double(Aidp::ShellExecutor::Result, success?: true, output: "ok", stdout: "README.md")
         )
 
         manager_with_executor.push_worktree_changes(hostile_pr_number)
@@ -485,7 +485,8 @@ RSpec.describe Aidp::PRWorktreeManager do
 
       it "handles no changes to push" do
         # Use injected shell executor with empty staged changes
-        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("")
+        allow(shell_executor).to receive(:run_argv).with("git", "diff", "--staged", "--name-only")
+          .and_return(instance_double(Aidp::ShellExecutor::Result, stdout: ""))
 
         result = manager_with_executor.push_worktree_changes(pr_number)
 

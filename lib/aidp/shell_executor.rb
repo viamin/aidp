@@ -3,8 +3,9 @@
 module Aidp
   # Shell command executor wrapper for testability
   #
-  # Provides two modes of execution:
-  # 1. `run(command)` - Captures output silently via backticks
+  # Commands are always executed in argument form so shell
+  # metacharacters in any value are treated as literal data:
+  # 1. `run_argv(*command)` - Captures output without shell interpretation
   # 2. `system(*args)` - Wraps Kernel.system() with optional output suppression
   #
   # In tests, set `ShellExecutor.suppress_output = true` to suppress all
@@ -49,14 +50,6 @@ module Aidp
       def output
         [@stdout, @stderr].reject(&:empty?).join("\n")
       end
-    end
-
-    # Run a command and capture its output
-    #
-    # @param command [String] The shell command to run
-    # @return [String] The command's stdout output
-    def run(command)
-      `#{command}`
     end
 
     # Run a command without shell interpretation and capture its output

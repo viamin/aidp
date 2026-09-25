@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require_relative "prompt_manager"
 require_relative "prompt_evaluator"
 require_relative "checkpoint"
@@ -2359,8 +2360,9 @@ module Aidp
 
         stats = {}
         files.each do |file|
-          # Use git diff to get line counts
-          output = `git diff --numstat HEAD -- "#{file}" 2>/dev/null`.strip
+          # Use git diff to get line counts without shell interpretation of file names
+          stdout, _stderr, _status = Open3.capture3("git", "diff", "--numstat", "HEAD", "--", file.to_s)
+          output = stdout.strip
           next if output.empty?
 
           parts = output.split("\t")
