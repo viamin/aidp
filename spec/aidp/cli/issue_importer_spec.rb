@@ -314,6 +314,26 @@ RSpec.describe Aidp::IssueImporter do
       result = importer.send(:fetch_via_gh_cli, "owner", "repo", "123")
       expect(result).to be_nil
     end
+
+    it "passes shell metacharacters in library input as single command arguments" do
+      hostile_owner = "owner; touch /tmp/aidp-pwned"
+      allow(Open3).to receive(:popen3).and_yield(
+        double(close: nil),
+        double(read: JSON.generate(gh_response)),
+        double(read: ""),
+        double(value: double(success?: true, exitstatus: 0))
+      )
+
+      result = importer.send(:fetch_via_gh_cli, hostile_owner, "repo", "123")
+
+      expect(result).to include(number: 123, source: "gh_cli")
+      expect(Open3).to have_received(:popen3).with(
+        "gh", "issue", "view", "123",
+        "--repo", "#{hostile_owner}/repo",
+        "--json", String
+      )
+      expect(File.exist?("/tmp/aidp-pwned")).to be false
+    end
   end
 
   describe "#fetch_via_api" do

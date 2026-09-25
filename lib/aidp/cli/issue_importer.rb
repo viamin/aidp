@@ -120,14 +120,15 @@ module Aidp
     end
 
     def fetch_via_gh_cli(owner, repo, number)
-      cmd = [
+      # Keep the gh CLI and its flags as separate argv entries so the
+      # library-provided owner/repo values are never interpreted by a shell.
+      Aidp.log_debug(COMPONENT, "Running gh cli", owner: owner, repo: repo, number: number, command: "gh issue view")
+      stdout, stderr, status = capture3_with_timeout(
         "gh", "issue", "view", number,
         "--repo", "#{owner}/#{repo}",
-        "--json", "title,body,labels,milestone,comments,state,assignees,number,url"
-      ]
-
-      Aidp.log_debug(COMPONENT, "Running gh cli", owner: owner, repo: repo, number: number, command: cmd.join(" "))
-      stdout, stderr, status = capture3_with_timeout(*cmd, timeout: gh_cli_timeout)
+        "--json", "title,body,labels,milestone,comments,state,assignees,number,url",
+        timeout: gh_cli_timeout
+      )
       Aidp.log_debug(COMPONENT, "Completed gh cli", owner: owner, repo: repo, number: number, exitstatus: status.exitstatus)
 
       unless status.success?
@@ -320,14 +321,17 @@ module Aidp
       false
     end
 
-    def capture3_with_timeout(*cmd, timeout:)
+    # Run a command without shell interpretation: the executable is passed as
+    # a separate leading argument, so shell metacharacters in any argument
+    # value are treated as literal data.
+    def capture3_with_timeout(command, *args, timeout:)
       stdout_str = +""
       stderr_str = +""
       status = nil
       wait_thr = nil
 
       Timeout.timeout(timeout) do
-        Open3.popen3(*cmd) do |stdin, stdout_io, stderr_io, thread|
+        Open3.popen3(command, *args) do |stdin, stdout_io, stderr_io, thread|
           wait_thr = thread
           stdin.close
           stdout_str = stdout_io.read
