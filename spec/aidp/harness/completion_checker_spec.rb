@@ -200,6 +200,35 @@ RSpec.describe Aidp::Harness::CompletionChecker do
     end
   end
 
+  describe "#run_project_command" do
+    it "passes commands to system in argument form, not as a shell string" do
+      checker = described_class.new(project_dir)
+
+      expect(checker).to receive(:system)
+        .with("bundle", "exec", "rspec", chdir: project_dir, out: File::NULL, err: File::NULL)
+        .and_return(true)
+
+      expect(checker.send(:run_project_command, "bundle exec rspec")).to be true
+    end
+
+    it "treats shell metacharacters as literal arguments" do
+      checker = described_class.new(project_dir)
+
+      expect(checker).to receive(:system)
+        .with("echo", "hello; rm -rf /", chdir: project_dir, out: File::NULL, err: File::NULL)
+        .and_return(true)
+
+      expect(checker.send(:run_project_command, "echo 'hello; rm -rf /'")).to be true
+    end
+
+    it "returns false for a blank command without invoking system" do
+      checker = described_class.new(project_dir)
+
+      expect(checker).not_to receive(:system)
+      expect(checker.send(:run_project_command, "")).to be false
+    end
+  end
+
   describe "Node.js detection" do
     describe "#detect_test_commands" do
       it "detects npm test script" do
