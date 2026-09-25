@@ -434,19 +434,16 @@ module Aidp
           push_result[:git_actions][:staged_changes] = true
           push_result[:changed_files] = staged_changes_output.split("\n")
 
-          # More robust commit command with additional logging
-          commit_message = "Changes applied via AIDP request-changes workflow for PR ##{pr_number}"
-          commit_command = "git commit -m '#{commit_message}' 2>&1"
-          commit_output = @shell_executor.run(commit_command).strip
+          # Commit staged changes without shell interpretation of library input
+          commit_output = commit_staged_changes(pr_number)
 
-          if @shell_executor.success?
+          if commit_output.success?
             push_result[:git_actions][:committed] = true
 
-            # Enhanced push with verbose tracking
-            push_command = "git push origin #{head_branch} 2>&1"
-            push_output = @shell_executor.run(push_command).strip
+            # Push the registry-sourced head branch without shell interpretation
+            push_output = push_head_branch(head_branch)
 
-            if @shell_executor.success?
+            if push_output.success?
               push_result[:git_actions][:pushed] = true
               push_result[:success] = true
 
@@ -458,22 +455,22 @@ module Aidp
               )
             else
               # Detailed push error logging
-              push_result[:errors] << "Push failed: #{push_output}"
+              push_result[:errors] << "Push failed: #{push_output.output.strip}"
               Aidp.log_error(
                 "pr_worktree_manager", "push_changes_failed",
                 pr_number: pr_number,
                 branch: head_branch,
-                error_details: push_output
+                error_details: push_output.output.strip
               )
             end
           else
             # Detailed commit error logging
-            push_result[:errors] << "Commit failed: #{commit_output}"
+            push_result[:errors] << "Commit failed: #{commit_output.output.strip}"
             Aidp.log_error(
               "pr_worktree_manager", "commit_changes_failed",
               pr_number: pr_number,
               branch: head_branch,
-              error_details: commit_output
+              error_details: commit_output.output.strip
             )
           end
         else
@@ -531,6 +528,19 @@ module Aidp
     end
 
     private
+
+    # Commit currently staged changes; argv execution keeps externally
+    # sourced values (pr_number) from being interpreted by a shell
+    def commit_staged_changes(pr_number)
+      commit_message = "Changes applied via AIDP request-changes workflow for PR ##{pr_number}"
+      @shell_executor.run_argv("git", "commit", "-m", commit_message)
+    end
+
+    # Push the head branch; argv execution keeps registry-sourced branch
+    # names from being interpreted by a shell
+    def push_head_branch(head_branch)
+      @shell_executor.run_argv("git", "push", "origin", "--", head_branch)
+    end
 
     # Load the worktree registry from file
     def load_registry

@@ -449,9 +449,14 @@ RSpec.describe Aidp::PRWorktreeManager do
 
         # Use injected shell executor for git commands
         allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("README.md")
-        allow(shell_executor).to receive(:run).with(/git commit/).and_return("Commit successful")
-        allow(shell_executor).to receive(:run).with(/git push origin/).and_return("Push successful")
-        allow(shell_executor).to receive(:success?).and_return(true)
+        commit_result = instance_double(Aidp::ShellExecutor::Result, success?: true, output: "Commit successful")
+        push_command_result = instance_double(Aidp::ShellExecutor::Result, success?: true, output: "Push successful")
+        allow(shell_executor).to receive(:run_argv)
+          .with("git", "commit", "-m", "Changes applied via AIDP request-changes workflow for PR ##{pr_number}")
+          .and_return(commit_result)
+        allow(shell_executor).to receive(:run_argv)
+          .with("git", "push", "origin", "--", head_branch)
+          .and_return(push_command_result)
 
         result = manager_with_executor.push_worktree_changes(pr_number)
 
@@ -462,10 +467,25 @@ RSpec.describe Aidp::PRWorktreeManager do
         expect(result[:changed_files]).to eq(["README.md"])
       end
 
+      it "passes shell metacharacters in library input as single command arguments" do
+        hostile_pr_number = "42; touch /tmp/aidp-pwned"
+        @pr_worktree_manager.create_worktree(hostile_pr_number, base_branch, "pr-42-hostile")
+
+        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("README.md")
+        allow(shell_executor).to receive(:run_argv).and_return(
+          instance_double(Aidp::ShellExecutor::Result, success?: true, output: "ok")
+        )
+
+        manager_with_executor.push_worktree_changes(hostile_pr_number)
+
+        expect(shell_executor).to have_received(:run_argv)
+          .with("git", "commit", "-m", "Changes applied via AIDP request-changes workflow for PR ##{hostile_pr_number}")
+        expect(File.exist?("/tmp/aidp-pwned")).to be false
+      end
+
       it "handles no changes to push" do
         # Use injected shell executor with empty staged changes
         allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("")
-        allow(shell_executor).to receive(:success?).and_return(true)
 
         result = manager_with_executor.push_worktree_changes(pr_number)
 
