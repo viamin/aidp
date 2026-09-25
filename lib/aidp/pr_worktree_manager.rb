@@ -440,8 +440,10 @@ module Aidp
           if @shell_executor.success?
             push_result[:git_actions][:committed] = true
 
-            # Enhanced push with verbose tracking (array form avoids shell injection)
-            push_output = @shell_executor.run("git", "push", "origin", head_branch).strip
+            # Enhanced push with verbose tracking (array form avoids shell injection).
+            # The "--" terminator stops git from parsing an option-looking
+            # branch name (e.g. "-foo") as a push option instead of a refspec.
+            push_output = @shell_executor.run("git", "push", "origin", "--", head_branch).strip
 
             if @shell_executor.success?
               push_result[:git_actions][:pushed] = true

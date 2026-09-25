@@ -452,7 +452,7 @@ RSpec.describe Aidp::PRWorktreeManager do
         allow(shell_executor).to receive(:run)
           .with("git", "commit", "-m", "Changes applied via AIDP request-changes workflow for PR ##{pr_number}")
           .and_return("Commit successful")
-        allow(shell_executor).to receive(:run).with("git", "push", "origin", head_branch).and_return("Push successful")
+        allow(shell_executor).to receive(:run).with("git", "push", "origin", "--", head_branch).and_return("Push successful")
         allow(shell_executor).to receive(:success?).and_return(true)
 
         result = manager_with_executor.push_worktree_changes(pr_number)
@@ -462,6 +462,30 @@ RSpec.describe Aidp::PRWorktreeManager do
         expect(result[:git_actions][:committed]).to be true
         expect(result[:git_actions][:pushed]).to be true
         expect(result[:changed_files]).to eq(["README.md"])
+      end
+
+      it "pushes an option-looking branch name as a refspec, not an option" do
+        changes = {
+          files: ["README.md"],
+          operations: [:modify]
+        }
+        @pr_worktree_manager.apply_worktree_changes(pr_number, changes)
+
+        option_looking_branch = "-feature"
+        allow(shell_executor).to receive(:run).with("git", "diff", "--staged", "--name-only").and_return("README.md")
+        allow(shell_executor).to receive(:run)
+          .with("git", "commit", "-m", "Changes applied via AIDP request-changes workflow for PR ##{pr_number}")
+          .and_return("Commit successful")
+        allow(shell_executor).to receive(:run)
+          .with("git", "push", "origin", "--", option_looking_branch)
+          .and_return("Push successful")
+        allow(shell_executor).to receive(:success?).and_return(true)
+
+        result = manager_with_executor.push_worktree_changes(pr_number, branch: option_looking_branch)
+
+        expect(result[:success]).to be true
+        expect(shell_executor).to have_received(:run)
+          .with("git", "push", "origin", "--", option_looking_branch)
       end
 
       it "handles no changes to push" do
