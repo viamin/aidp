@@ -301,7 +301,7 @@ module Aidp
       def execute_command_line(command)
         result = command_runner.run_line(command, chdir: @project_dir)
         [result.stdout, result.stderr, result]
-      rescue ArgumentError, Errno::ENOENT => e
+      rescue ArgumentError, SystemCallError => e
         result = ShellExecutor::Result.new(stdout: "", stderr: e.message, exit_status: 1)
         [result.stdout, result.stderr, result]
       end

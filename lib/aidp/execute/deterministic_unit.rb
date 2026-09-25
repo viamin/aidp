@@ -3,6 +3,7 @@
 require "yaml"
 require_relative "../message_display"
 require_relative "../rescue_logging"
+require_relative "../shell_executor"
 require_relative "../util"
 
 module Aidp
@@ -228,24 +229,22 @@ module Aidp
         end
 
         def build_default_command_runner
+          command_executor = ShellExecutor.new
           lambda do |command, _context|
-            require "tty-command"
-
-            cmd = TTY::Command.new(printer: :quiet)
-            result = cmd.run(command, chdir: @project_dir)
-
+            result = command_executor.run_line(command, chdir: @project_dir)
             {
               exit_status: result.exit_status,
-              stdout: result.out,
-              stderr: result.err
+              stdout: result.stdout,
+              stderr: result.stderr
             }
-          rescue TTY::Command::ExitError => e
-            result = e.result
-            {
-              exit_status: result.exit_status,
-              stdout: result.out,
-              stderr: result.err
-            }
+          rescue ArgumentError => e
+            # Rejected shell syntax or an unparseable command line (Shellwords
+            # raises ArgumentError for unbalanced quotes or NUL bytes)
+            {exit_status: 127, stdout: "", stderr: e.message}
+          rescue SystemCallError => e
+            # Spawn failures: missing binary (ENOENT), non-executable file
+            # (EACCES), directory used as command (EISDIR), and similar errnos
+            {exit_status: 127, stdout: "", stderr: e.message}
           end
         end
       end

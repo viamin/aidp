@@ -650,7 +650,7 @@ module Aidp
           q.validate(/\A[a-z0-9_]+\z/i, "Name must be alphanumeric with underscores")
         end
 
-        command = prompt.ask("Shell command to run:", required: true)
+        command = prompt.ask("Command to run (executed without a shell; no &&, ||, |, ;, redirects, or VAR=value prefixes):", required: true)
 
         category_choices = [
           ["Test (unit, integration, e2e)", :test],

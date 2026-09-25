@@ -86,13 +86,31 @@ module Aidp
       argv = Shellwords.split(command.to_s)
       raise ArgumentError, "command must not be blank" if argv.empty?
 
-      # Operator tokens signal an intent to use shell features, which are
-      # intentionally unsupported here; reject them loudly rather than
-      # running them as literal arguments.
-      if argv.any? { |token| %w[&& || ; |].include?(token) || token.match?(/^[<>&]/) }
+      # A leading NAME=value token is a shell environment assignment; without
+      # a shell it would be treated as the program name and fail to run.
+      if argv.first.match?(/\A[A-Za-z_][A-Za-z0-9_]*=/)
+        raise ArgumentError,
+          "environment variable assignments are not supported; " \
+          "prefix the command with env (e.g. env VAR=value command)"
+      end
+
+      # Operator and redirection tokens signal an intent to use shell
+      # features, which are intentionally unsupported here; reject them
+      # loudly rather than running them as literal arguments. A leading file
+      # descriptor digit (e.g. `2>`) still introduces a shell redirect.
+      if argv.any? { |token| %w[&& || ; |].include?(token) || token.match?(/\A\d*[<>&]/) }
         raise ArgumentError,
           "shell operators are not supported in configured commands; " \
           "split into separate commands instead: #{command.inspect}"
+      end
+
+      # A single token that still contains shell metacharacters would be
+      # handed to Process.spawn as a lone string, which Ruby routes through
+      # sh -c; reject it rather than let the shell interpret it.
+      if argv.length == 1 && argv.first.match?(/[*?\[\]{}()<>|;&$\\"'`\r\n~#=]/)
+        raise ArgumentError,
+          "shell metacharacters in a single-token command are not supported; " \
+          "split into program and arguments"
       end
 
       stdout, stderr, status = Open3.capture3(*argv, **opts)

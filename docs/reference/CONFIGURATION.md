@@ -193,8 +193,10 @@ Commands configured under `work_loop` (e.g. `test.unit`, `lint.command`,
 then the resulting program and arguments are invoked directly.
 
 This means shell operators and redirections are **not** supported. Do not chain
-multiple steps with `&&`, `||`, `;`, or `|`, and do not use `>`, `>>`, `<`, or
-`&`:
+multiple steps with `&&`, `||`, `;`, or `|`, and do not use `>`, `>>`, `<`,
+`2>`, or `&`. Leading environment assignments are also rejected; use
+`env RAILS_ENV=test bundle exec rspec` instead of
+`RAILS_ENV=test bundle exec rspec`:
 
 ```yaml
 # ❌ Broken: shell operators are rejected at runtime

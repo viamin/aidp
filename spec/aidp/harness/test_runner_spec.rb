@@ -109,7 +109,7 @@ RSpec.describe Aidp::Harness::TestRunner do
 
     context "when a test command cannot be executed" do
       before do
-        allow(config).to receive(:test_commands).and_return(["RAILS_ENV=test bundle exec rspec"])
+        allow(config).to receive(:test_commands).and_return(["aidp-missing-binary-12345"])
       end
 
       it "reports the command as failed instead of crashing" do
@@ -117,7 +117,7 @@ RSpec.describe Aidp::Harness::TestRunner do
 
         expect(result[:success]).to be false
         expect(result[:failures].size).to eq 1
-        expect(result[:failures].first[:stderr]).to include("RAILS_ENV=test")
+        expect(result[:failures].first[:stderr]).to include("aidp-missing-binary-12345")
       end
     end
   end

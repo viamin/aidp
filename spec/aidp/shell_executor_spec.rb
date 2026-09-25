@@ -92,9 +92,22 @@ RSpec.describe Aidp::ShellExecutor do
       ["echo hello > /tmp/aidp-line-out",
         "cat < /tmp/aidp-line-in",
         "echo hello >> /tmp/aidp-line-out",
-        "echo hello &"].each do |command|
+        "echo hello &",
+        "rspec 2>/dev/null"].each do |command|
         expect { described_class.new.run_line(command) }
           .to raise_error(ArgumentError, /shell operators are not supported/)
+      end
+    end
+
+    it "rejects a leading environment assignment" do
+      expect { described_class.new.run_line("RAILS_ENV=test bundle exec rspec") }
+        .to raise_error(ArgumentError, /environment variable assignments are not supported/)
+    end
+
+    it "rejects a single-token command containing shell metacharacters" do
+      ["$(id)", "`id`", "aidp-missing|aidp-missing"].each do |command|
+        expect { described_class.new.run_line(command) }
+          .to raise_error(ArgumentError, /shell metacharacters/)
       end
     end
 
