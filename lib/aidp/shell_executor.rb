@@ -35,7 +35,7 @@ module Aidp
       def initialize(stdout:, stderr:, exit_status:)
         @stdout = stdout.to_s.freeze
         @stderr = stderr.to_s.freeze
-        @exit_status = exit_status.to_i
+        @exit_status = exit_status || 1
         freeze
       end
 

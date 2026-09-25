@@ -28,5 +28,12 @@ RSpec.describe Aidp::ShellExecutor do
       expect(result.stderr).to eq("boom\n".b)
       expect(result.output).to eq("boom\n".b)
     end
+
+    it "treats a signal-terminated command as a failure rather than exit code 0" do
+      result = described_class.new.run_argv(RbConfig.ruby, "-e", "Process.kill('KILL', Process.pid)")
+
+      expect(result).not_to be_success
+      expect(result.exit_status).not_to eq(0)
+    end
   end
 end

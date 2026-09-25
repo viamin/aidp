@@ -539,7 +539,7 @@ module Aidp
     # Push the head branch; argv execution keeps registry-sourced branch
     # names from being interpreted by a shell
     def push_head_branch(head_branch)
-      @shell_executor.run_argv("git", "push", "origin", head_branch)
+      @shell_executor.run_argv("git", "push", "origin", "--", head_branch)
     end
 
     # Load the worktree registry from file

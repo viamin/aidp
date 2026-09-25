@@ -455,7 +455,7 @@ RSpec.describe Aidp::PRWorktreeManager do
           .with("git", "commit", "-m", "Changes applied via AIDP request-changes workflow for PR ##{pr_number}")
           .and_return(commit_result)
         allow(shell_executor).to receive(:run_argv)
-          .with("git", "push", "origin", head_branch)
+          .with("git", "push", "origin", "--", head_branch)
           .and_return(push_command_result)
 
         result = manager_with_executor.push_worktree_changes(pr_number)
