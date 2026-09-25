@@ -74,13 +74,6 @@ module Aidp
       Result.new(stdout: stdout, stderr: stderr, exit_status: status.exitstatus)
     end
 
-    # Check if the last command succeeded
-    #
-    # @return [Boolean] true if last command exited with status 0
-    def success?
-      $?.success?
-    end
-
     # Run a command via system(), optionally suppressing output
     #
     # When suppress_output is true, output is redirected to /dev/null
