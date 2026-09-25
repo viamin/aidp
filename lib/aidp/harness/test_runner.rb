@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "shellwords"
 require_relative "../tooling_detector"
 require_relative "output_filter"
 require_relative "output_filter_config"
@@ -267,16 +268,16 @@ module Aidp
           end
         end
 
-        stdout, stderr, status = Open3.capture3(actual_command, chdir: @project_dir)
+        execution = run_command(actual_command)
 
         # Handle special case: --only-failures with no failures to rerun
         # RSpec exits with 0 and says "All examples were filtered out"
-        if optimization_info&.dig(:optimized) && status.success? && stdout.include?("All examples were filtered out")
+        if optimization_info&.dig(:optimized) && execution[:success] && execution[:stdout].include?("All examples were filtered out")
           Aidp.log_info("test_runner", "rspec_only_failures_empty",
             message: "No failures to rerun, running full suite")
 
           # Fall back to full RSpec run
-          stdout, stderr, status = Open3.capture3(command, chdir: @project_dir)
+          execution = run_command(command)
           actual_command = command
         end
 
@@ -284,12 +285,33 @@ module Aidp
           command: actual_command,
           original_command: command,
           type: type,
-          success: status.success?,
-          exit_code: status.exitstatus,
-          stdout: stdout,
-          stderr: stderr,
+          success: execution[:success],
+          exit_code: execution[:exit_code],
+          stdout: execution[:stdout],
+          stderr: execution[:stderr],
           rspec_optimized: optimization_info&.dig(:optimized) || false
         }
+      end
+
+      # Execute a configured command without invoking a shell. The command
+      # string comes from library-provided configuration, so it is split
+      # into argv form to prevent shell command injection.
+      def run_command(command)
+        argv = Shellwords.shellsplit(command.to_s)
+        return execution_error(command, "blank command") if argv.empty?
+
+        stdout, stderr, status = Open3.capture3(*argv, chdir: @project_dir)
+        {success: status.success?, exit_code: status.exitstatus, stdout: stdout, stderr: stderr}
+      rescue Shellwords::ShellError => e
+        execution_error(command, "unparseable command: #{e.message}")
+      rescue Errno::ENOENT => e
+        execution_error(command, e.message)
+      end
+
+      def execution_error(command, error)
+        Aidp.log_debug("test_runner", "command_execution_error",
+          command: command, error: error)
+        {success: false, exit_code: 127, stdout: "", stderr: error}
       end
 
       def aggregate_results(results, category, mode: :full)

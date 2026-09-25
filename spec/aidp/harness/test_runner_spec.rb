@@ -30,7 +30,7 @@ RSpec.describe Aidp::Harness::TestRunner do
 
     context "when test commands configured" do
       before do
-        allow(config).to receive(:test_commands).and_return(["echo 'tests pass'", "exit 0"])
+        allow(config).to receive(:test_commands).and_return(["echo 'tests pass'", "true"])
       end
 
       it "runs all test commands" do
@@ -63,7 +63,7 @@ RSpec.describe Aidp::Harness::TestRunner do
 
     context "when test command fails" do
       before do
-        allow(config).to receive(:test_commands).and_return(["exit 1"])
+        allow(config).to receive(:test_commands).and_return(["false"])
       end
 
       it "returns failure with exit code" do
@@ -78,9 +78,9 @@ RSpec.describe Aidp::Harness::TestRunner do
     context "when some tests pass and some fail" do
       before do
         allow(config).to receive(:test_commands).and_return([
-          "exit 0",
-          "exit 1",
-          "echo 'test output' && exit 0"
+          "true",
+          "false",
+          "echo 'test output'"
         ])
       end
 
@@ -89,7 +89,7 @@ RSpec.describe Aidp::Harness::TestRunner do
 
         expect(result[:success]).to be false
         expect(result[:failures].size).to eq 1
-        expect(result[:failures].first[:command]).to eq "exit 1"
+        expect(result[:failures].first[:command]).to eq "false"
       end
     end
   end
@@ -133,6 +133,19 @@ RSpec.describe Aidp::Harness::TestRunner do
         expect(result[:success]).to be false
         expect(result[:output]).to include("error")
         expect(result[:output]).to include("Exit Code: 1")
+      end
+    end
+
+    context "when command contains shell metacharacters" do
+      before do
+        allow(config).to receive(:lint_commands).and_return(["echo safe > #{File.join(temp_dir, "pwned.txt")}"])
+      end
+
+      it "does not interpret shell metacharacters" do
+        result = runner.run_linters
+
+        expect(result[:success]).to be true
+        expect(File.exist?(File.join(temp_dir, "pwned.txt"))).to be false
       end
     end
 
@@ -196,7 +209,7 @@ RSpec.describe Aidp::Harness::TestRunner do
     context "when a required command fails" do
       before do
         allow(config).to receive(:commands_for_phase).with(:each_unit).and_return([
-          {name: "failing_test", command: "exit 1", category: :test, required: true},
+          {name: "failing_test", command: "false", category: :test, required: true},
           {name: "passing_test", command: "echo 'pass'", category: :test, required: true}
         ])
       end
@@ -213,7 +226,7 @@ RSpec.describe Aidp::Harness::TestRunner do
     context "when only optional command fails" do
       before do
         allow(config).to receive(:commands_for_phase).with(:each_unit).and_return([
-          {name: "optional_lint", command: "exit 1", category: :lint, required: false},
+          {name: "optional_lint", command: "false", category: :lint, required: false},
           {name: "required_test", command: "echo 'pass'", category: :test, required: true}
         ])
       end
