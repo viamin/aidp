@@ -185,6 +185,40 @@ work_loop:
           specs_dir: ".aidp/tests/web"
 ```
 
+### Commands
+
+Commands configured under `work_loop` (e.g. `test.unit`, `lint.command`,
+`units.deterministic`, `guards`, and `coverage.run_command`) are executed
+**without a shell**. Each command line is tokenized with shell-style quoting,
+then the resulting program and arguments are invoked directly.
+
+This means shell operators and redirections are **not** supported. Do not chain
+multiple steps with `&&`, `||`, `;`, or `|`, and do not use `>`, `>>`, `<`, or
+`&`:
+
+```yaml
+# ❌ Broken: shell operators are rejected at runtime
+work_loop:
+  test:
+    unit: "bundle exec rspec && bundle exec rubocop"
+
+# ✅ Correct: one command per entry
+work_loop:
+  test:
+    unit: "bundle exec rspec"
+  lint:
+    command: "bundle exec rubocop"
+```
+
+If you need a shell (for example, to run a short inline script), invoke one
+explicitly:
+
+```yaml
+work_loop:
+  test:
+    unit: "bash -c 'bundle exec rspec && bundle exec rubocop'"
+```
+
 ### Task Completion Tracking
 
 The `task_completion_required` option (default: `true`) enforces mandatory task tracking for work loops. When enabled:

@@ -8,6 +8,7 @@ require_relative "../message_display"
 require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
 require_relative "../harness/state_manager"
+require_relative "../shell_executor"
 require_relative "../worktree"
 require_relative "../execute/progress"
 require_relative "github_state_extractor"
@@ -1125,8 +1126,7 @@ module Aidp
             next if command.nil? || command.empty?
 
             Aidp.log_debug("build_processor", "quick_validation_running_test", command: command)
-            _stdout, _stderr, status = Open3.capture3(command)
-            unless status.success?
+            unless quick_validation_runner.run_line(command).success?
               Aidp.log_debug("build_processor", "quick_validation_test_failed", command: command)
               return false
             end
@@ -1141,8 +1141,7 @@ module Aidp
             next if command.nil? || command.empty?
 
             Aidp.log_debug("build_processor", "quick_validation_running_lint", command: command)
-            _stdout, _stderr, status = Open3.capture3(command)
-            unless status.success?
+            unless quick_validation_runner.run_line(command).success?
               Aidp.log_debug("build_processor", "quick_validation_lint_failed", command: command)
               return false
             end
@@ -1154,6 +1153,12 @@ module Aidp
       rescue => e
         Aidp.log_warn("build_processor", "quick_validation_error", error: e.message)
         false
+      end
+
+      # Commands come from project configuration, so run them through a
+      # shell-free executor that treats metacharacters as literal data
+      def quick_validation_runner
+        @quick_validation_runner ||= ShellExecutor.new
       end
     end
   end
