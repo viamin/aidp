@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
-require "shellwords"
+require_relative "../shell_free_command"
 require_relative "../tooling_detector"
 require_relative "output_filter"
 require_relative "output_filter_config"
@@ -16,20 +16,6 @@ module Aidp
     # Supports both legacy category-specific commands (test_commands, lint_commands, etc.)
     # and the new generic commands array with run_after phases.
     class TestRunner
-      # Token shape that only makes sense to a shell: operators (&&, ||, |, ;,
-      # &) and redirections (>, >>, <, 2>&1) all start with a metacharacter,
-      # optionally prefixed by a file-descriptor digit.
-      SHELL_METACHARACTER_PATTERN = /\A\d*[<>&|;]/
-
-      # Ruby passes a single-string command through sh -c whenever it
-      # contains one of these characters, so a one-token argv that holds
-      # any of them would reintroduce shell interpretation.
-      SINGLE_TOKEN_SHELL_PATTERN = /[*?\[\]{}()<>|;&$\\"'`\r\n~#=]/
-
-      # Leading `NAME=value` tokens are shell environment assignments;
-      # without a shell they would be treated as the program name.
-      ENV_ASSIGNMENT_PATTERN = /\A[A-Za-z_][A-Za-z0-9_]*=/
-
       def initialize(project_dir, config)
         @project_dir = project_dir
         @config = config
@@ -314,8 +300,8 @@ module Aidp
       # rejected so a misconfigured command fails loudly instead of
       # silently running only part of the command line.
       def run_command(command)
-        argv = Shellwords.shellsplit(command.to_s)
-        error = command_syntax_error(argv)
+        argv = Aidp::ShellFreeCommand.argv_for(command)
+        error = Aidp::ShellFreeCommand.syntax_error(argv)
         return execution_error(command, error) if error
 
         stdout, stderr, status = Open3.capture3(*argv, chdir: @project_dir)
@@ -327,17 +313,6 @@ module Aidp
         # Spawn failures: missing binary (ENOENT), non-executable file
         # (EACCES), directory used as command (EISDIR), and similar errnos
         execution_error(command, e.message)
-      end
-
-      # Return an error message when argv contains shell-only syntax that
-      # direct argv execution cannot honor, or nil when it is runnable.
-      def command_syntax_error(argv)
-        return "blank command" if argv.empty?
-        return "shell operators are not supported; split into separate commands" if argv.any? { |token| token.match?(SHELL_METACHARACTER_PATTERN) }
-        return "environment variable assignments are not supported; prefix the command with env (e.g. env VAR=value command)" if ENV_ASSIGNMENT_PATTERN.match?(argv.first)
-        return "shell metacharacters in a single-token command are not supported; split into program and arguments" if argv.length == 1 && argv.first.match?(SINGLE_TOKEN_SHELL_PATTERN)
-
-        nil
       end
 
       def execution_error(command, error)

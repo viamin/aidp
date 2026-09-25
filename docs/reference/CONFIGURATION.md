@@ -187,10 +187,13 @@ work_loop:
 
 ### Command Execution
 
-Commands configured under `work_loop` (e.g. `test.unit`, `lint.command`,
-`units.deterministic[].command`, and `coverage.run_command`) are executed
-**without a shell**. Each command line is tokenized with shell-style quoting
-rules, then the program and arguments are invoked directly.
+Commands executed by the harness under `work_loop` (e.g. `test.unit`,
+`lint.command`, and `units.deterministic[].command`) are executed **without a
+shell**. Each command line is tokenized with shell-style quoting rules, then
+the program and arguments are invoked directly.
+
+`coverage.run_command` is defined in the configuration but is not executed yet
+(coverage execution is not yet implemented in the work loop).
 
 This means shell syntax is **not supported** and fails the check with a clear
 error instead of running part of the command line:

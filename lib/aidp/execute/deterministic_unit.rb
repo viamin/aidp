@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 require "yaml"
+require "open3"
 require_relative "../message_display"
 require_relative "../rescue_logging"
+require_relative "../shell_free_command"
 require_relative "../util"
 
 module Aidp
@@ -229,23 +231,24 @@ module Aidp
 
         def build_default_command_runner
           lambda do |command, _context|
-            require "tty-command"
+            argv = Aidp::ShellFreeCommand.argv_for(command)
+            error = Aidp::ShellFreeCommand.syntax_error(argv)
+            return {exit_status: 127, stdout: "", stderr: error} if error
 
-            cmd = TTY::Command.new(printer: :quiet)
-            result = cmd.run(command, chdir: @project_dir)
+            stdout, stderr, status = Open3.capture3(*argv, chdir: @project_dir)
 
             {
-              exit_status: result.exit_status,
-              stdout: result.out,
-              stderr: result.err
+              exit_status: status.exitstatus || status.termsig,
+              stdout: stdout,
+              stderr: stderr
             }
-          rescue TTY::Command::ExitError => e
-            result = e.result
-            {
-              exit_status: result.exit_status,
-              stdout: result.out,
-              stderr: result.err
-            }
+          rescue ArgumentError => e
+            # Shellwords raises ArgumentError for unbalanced quotes or NUL bytes
+            {exit_status: 127, stdout: "", stderr: "unparseable command: #{e.message}"}
+          rescue SystemCallError => e
+            # Spawn failures: missing binary (ENOENT), non-executable file
+            # (EACCES), directory used as command (EISDIR), and similar errnos
+            {exit_status: 127, stdout: "", stderr: e.message}
           end
         end
       end

@@ -110,4 +110,64 @@ RSpec.describe Aidp::Execute::DeterministicUnits::Runner do
       expect(result.status).to eq(:event)
     end
   end
+
+  describe "default command runner (shell-free execution)" do
+    def command_definition(command)
+      Aidp::Execute::DeterministicUnits::Definition.new(name: "run_tests", command: command)
+    end
+
+    it "executes a plain command without a shell" do
+      runner = described_class.new(project_dir, clock: Time)
+
+      result = runner.run(command_definition("true"))
+
+      expect(result).to be_success
+    end
+
+    it "rejects shell operators instead of interpreting them" do
+      runner = described_class.new(project_dir, clock: Time)
+
+      result = runner.run(command_definition("true && touch #{File.join(project_dir, "pwned.txt")}"))
+
+      expect(result).to be_failure
+      expect(result.data[:stderr]).to include("shell operators are not supported")
+      expect(File.exist?(File.join(project_dir, "pwned.txt"))).to be(false)
+    end
+
+    it "rejects environment variable assignments" do
+      runner = described_class.new(project_dir, clock: Time)
+
+      result = runner.run(command_definition("RAILS_ENV=test true"))
+
+      expect(result).to be_failure
+      expect(result.data[:stderr]).to include("env VAR=value")
+    end
+
+    it "rejects a single-token command containing shell metacharacters" do
+      runner = described_class.new(project_dir, clock: Time)
+
+      result = runner.run(command_definition("aidp-missing|aidp-missing"))
+
+      expect(result).to be_failure
+      expect(result.data[:stderr]).to include("shell metacharacters")
+    end
+
+    it "reports unparseable commands" do
+      runner = described_class.new(project_dir, clock: Time)
+
+      result = runner.run(command_definition("echo 'unclosed"))
+
+      expect(result).to be_failure
+      expect(result.data[:stderr]).to include("unparseable command")
+    end
+
+    it "reports missing binaries" do
+      runner = described_class.new(project_dir, clock: Time)
+
+      result = runner.run(command_definition("aidp-missing-binary-12345"))
+
+      expect(result).to be_failure
+      expect(result.data[:stderr]).to include("aidp-missing-binary-12345")
+    end
+  end
 end
