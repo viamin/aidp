@@ -1,3 +1,4 @@
+require "open3"
 require "aidp/watch/base_processor"
 require "aidp/worktree"
 require "aidp/pr_worktree_manager"
@@ -116,11 +117,12 @@ module Aidp
         # Use PRWorktreeManager's method to perform rebase and conflict resolution
         with_worktree_context(worktree_path) do
           # Fetch the latest changes
-          @shell_executor.system("git fetch origin")
+          @shell_executor.system("git", "fetch", "origin")
 
-          # Attempt to rebase
-          rebase_command = "git rebase origin/#{base_branch}"
-          rebase_output = @shell_executor.system(rebase_command)
+          # Attempt to rebase. Pass args as separate argv entries (not an
+          # interpolated shell string) so branch names can never be
+          # interpreted by a shell.
+          rebase_output = @shell_executor.system("git", "rebase", "origin/#{base_branch}")
 
           unless rebase_output
             # Conflict resolution using AI
@@ -134,9 +136,8 @@ module Aidp
               if resolution
                 # Stage resolved files and continue rebase
                 # GIT_EDITOR=true prevents editor from opening during automated rebase
-                quoted_files = conflict_files.map { |f| "\"#{f}\"" }.join(" ")
-                @shell_executor.system("git add #{quoted_files}")
-                @shell_executor.system({"GIT_EDITOR" => "true"}, "git rebase --continue")
+                @shell_executor.system("git", "add", *conflict_files)
+                @shell_executor.system({"GIT_EDITOR" => "true"}, "git", "rebase", "--continue")
               else
                 return false
               end
@@ -147,15 +148,19 @@ module Aidp
           end
 
           # Push the rebased branch
-          @shell_executor.system("git push -f origin #{head_branch}")
+          @shell_executor.system("git", "push", "-f", "origin", head_branch)
         end
 
         true
       end
 
       def detect_conflicting_files(worktree_path)
-        # Use git to list conflicting files
-        `cd #{worktree_path} && git diff --name-only --diff-filter=U`.split("\n")
+        # Use git to list conflicting files. Argv form avoids shell
+        # interpretation of worktree_path or any file names in the output.
+        stdout, _stderr, _status = Dir.chdir(worktree_path) do
+          Open3.capture3("git", "diff", "--name-only", "--diff-filter=U")
+        end
+        stdout.split("\n")
       end
 
       def resolve_conflicts(worktree_path, base_branch, conflict_files)
@@ -189,8 +194,10 @@ module Aidp
 
         # Stage and continue rebase
         # GIT_EDITOR=true prevents editor from opening during automated rebase
-        @shell_executor.system("cd #{worktree_path} && git add .")
-        @shell_executor.system({"GIT_EDITOR" => "true"}, "cd #{worktree_path} && git rebase --continue")
+        Dir.chdir(worktree_path) do
+          @shell_executor.system("git", "add", ".")
+          @shell_executor.system({"GIT_EDITOR" => "true"}, "git", "rebase", "--continue")
+        end
       end
 
       def post_rebase_status(pr_number, rebase_result, error_detail = nil)

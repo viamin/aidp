@@ -110,15 +110,15 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
       before do
         # Simulate successful rebase
         allow(shell_executor).to receive(:system)
-          .with(/git fetch origin/)
+          .with("git", "fetch", "origin")
           .and_return(true)
 
         allow(shell_executor).to receive(:system)
-          .with(/git rebase origin\/main/)
+          .with("git", "rebase", "origin/main")
           .and_return(true)
 
         allow(shell_executor).to receive(:system)
-          .with(/git push -f origin feature-branch/)
+          .with("git", "push", "-f", "origin", "feature-branch")
           .and_return(true)
 
         # Stub success status
@@ -169,11 +169,11 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
       before do
         # Simulate rebase failure
         allow(shell_executor).to receive(:system)
-          .with(/git fetch origin/)
+          .with("git", "fetch", "origin")
           .and_return(true)
 
         allow(shell_executor).to receive(:system)
-          .with(/git rebase origin\/main/)
+          .with("git", "rebase", "origin/main")
           .and_return(false)
 
         # Simulate conflict during resolution
