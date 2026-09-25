@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "../shell_executor"
 require_relative "filter_definition"
 require_relative "provider_factory"
 require_relative "thinking_depth_manager"
@@ -264,13 +265,11 @@ module Aidp
       end
 
       def capture_sample_output(command, project_dir)
-        # Run command and capture output (with timeout)
-        require "open3"
-
-        stdout, stderr, _ = Open3.capture3(command, chdir: project_dir)
+        # Run command without shell interpretation and capture output
+        result = ShellExecutor.new.run_line(command, chdir: project_dir)
 
         # Combine stdout and stderr for analysis
-        output = stdout + stderr
+        output = result.stdout + result.stderr
         output.empty? ? nil : output
       rescue => e
         Aidp.log_debug("ai_filter_factory", "Failed to capture sample output",

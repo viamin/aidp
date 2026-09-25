@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-require "open3"
-require_relative "../shell_free_command"
 require_relative "../tooling_detector"
+require_relative "../shell_executor"
 require_relative "output_filter"
 require_relative "output_filter_config"
 require_relative "rspec_command_optimizer"
@@ -268,16 +267,16 @@ module Aidp
           end
         end
 
-        execution = run_command(actual_command)
+        stdout, stderr, result = execute_command_line(actual_command)
 
         # Handle special case: --only-failures with no failures to rerun
         # RSpec exits with 0 and says "All examples were filtered out"
-        if optimization_info&.dig(:optimized) && execution[:success] && execution[:stdout].include?("All examples were filtered out")
+        if optimization_info&.dig(:optimized) && result.success? && stdout.include?("All examples were filtered out")
           Aidp.log_info("test_runner", "rspec_only_failures_empty",
             message: "No failures to rerun, running full suite")
 
           # Fall back to full RSpec run
-          execution = run_command(command)
+          stdout, stderr, result = execute_command_line(command)
           actual_command = command
         end
 
@@ -285,40 +284,30 @@ module Aidp
           command: actual_command,
           original_command: command,
           type: type,
-          success: execution[:success],
-          exit_code: execution[:exit_code],
-          stdout: execution[:stdout],
-          stderr: execution[:stderr],
+          success: result.success?,
+          exit_code: result.exit_status,
+          stdout: stdout,
+          stderr: stderr,
           rspec_optimized: optimization_info&.dig(:optimized) || false
         }
       end
 
-      # Execute a configured command without invoking a shell. The command
-      # string comes from library-provided configuration, so it is split
-      # into argv form to prevent shell command injection. Shell-only
-      # syntax (operators, redirections, environment assignments) is
-      # rejected so a misconfigured command fails loudly instead of
-      # silently running only part of the command line.
-      def run_command(command)
-        argv = Aidp::ShellFreeCommand.argv_for(command)
-        error = Aidp::ShellFreeCommand.syntax_error(argv)
-        return execution_error(command, error) if error
-
-        stdout, stderr, status = Open3.capture3(*argv, chdir: @project_dir)
-        {success: status.success?, exit_code: status.exitstatus, stdout: stdout, stderr: stderr}
-      rescue ArgumentError => e
-        # Shellwords raises ArgumentError for unbalanced quotes or NUL bytes
-        execution_error(command, "unparseable command: #{e.message}")
-      rescue SystemCallError => e
-        # Spawn failures: missing binary (ENOENT), non-executable file
-        # (EACCES), directory used as command (EISDIR), and similar errnos
-        execution_error(command, e.message)
+      # Execute a configured command line without shell interpretation so
+      # shell metacharacters in configuration values are treated as data.
+      # Execution failures (missing executables, rejected shell operators)
+      # are reported as a failed command rather than raised, so a bad
+      # aidp.yml entry surfaces as a failed check instead of crashing the
+      # work loop.
+      def execute_command_line(command)
+        result = command_runner.run_line(command, chdir: @project_dir)
+        [result.stdout, result.stderr, result]
+      rescue ArgumentError, SystemCallError => e
+        result = ShellExecutor::Result.new(stdout: "", stderr: e.message, exit_status: 1)
+        [result.stdout, result.stderr, result]
       end
 
-      def execution_error(command, error)
-        Aidp.log_debug("test_runner", "command_execution_error",
-          command: command, error: error)
-        {success: false, exit_code: 127, stdout: "", stderr: error}
+      def command_runner
+        @command_runner ||= ShellExecutor.new
       end
 
       def aggregate_results(results, category, mode: :full)

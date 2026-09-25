@@ -1,10 +1,9 @@
 # frozen_string_literal: true
 
 require "yaml"
-require "open3"
 require_relative "../message_display"
 require_relative "../rescue_logging"
-require_relative "../shell_free_command"
+require_relative "../shell_executor"
 require_relative "../util"
 
 module Aidp
@@ -230,21 +229,18 @@ module Aidp
         end
 
         def build_default_command_runner
+          command_executor = ShellExecutor.new
           lambda do |command, _context|
-            argv = Aidp::ShellFreeCommand.argv_for(command)
-            error = Aidp::ShellFreeCommand.syntax_error(argv)
-            return {exit_status: 127, stdout: "", stderr: error} if error
-
-            stdout, stderr, status = Open3.capture3(*argv, chdir: @project_dir)
-
+            result = command_executor.run_line(command, chdir: @project_dir)
             {
-              exit_status: status.exitstatus || status.termsig,
-              stdout: stdout,
-              stderr: stderr
+              exit_status: result.exit_status,
+              stdout: result.stdout,
+              stderr: result.stderr
             }
           rescue ArgumentError => e
-            # Shellwords raises ArgumentError for unbalanced quotes or NUL bytes
-            {exit_status: 127, stdout: "", stderr: "unparseable command: #{e.message}"}
+            # Rejected shell syntax or an unparseable command line (Shellwords
+            # raises ArgumentError for unbalanced quotes or NUL bytes)
+            {exit_status: 127, stdout: "", stderr: e.message}
           rescue SystemCallError => e
             # Spawn failures: missing binary (ENOENT), non-executable file
             # (EACCES), directory used as command (EISDIR), and similar errnos

@@ -158,7 +158,7 @@ RSpec.describe Aidp::Execute::DeterministicUnits::Runner do
       result = runner.run(command_definition("echo 'unclosed"))
 
       expect(result).to be_failure
-      expect(result.data[:stderr]).to include("unparseable command")
+      expect(result.data[:stderr]).to include("Unmatched quote")
     end
 
     it "reports missing binaries" do

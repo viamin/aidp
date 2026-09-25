@@ -185,26 +185,21 @@ work_loop:
           specs_dir: ".aidp/tests/web"
 ```
 
-### Command Execution
+### Commands
 
-Commands executed by the harness under `work_loop` (e.g. `test.unit`,
-`lint.command`, and `units.deterministic[].command`) are executed **without a
-shell**. Each command line is tokenized with shell-style quoting rules, then
-the program and arguments are invoked directly.
+Commands configured under `work_loop` (e.g. `test.unit`, `lint.command`,
+`units.deterministic`, `guards`, and `coverage.run_command`) are executed
+**without a shell**. Each command line is tokenized with shell-style quoting,
+then the resulting program and arguments are invoked directly.
 
-`coverage.run_command` is defined in the configuration but is not executed yet
-(coverage execution is not yet implemented in the work loop).
-
-This means shell syntax is **not supported** and fails the check with a clear
-error instead of running part of the command line:
-
-- Do not chain steps with `&&`, `||`, `;`, or `|`
-- Do not use redirections (`>`, `>>`, `<`, `2>`)
-- Do not prefix environment assignments (`RAILS_ENV=test bundle exec rspec`);
-  use `env RAILS_ENV=test bundle exec rspec` instead
+This means shell operators and redirections are **not** supported. Do not chain
+multiple steps with `&&`, `||`, `;`, or `|`, and do not use `>`, `>>`, `<`,
+`2>`, or `&`. Leading environment assignments are also rejected; use
+`env RAILS_ENV=test bundle exec rspec` instead of
+`RAILS_ENV=test bundle exec rspec`:
 
 ```yaml
-# ❌ Broken: shell syntax is rejected at runtime
+# ❌ Broken: shell operators are rejected at runtime
 work_loop:
   test:
     unit: "bundle exec rspec && bundle exec rubocop"
@@ -217,12 +212,13 @@ work_loop:
     command: "bundle exec rubocop"
 ```
 
-If you need shell features (chaining, redirection), invoke a shell explicitly:
+If you need a shell (for example, to run a short inline script), invoke one
+explicitly:
 
 ```yaml
 work_loop:
   test:
-    unit: "bash -c 'bundle exec rspec 2>&1'"
+    unit: "bash -c 'bundle exec rspec && bundle exec rubocop'"
 ```
 
 ### Task Completion Tracking

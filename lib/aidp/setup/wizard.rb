@@ -1343,7 +1343,7 @@ module Aidp
         prompt.say("\n🔀 Pull Request Configuration")
 
         # Check if remote exists
-        has_remote = system("git remote -v > /dev/null 2>&1")
+        has_remote = system("git", "remote", "-v", out: File::NULL, err: File::NULL)
 
         unless has_remote
           prompt.say("No git remote detected. PR creation will be disabled.")
