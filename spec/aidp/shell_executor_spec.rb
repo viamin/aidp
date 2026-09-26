@@ -157,5 +157,18 @@ RSpec.describe Aidp::ShellExecutor do
 
       expect(result).to be true
     end
+
+    it "does not use a shell for a single command string after an environment hash" do
+      marker = File.join(Dir.tmpdir, "aidp-shell-executor-system-env-pwned-#{Process.pid}")
+      command = "true; touch #{marker}"
+
+      result = described_class.new.system(
+        {"AIDP_TEST_ENV" => "set"}, command,
+        out: File::NULL, err: File::NULL
+      )
+
+      expect(result).to be_nil
+      expect(File.exist?(marker)).to be false
+    end
   end
 end

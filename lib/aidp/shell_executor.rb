@@ -140,7 +140,11 @@ module Aidp
       end
 
       if args.first.is_a?(Hash)
-        Kernel.system(args.first, *args.drop(1).map(&:to_s), **opts)
+        environment, *command = args
+        program, *rest = command.map(&:to_s)
+        raise ArgumentError, "command must not be blank" if program.nil? || program.empty?
+
+        Kernel.system(environment, [program, program], *rest, **opts)
       else
         program, *rest = args.map(&:to_s)
         raise ArgumentError, "command must not be blank" if program.nil? || program.empty?
