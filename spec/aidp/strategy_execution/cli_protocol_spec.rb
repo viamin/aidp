@@ -28,6 +28,19 @@ RSpec.describe Aidp::StrategyExecution::CliProtocol::Runner do
     expect(result[:artifact_dir]).to include(".aidp")
   end
 
+  it "uses direct execution for a single-token command" do
+    status = instance_double(Process::Status, success?: true, exitstatus: 0)
+    allow(Open3).to receive(:capture3).and_return(['{"success":true,"artifacts":[]}', "", status])
+
+    runner.execute(command: "$(id)", role: "agent", request: {})
+
+    expect(Open3).to have_received(:capture3).with(
+      ["$(id)", "$(id)"],
+      stdin_data: kind_of(String),
+      chdir: project_dir
+    )
+  end
+
   it "normalizes relative artifact paths against the artifact directory" do
     command = [
       "ruby",

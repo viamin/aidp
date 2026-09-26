@@ -36,7 +36,13 @@ module Aidp
             task_id: request[:task]&.dig(:id),
             artifact_dir: artifact_dir)
 
-          stdout, stderr, status = Open3.capture3(*parts, stdin_data: JSON.generate(payload), chdir: @project_dir)
+          program, *args = parts.map(&:to_s)
+          stdout, stderr, status = Open3.capture3(
+            [program, program],
+            *args,
+            stdin_data: JSON.generate(payload),
+            chdir: @project_dir
+          )
           unless status.success?
             Aidp.log_error("cli_protocol", "execution_failed",
               role: role,
