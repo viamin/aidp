@@ -81,10 +81,26 @@ module Aidp
         build_commands.any? { |cmd| run_project_command(cmd) }
       end
 
-      # Run a detected command in the project directory without building a
-      # shell command string from the library-provided project path
+      # Run a detected command in the project directory. The command line is
+      # tokenized with Shellwords and executed in argument form, so the shell
+      # never interprets the library-provided command string. The [cmdname,
+      # argv0] pair forces argument form even for a single-token command,
+      # which system would otherwise execute via /bin/sh -c.
       def run_project_command(cmd)
-        system(cmd, chdir: @project_dir, out: File::NULL, err: File::NULL)
+        require "shellwords"
+        argv = Shellwords.split(cmd).flat_map { |arg| expand_arg(arg) }
+        return false if argv.empty?
+
+        system([argv[0], argv[0]], *argv.drop(1), chdir: @project_dir, out: File::NULL, err: File::NULL)
+      end
+
+      # Expand shell-style glob tokens (e.g. test/**/*_test.rb) within the
+      # project directory, since argument-form execution skips shell globbing.
+      def expand_arg(arg)
+        return [arg] unless arg.match?(/[*?\[{}]/)
+
+        matches = Dir.chdir(@project_dir) { Dir.glob(arg) }
+        matches.empty? ? [arg] : matches
       end
 
       def documentation_complete?
