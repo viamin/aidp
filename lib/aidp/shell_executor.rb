@@ -87,7 +87,6 @@ module Aidp
     # @raise [ArgumentError] when the command line is blank, has
     #   unbalanced quotes, or uses shell operators/redirections
     def run_line(command, **opts)
-      require "open3"
       require "shellwords"
       argv = Shellwords.split(command.to_s)
       raise ArgumentError, "command must not be blank" if argv.empty?
@@ -119,8 +118,7 @@ module Aidp
           "split into program and arguments"
       end
 
-      stdout, stderr, status = Open3.capture3(*argv, **opts)
-      Result.new(stdout: stdout, stderr: stderr, exit_status: status.exitstatus)
+      run_argv(*argv, **opts)
     end
 
     # Run a command via system(), optionally suppressing output
