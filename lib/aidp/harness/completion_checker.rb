@@ -83,13 +83,15 @@ module Aidp
 
       # Run a detected command in the project directory. The command line is
       # tokenized with Shellwords and executed in argument form, so the shell
-      # never interprets the library-provided command string.
+      # never interprets the library-provided command string. The [cmdname,
+      # argv0] pair forces argument form even for a single-token command,
+      # which system would otherwise execute via /bin/sh -c.
       def run_project_command(cmd)
         require "shellwords"
         argv = Shellwords.split(cmd).flat_map { |arg| expand_arg(arg) }
         return false if argv.empty?
 
-        system(*argv, chdir: @project_dir, out: File::NULL, err: File::NULL)
+        system([argv[0], argv[0]], *argv.drop(1), chdir: @project_dir, out: File::NULL, err: File::NULL)
       end
 
       # Expand shell-style glob tokens (e.g. test/**/*_test.rb) within the

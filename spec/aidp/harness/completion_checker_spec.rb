@@ -205,7 +205,7 @@ RSpec.describe Aidp::Harness::CompletionChecker do
       checker = described_class.new(project_dir)
 
       expect(checker).to receive(:system)
-        .with("bundle", "exec", "rspec", chdir: project_dir, out: File::NULL, err: File::NULL)
+        .with(["bundle", "bundle"], "exec", "rspec", chdir: project_dir, out: File::NULL, err: File::NULL)
         .and_return(true)
 
       expect(checker.send(:run_project_command, "bundle exec rspec")).to be true
@@ -215,10 +215,20 @@ RSpec.describe Aidp::Harness::CompletionChecker do
       checker = described_class.new(project_dir)
 
       expect(checker).to receive(:system)
-        .with("echo", "hello; rm -rf /", chdir: project_dir, out: File::NULL, err: File::NULL)
+        .with(["echo", "echo"], "hello; rm -rf /", chdir: project_dir, out: File::NULL, err: File::NULL)
         .and_return(true)
 
       expect(checker.send(:run_project_command, "echo 'hello; rm -rf /'")).to be true
+    end
+
+    it "forces argument form for single-token commands so the shell never runs" do
+      checker = described_class.new(project_dir)
+
+      expect(checker).to receive(:system)
+        .with(["true;id>/tmp/x", "true;id>/tmp/x"], chdir: project_dir, out: File::NULL, err: File::NULL)
+        .and_return(false)
+
+      expect(checker.send(:run_project_command, "true;id>/tmp/x")).to be false
     end
 
     it "returns false for a blank command without invoking system" do
