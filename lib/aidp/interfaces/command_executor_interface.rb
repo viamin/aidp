@@ -195,7 +195,8 @@ module Aidp
 
       def execute_command(command, args, input_data, timeout, options)
         env = options.delete(:env) || {}
-        Open3.popen3(env, command.to_s, *args.map(&:to_s), **options) do |stdin, stdout, stderr, wait_thread|
+        program = command.to_s
+        Open3.popen3(env, [program, program], *args.map(&:to_s), **options) do |stdin, stdout, stderr, wait_thread|
           write_input(stdin, input_data)
           out_reader = Thread.new { read_stream(stdout) }
           err_reader = Thread.new { read_stream(stderr) }

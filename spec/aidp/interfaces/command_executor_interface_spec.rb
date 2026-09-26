@@ -210,6 +210,14 @@ RSpec.describe Aidp::Interfaces::TtyCommandExecutor do
         expect(result.success?).to be true
         expect(result.stdout).to eq("$(echo exploited)\n")
       end
+
+      it "does not invoke a shell for a single command string" do
+        marker = File.join(Dir.tmpdir, "aidp-command-executor-pwned-#{Process.pid}")
+
+        expect { executor.execute("true; touch #{marker}") }
+          .to raise_error(Aidp::Interfaces::CommandExecutionError)
+        expect(File.exist?(marker)).to be false
+      end
     end
 
     context "with stdin input" do
