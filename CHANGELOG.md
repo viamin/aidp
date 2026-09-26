@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.22](https://github.com/viamin/aidp/compare/aidp/v0.49.21...aidp/v0.49.22) (2026-09-26)
+
+
+### Bug Fixes
+
+* [Security] CodeQL: Unsafe shell command constructed from library input (medium) — code-scanning-alert-98 ([#609](https://github.com/viamin/aidp/issues/609)) ([83c3cd8](https://github.com/viamin/aidp/commit/83c3cd84da4cc806145274cacf2cb595ded1229f))
+
 ## [0.49.21](https://github.com/viamin/aidp/compare/aidp/v0.49.20...aidp/v0.49.21) (2026-09-26)
 
 
