@@ -33,7 +33,7 @@ RSpec.describe Aidp::WorktreeBranchManager do
       result = manager.send(:run_git_command, "git", "fetch", "origin", "main")
 
       expect(result).to eq("ok\n")
-      expect(Open3).to have_received(:capture2e).with("git", "fetch", "origin", "main")
+      expect(Open3).to have_received(:capture2e).with(["git", "git"], "fetch", "origin", "main")
     end
 
     it "treats shell metacharacters in library input as literal arguments" do
@@ -42,7 +42,7 @@ RSpec.describe Aidp::WorktreeBranchManager do
       manager.send(:run_git_command, "git", "fetch", "origin", "main; touch /tmp/aidp-pwned")
 
       expect(Open3).to have_received(:capture2e)
-        .with("git", "fetch", "origin", "main; touch /tmp/aidp-pwned")
+        .with(["git", "git"], "fetch", "origin", "main; touch /tmp/aidp-pwned")
       expect(File.exist?("/tmp/aidp-pwned")).to be false
     end
   end
