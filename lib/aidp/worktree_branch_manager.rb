@@ -357,7 +357,8 @@ module Aidp
     # data instead of being interpreted by a shell.
     def run_git_command(command, *args)
       Dir.chdir(@project_dir) do
-        output, status = Open3.capture2e(command, *args)
+        program = command.to_s
+        output, status = Open3.capture2e([program, program], *args.map(&:to_s))
         raise StandardError, output unless status.success?
         output
       end
