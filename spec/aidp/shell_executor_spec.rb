@@ -21,6 +21,14 @@ RSpec.describe Aidp::ShellExecutor do
       expect(File.exist?("/tmp/aidp-pwned")).to be false
     end
 
+    it "does not use a shell for a single command string" do
+      marker = File.join(Dir.tmpdir, "aidp-shell-executor-pwned")
+      command = "true; touch #{marker}"
+
+      expect { described_class.new.run_argv(command) }.to raise_error(Errno::ENOENT)
+      expect(File.exist?(marker)).to be false
+    end
+
     it "reports non-zero exit status and stderr" do
       result = described_class.new.run_argv(RbConfig.ruby, "-e", "warn 'boom'; exit 3")
 

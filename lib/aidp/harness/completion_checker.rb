@@ -1,12 +1,15 @@
 # frozen_string_literal: true
 
+require_relative "../shell_executor"
+
 module Aidp
   module Harness
     # Checks completion criteria for the workflow
     class CompletionChecker
-      def initialize(project_dir, workflow_type = :exploration)
+      def initialize(project_dir, workflow_type = :exploration, command_executor: Aidp::ShellExecutor.new)
         @project_dir = project_dir
         @workflow_type = workflow_type
+        @command_executor = command_executor
         @completion_results = {}
       end
 
@@ -81,17 +84,20 @@ module Aidp
         build_commands.any? { |cmd| run_project_command(cmd) }
       end
 
-      # Run a detected command in the project directory. The command line is
-      # tokenized with Shellwords and executed in argument form, so the shell
-      # never interprets the library-provided command string. The [cmdname,
-      # argv0] pair forces argument form even for a single-token command,
-      # which system would otherwise execute via /bin/sh -c.
+      # Run a detected command without letting a shell interpret it.
       def run_project_command(cmd)
         require "shellwords"
         argv = Shellwords.split(cmd).flat_map { |arg| expand_arg(arg) }
         return false if argv.empty?
 
-        system([argv[0], argv[0]], *argv.drop(1), chdir: @project_dir, out: File::NULL, err: File::NULL)
+        @command_executor.run_argv(
+          *argv,
+          chdir: @project_dir,
+          out: File::NULL,
+          err: File::NULL
+        ).success?
+      rescue ArgumentError, Errno::ENOENT
+        false
       end
 
       # Expand shell-style glob tokens (e.g. test/**/*_test.rb) within the

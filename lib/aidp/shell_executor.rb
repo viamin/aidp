@@ -61,9 +61,15 @@ module Aidp
     #
     # @param command [Array<String>] the command and its arguments
     # @return [Result] captured stdout/stderr with the exit status
-    def run_argv(*command)
+    def run_argv(*command, **opts)
       require "open3"
-      stdout, stderr, status = Open3.capture3(*command.map(&:to_s))
+      program, *args = command.map(&:to_s)
+      raise ArgumentError, "command must not be blank" if program.nil? || program.empty?
+
+      # The [program, argv0] form forces direct execution even when a command
+      # has no arguments. Passing one string to Open3 can otherwise invoke a
+      # shell when that string contains shell metacharacters.
+      stdout, stderr, status = Open3.capture3([program, program], *args, **opts)
       Result.new(stdout: stdout, stderr: stderr, exit_status: status.exitstatus)
     end
 
