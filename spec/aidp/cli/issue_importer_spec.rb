@@ -328,7 +328,7 @@ RSpec.describe Aidp::IssueImporter do
 
       expect(result).to include(number: 123, source: "gh_cli")
       expect(Open3).to have_received(:popen3).with(
-        "gh", "issue", "view", "123",
+        ["gh", "gh"], "issue", "view", "123",
         "--repo", "#{hostile_owner}/repo",
         "--json", String
       )

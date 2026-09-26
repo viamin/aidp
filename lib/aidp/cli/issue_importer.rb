@@ -331,7 +331,8 @@ module Aidp
       wait_thr = nil
 
       Timeout.timeout(timeout) do
-        Open3.popen3(command, *args) do |stdin, stdout_io, stderr_io, thread|
+        program = command.to_s
+        Open3.popen3([program, program], *args.map(&:to_s)) do |stdin, stdout_io, stderr_io, thread|
           wait_thr = thread
           stdin.close
           stdout_str = stdout_io.read
