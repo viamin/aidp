@@ -126,6 +126,11 @@ module Aidp
     # When suppress_output is true, output is redirected to /dev/null
     # unless explicit out:/err: options are provided.
     #
+    # Commands are always executed in argument form so a shell never
+    # interprets any value. A leading environment hash is forwarded
+    # unchanged; otherwise the [program, argv0] form forces direct
+    # execution even when a single command string is supplied.
+    #
     # @param args [Array] Arguments passed to Kernel.system
     # @param opts [Hash] Options passed to Kernel.system
     # @return [Boolean, nil] Same as Kernel.system
@@ -133,7 +138,15 @@ module Aidp
       if self.class.suppress_output && !opts.key?(:out) && !opts.key?(:err)
         opts = opts.merge(out: File::NULL, err: File::NULL)
       end
-      Kernel.system(*args, **opts)
+
+      if args.first.is_a?(Hash)
+        Kernel.system(args.first, *args.drop(1).map(&:to_s), **opts)
+      else
+        program, *rest = args.map(&:to_s)
+        raise ArgumentError, "command must not be blank" if program.nil? || program.empty?
+
+        Kernel.system([program, program], *rest, **opts)
+      end
     end
   end
 end
