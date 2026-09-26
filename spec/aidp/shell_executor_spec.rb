@@ -126,4 +126,49 @@ RSpec.describe Aidp::ShellExecutor do
       expect(result.stderr).to eq("error\n")
     end
   end
+
+  describe "#system" do
+    it "runs a command in argument form" do
+      result = described_class.new.system(
+        RbConfig.ruby, "-e", "exit 0",
+        out: File::NULL, err: File::NULL
+      )
+
+      expect(result).to be true
+    end
+
+    it "does not use a shell for a single command string" do
+      marker = File.join(Dir.tmpdir, "aidp-shell-executor-system-pwned")
+      command = "true; touch #{marker}"
+
+      result = described_class.new.system(command, out: File::NULL, err: File::NULL)
+
+      expect(result).to be_nil
+      expect(File.exist?(marker)).to be false
+    end
+
+    it "forwards a leading environment hash without shell interpretation" do
+      script = "exit(ENV['AIDP_TEST_ENV'] == 'set' ? 0 : 1)"
+      result = described_class.new.system(
+        {"AIDP_TEST_ENV" => "set"},
+        RbConfig.ruby, "-e", script,
+        out: File::NULL, err: File::NULL
+      )
+
+      expect(result).to be true
+    end
+
+    it "does not use a shell for a single command string after an environment hash" do
+      marker = File.join(Dir.tmpdir, "aidp-shell-executor-system-env-pwned-#{Process.pid}")
+      command = "true; touch #{marker}"
+
+      result = described_class.new.system(
+        {"AIDP_TEST_ENV" => "set"}, command,
+        out: File::NULL, err: File::NULL
+      )
+
+      expect(result).to be_nil
+      expect(File.exist?(marker)).to be false
+    end
+  end
 end
