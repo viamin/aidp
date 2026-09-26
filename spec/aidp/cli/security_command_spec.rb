@@ -348,14 +348,20 @@ RSpec.describe Aidp::CLI::SecurityCommand do
   end
 
   describe "#run_with_timeout" do
-    it "uses argv execution for commands containing shell metacharacters" do
-      expect(Process).to receive(:spawn)
-        .with([RbConfig.ruby, RbConfig.ruby], "-e", "exit 0", "; touch /tmp/aidp-pwned")
-        .and_call_original
+    it "does not invoke a shell for a command containing shell metacharacters" do
+      Dir.mktmpdir do |tmp_dir|
+        marker = File.join(tmp_dir, "aidp-security-command-pwned")
+        malicious_command = "#{RbConfig.ruby} -e 'exit 0'; touch #{marker}"
 
-      result = command.send(:run_with_timeout, [RbConfig.ruby, "-e", "exit 0", "; touch /tmp/aidp-pwned"], 1)
+        expect(Process).to receive(:spawn)
+          .with([malicious_command, malicious_command])
+          .and_call_original
 
-      expect(result).to eq(0)
+        result = command.send(:run_with_timeout, [malicious_command], 1)
+
+        expect(result).to eq(1)
+        expect(File).not_to exist(marker)
+      end
     end
   end
 end
