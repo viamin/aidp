@@ -91,7 +91,7 @@ module Aidp
         return false if argv.empty?
 
         @command_executor.run_argv(*argv, chdir: @project_dir).success?
-      rescue ArgumentError
+      rescue ArgumentError, Errno::ENOENT
         false
       end
 

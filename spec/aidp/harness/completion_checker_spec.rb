@@ -237,6 +237,16 @@ RSpec.describe Aidp::Harness::CompletionChecker do
       expect(command_executor).not_to receive(:run_argv)
       expect(checker.send(:run_project_command, "")).to be false
     end
+
+    it "returns false when the command executable is unavailable" do
+      checker = described_class.new(project_dir, command_executor: command_executor)
+
+      expect(command_executor).to receive(:run_argv)
+        .with("pytest", chdir: project_dir)
+        .and_raise(Errno::ENOENT)
+
+      expect(checker.send(:run_project_command, "pytest")).to be false
+    end
   end
 
   describe "Node.js detection" do
