@@ -90,7 +90,12 @@ module Aidp
         argv = Shellwords.split(cmd).flat_map { |arg| expand_arg(arg) }
         return false if argv.empty?
 
-        @command_executor.run_argv(*argv, chdir: @project_dir).success?
+        @command_executor.run_argv(
+          *argv,
+          chdir: @project_dir,
+          out: File::NULL,
+          err: File::NULL
+        ).success?
       rescue ArgumentError, Errno::ENOENT
         false
       end

@@ -7,6 +7,12 @@ require "fileutils"
 
 RSpec.describe Aidp::Harness::CompletionChecker do
   let(:project_dir) { Dir.mktmpdir("aidp-completion") }
+  let(:successful_command_result) do
+    Aidp::ShellExecutor::Result.new(stdout: "", stderr: "", exit_status: 0)
+  end
+  let(:failed_command_result) do
+    Aidp::ShellExecutor::Result.new(stdout: "", stderr: "", exit_status: 1)
+  end
 
   after do
     FileUtils.rm_rf(project_dir)
@@ -147,9 +153,10 @@ RSpec.describe Aidp::Harness::CompletionChecker do
     it "runs test commands and returns result" do
       File.write(File.join(project_dir, "Gemfile"), "gem 'rspec'")
       FileUtils.mkdir_p(File.join(project_dir, "spec"))
-      checker = described_class.new(project_dir)
+      command_executor = instance_double(Aidp::ShellExecutor)
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      allow(checker).to receive(:system).and_return(true)
+      allow(command_executor).to receive(:run_argv).and_return(successful_command_result)
       expect(checker.send(:tests_passing?)).to be true
     end
   end
@@ -162,17 +169,19 @@ RSpec.describe Aidp::Harness::CompletionChecker do
 
     it "runs lint commands and returns result" do
       File.write(File.join(project_dir, "Gemfile"), "gem 'standard'")
-      checker = described_class.new(project_dir)
+      command_executor = instance_double(Aidp::ShellExecutor)
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      allow(checker).to receive(:system).and_return(true)
+      allow(command_executor).to receive(:run_argv).and_return(successful_command_result)
       expect(checker.send(:linting_clean?)).to be true
     end
 
     it "returns false when lint command fails" do
       File.write(File.join(project_dir, "Gemfile"), "gem 'standard'")
-      checker = described_class.new(project_dir)
+      command_executor = instance_double(Aidp::ShellExecutor)
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      allow(checker).to receive(:system).and_return(false)
+      allow(command_executor).to receive(:run_argv).and_return(failed_command_result)
       expect(checker.send(:linting_clean?)).to be false
     end
   end
@@ -185,17 +194,19 @@ RSpec.describe Aidp::Harness::CompletionChecker do
 
     it "runs build commands and returns result" do
       File.write(File.join(project_dir, "package.json"), '{"scripts": {"build": "webpack"}}')
-      checker = described_class.new(project_dir)
+      command_executor = instance_double(Aidp::ShellExecutor)
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      allow(checker).to receive(:system).and_return(true)
+      allow(command_executor).to receive(:run_argv).and_return(successful_command_result)
       expect(checker.send(:build_successful?)).to be true
     end
 
     it "returns false when build command fails" do
       File.write(File.join(project_dir, "package.json"), '{"scripts": {"build": "webpack"}}')
-      checker = described_class.new(project_dir)
+      command_executor = instance_double(Aidp::ShellExecutor)
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      allow(checker).to receive(:system).and_return(false)
+      allow(command_executor).to receive(:run_argv).and_return(failed_command_result)
       expect(checker.send(:build_successful?)).to be false
     end
   end
@@ -207,7 +218,7 @@ RSpec.describe Aidp::Harness::CompletionChecker do
       checker = described_class.new(project_dir, command_executor: command_executor)
 
       expect(command_executor).to receive(:run_argv)
-        .with("bundle", "exec", "rspec", chdir: project_dir)
+        .with("bundle", "exec", "rspec", chdir: project_dir, out: File::NULL, err: File::NULL)
         .and_return(Aidp::ShellExecutor::Result.new(stdout: "", stderr: "", exit_status: 0))
 
       expect(checker.send(:run_project_command, "bundle exec rspec")).to be true
@@ -217,7 +228,7 @@ RSpec.describe Aidp::Harness::CompletionChecker do
       checker = described_class.new(project_dir, command_executor: command_executor)
 
       expect(command_executor).to receive(:run_argv)
-        .with("echo", "hello; rm -rf /", chdir: project_dir)
+        .with("echo", "hello; rm -rf /", chdir: project_dir, out: File::NULL, err: File::NULL)
         .and_return(Aidp::ShellExecutor::Result.new(stdout: "", stderr: "", exit_status: 0))
 
       expect(checker.send(:run_project_command, "echo 'hello; rm -rf /'")).to be true
@@ -242,7 +253,7 @@ RSpec.describe Aidp::Harness::CompletionChecker do
       checker = described_class.new(project_dir, command_executor: command_executor)
 
       expect(command_executor).to receive(:run_argv)
-        .with("pytest", chdir: project_dir)
+        .with("pytest", chdir: project_dir, out: File::NULL, err: File::NULL)
         .and_raise(Errno::ENOENT)
 
       expect(checker.send(:run_project_command, "pytest")).to be false
