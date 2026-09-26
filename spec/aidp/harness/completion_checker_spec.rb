@@ -201,40 +201,40 @@ RSpec.describe Aidp::Harness::CompletionChecker do
   end
 
   describe "#run_project_command" do
-    it "passes commands to system in argument form, not as a shell string" do
-      checker = described_class.new(project_dir)
+    let(:command_executor) { instance_double(Aidp::ShellExecutor) }
 
-      expect(checker).to receive(:system)
-        .with(["bundle", "bundle"], "exec", "rspec", chdir: project_dir, out: File::NULL, err: File::NULL)
-        .and_return(true)
+    it "passes commands to the executor in argument form" do
+      checker = described_class.new(project_dir, command_executor: command_executor)
+
+      expect(command_executor).to receive(:run_argv)
+        .with("bundle", "exec", "rspec", chdir: project_dir)
+        .and_return(Aidp::ShellExecutor::Result.new(stdout: "", stderr: "", exit_status: 0))
 
       expect(checker.send(:run_project_command, "bundle exec rspec")).to be true
     end
 
     it "treats shell metacharacters as literal arguments" do
-      checker = described_class.new(project_dir)
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      expect(checker).to receive(:system)
-        .with(["echo", "echo"], "hello; rm -rf /", chdir: project_dir, out: File::NULL, err: File::NULL)
-        .and_return(true)
+      expect(command_executor).to receive(:run_argv)
+        .with("echo", "hello; rm -rf /", chdir: project_dir)
+        .and_return(Aidp::ShellExecutor::Result.new(stdout: "", stderr: "", exit_status: 0))
 
       expect(checker.send(:run_project_command, "echo 'hello; rm -rf /'")).to be true
     end
 
-    it "forces argument form for single-token commands so the shell never runs" do
-      checker = described_class.new(project_dir)
+    it "returns false for malformed commands without invoking the executor" do
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      expect(checker).to receive(:system)
-        .with(["true;id>/tmp/x", "true;id>/tmp/x"], chdir: project_dir, out: File::NULL, err: File::NULL)
-        .and_return(false)
+      expect(command_executor).not_to receive(:run_argv)
 
-      expect(checker.send(:run_project_command, "true;id>/tmp/x")).to be false
+      expect(checker.send(:run_project_command, "unterminated '")).to be false
     end
 
-    it "returns false for a blank command without invoking system" do
-      checker = described_class.new(project_dir)
+    it "returns false for a blank command without invoking the executor" do
+      checker = described_class.new(project_dir, command_executor: command_executor)
 
-      expect(checker).not_to receive(:system)
+      expect(command_executor).not_to receive(:run_argv)
       expect(checker.send(:run_project_command, "")).to be false
     end
   end
