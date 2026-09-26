@@ -370,7 +370,8 @@ module Aidp
       # @param timeout [Integer] Timeout in seconds
       # @return [Integer, Symbol] Exit status or :timeout
       def run_with_timeout(command_args, timeout)
-        pid = Process.spawn(*command_args)
+        program, *arguments = command_args
+        pid = Process.spawn([program, program], *arguments)
         start_time = Time.now
 
         loop do

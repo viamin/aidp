@@ -346,4 +346,16 @@ RSpec.describe Aidp::CLI::SecurityCommand do
       end
     end
   end
+
+  describe "#run_with_timeout" do
+    it "uses argv execution for commands containing shell metacharacters" do
+      expect(Process).to receive(:spawn)
+        .with([RbConfig.ruby, RbConfig.ruby], "-e", "exit 0", "; touch /tmp/aidp-pwned")
+        .and_call_original
+
+      result = command.send(:run_with_timeout, [RbConfig.ruby, "-e", "exit 0", "; touch /tmp/aidp-pwned"], 1)
+
+      expect(result).to eq(0)
+    end
+  end
 end
