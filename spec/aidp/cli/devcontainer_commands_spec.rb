@@ -262,7 +262,7 @@ RSpec.describe Aidp::CLI::DevcontainerCommands do
 
         commands.apply(force: true)
 
-        config = JSON.parse(File.read(devcontainer_path))
+        config = Aidp::Setup::Devcontainer::Parser.new(project_dir).parse
         # Should preserve old name
         expect(config["name"]).to eq("Old Name")
         # Should add GitHub CLI feature based on provider

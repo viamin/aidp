@@ -242,7 +242,7 @@ RSpec.describe "DevcontainerCommand Integration", type: :integration do
 
       # Verify merge preserved user customizations
       devcontainer_path = File.join(project_dir, ".devcontainer", "devcontainer.json")
-      merged_config = JSON.parse(File.read(devcontainer_path))
+      merged_config = Aidp::Setup::Devcontainer::JsoncDocument.parse(File.read(devcontainer_path)).data
 
       # Custom name should be preserved
       expect(merged_config["name"]).to eq("My Custom Name")
