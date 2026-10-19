@@ -7,7 +7,7 @@
 # Aruba example.
 RSpec.configure do |config|
   config.after(:each, type: :aruba) do
-    desired_root = "/workspaces/aidp"
+    desired_root = File.expand_path("../..", __dir__)
     begin
       cwd = Dir.getwd
       if cwd != desired_root && cwd != "/"
