@@ -8,7 +8,7 @@
 RSpec.configure do |config|
   config.after(:each) do
     if Dir.getwd == "/"
-      workspace_root = "/workspaces/aidp"
+      workspace_root = File.expand_path("../..", __dir__)
       Dir.chdir(workspace_root) if File.directory?(workspace_root)
     end
   rescue Errno::ENOENT

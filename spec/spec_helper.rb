@@ -50,7 +50,6 @@ require "aruba/rspec"
 
 Aruba.configure do |config|
   config.command_launcher = :spawn
-  config.working_directory = "tmp/aruba"
   config.exit_timeout = 30
   config.io_wait_timeout = 1
 end
