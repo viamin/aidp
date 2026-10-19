@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.32](https://github.com/viamin/aidp/compare/aidp/v0.49.31...aidp/v0.49.32) (2026-10-19)
+
+
+### Dependencies
+
+* **deps-dev:** bump aruba from 2.4.1 to 3.0.1 ([#631](https://github.com/viamin/aidp/issues/631)) ([11f0251](https://github.com/viamin/aidp/commit/11f025102bb791334c296baac1618a61e959955d))
+
 ## [0.49.31](https://github.com/viamin/aidp/compare/aidp/v0.49.30...aidp/v0.49.31) (2026-10-19)
 
 
