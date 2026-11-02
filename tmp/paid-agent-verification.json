@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "summary": "Updated CI Ruby pins to versions available on Ubuntu 26 and verified lint plus the system test suite locally.",
+  "summary": "Merged origin/main into the dependabot minor-updates branch; resolved the add/add conflict in tmp/paid-agent-verification.json and kept both sides' CI workflow changes. Lint passes and the RSpec suite shows only the 6 failures already present on origin/main with the old gem versions (deferred per PR instructions).",
   "acceptance_criteria": [
     {
       "id": "AC-1",
@@ -9,12 +9,12 @@
         "kind": "human_or_external_evidence",
         "references": [
           {
-            "locator": ".tool-versions:1",
-            "result": "Ruby 3.4.12 is the Ubuntu 26 version reported as available by the failed lint and test checks."
+            "locator": "git merge origin/main",
+            "result": "Only conflict was tmp/paid-agent-verification.json (add/add); workflow files auto-merged keeping main's ubuntu-24.04 pins and setup-ruby SHA plus this branch's ruby-version pins 3.3.13/3.4.12."
           },
           {
-            "locator": ".github/workflows/system_test.yml:12",
-            "result": "The system-test matrix uses the Ubuntu 26 available Ruby 3.3.13 and 3.4.12 releases."
+            "locator": "Gemfile.lock",
+            "result": "Merge preserves agent-harness 0.44.28, csv 3.3.7, sqlite3 2.10.2, temporalio 1.10.1."
           }
         ]
       }
@@ -23,11 +23,15 @@
       "id": "AC-2",
       "status": "passed",
       "verification": {
-        "kind": "permanent_system_test",
+        "kind": "unit_or_service_test",
         "references": [
           {
-            "locator": "spec/system:26 examples",
-            "result": "passed locally with 0 failures"
+            "locator": "bundle exec standardrb",
+            "result": "0 offenses"
+          },
+          {
+            "locator": "bundle exec rspec (full suite)",
+            "result": "8441 examples, 6 failures; all 6 reproduce identically on origin/main with pre-bump gem versions (logger_spec.rb:564,820; build_processor_spec.rb:618; workstream_workflow_spec.rb:169,183,195), so they are pre-existing and out of scope."
           }
         ]
       }
