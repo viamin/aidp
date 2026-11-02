@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "summary": "Updated CI Ruby pins to versions available on Ubuntu 26 and verified lint plus the system test suite locally.",
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "status": "passed",
+      "verification": {
+        "kind": "human_or_external_evidence",
+        "references": [
+          {
+            "locator": ".tool-versions:1",
+            "result": "Ruby 3.4.12 is the Ubuntu 26 version reported as available by the failed lint and test checks."
+          },
+          {
+            "locator": ".github/workflows/system_test.yml:12",
+            "result": "The system-test matrix uses the Ubuntu 26 available Ruby 3.3.13 and 3.4.12 releases."
+          }
+        ]
+      }
+    },
+    {
+      "id": "AC-2",
+      "status": "passed",
+      "verification": {
+        "kind": "permanent_system_test",
+        "references": [
+          {
+            "locator": "spec/system:26 examples",
+            "result": "passed locally with 0 failures"
+          }
+        ]
+      }
+    }
+  ]
+}
