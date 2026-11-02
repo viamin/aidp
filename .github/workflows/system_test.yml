@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        ruby-version: ["3.3.9", "3.4.7"]
+        ruby-version: ["3.3.13", "3.4.12"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
