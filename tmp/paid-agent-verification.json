@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "summary": "Pinned Ruby CI jobs to Ubuntu 24.04; lint and both RSpec suites pass locally.",
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "status": "passed",
+      "verification": {
+        "kind": "human_or_external_evidence",
+        "references": [
+          {
+            "locator": ".github/workflows/test.yml:15",
+            "result": "Ruby test job pins ubuntu-24.04"
+          },
+          {
+            "locator": ".github/workflows/lint.yml:16",
+            "result": "Ruby lint job pins ubuntu-24.04"
+          },
+          {
+            "locator": ".github/workflows/system_test.yml:12",
+            "result": "Ruby system-test matrix pins ubuntu-24.04"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AC-2",
+      "status": "passed",
+      "verification": {
+        "kind": "unit_or_service_test",
+        "references": [
+          {
+            "locator": "spec/: RSpec non-system suite",
+            "result": "8415 examples, 0 failures"
+          },
+          {
+            "locator": "spec/system/: RSpec system suite",
+            "result": "181 examples, 0 failures"
+          }
+        ]
+      }
+    }
+  ]
+}

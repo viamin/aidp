@@ -72,7 +72,7 @@ jobs:
 
   update-coverage-badge:
     name: Update coverage badge on release PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: release-please
     if: ${{ needs.release-please.outputs.pr-number != '' }}
     permissions:
@@ -190,7 +190,7 @@ jobs:
 
   push-gem:
     name: Push gem to RubyGems.org
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: release-please
     if: ${{ needs.release-please.outputs.release-created }}
 
