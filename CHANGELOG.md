@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.35](https://github.com/viamin/aidp/compare/aidp/v0.49.34...aidp/v0.49.35) (2026-11-09)
+
+
+### Dependencies
+
+* **deps:** bump agent-harness from 0.44.28 to 0.44.32 in the minor-updates group ([#641](https://github.com/viamin/aidp/issues/641)) ([a43b44d](https://github.com/viamin/aidp/commit/a43b44d98655e9d5a755639c4730855cddeb4f14))
+
 ## [0.49.34](https://github.com/viamin/aidp/compare/aidp/v0.49.33...aidp/v0.49.34) (2026-11-02)
 
 
