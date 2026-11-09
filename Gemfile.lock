@@ -29,7 +29,7 @@ GEM
   specs:
     addressable (2.9.0)
       public_suffix (>= 2.0.2, < 8.0)
-    agent-harness (0.44.28)
+    agent-harness (0.44.32)
       json_schemer (~> 2.4)
       logger (>= 1.6, < 2.0)
       ruby_llm (~> 2.0)
