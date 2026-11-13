@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Aidp
-  VERSION = "0.49.35"
+  VERSION = "0.50.0"
 end

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.0](https://github.com/viamin/aidp/compare/aidp/v0.49.35...aidp/v0.50.0) (2026-11-13)
+
+
+### Features
+
+* [P2] knowledge: Knowledge::ContainerizedRunner::CloneError ([#644](https://github.com/viamin/aidp/issues/644)) ([42b6f5d](https://github.com/viamin/aidp/commit/42b6f5d204a71a7fe48c9b17e6eb80c7e9447cbd))
+
 ## [0.49.35](https://github.com/viamin/aidp/compare/aidp/v0.49.34...aidp/v0.49.35) (2026-11-09)
 
 
