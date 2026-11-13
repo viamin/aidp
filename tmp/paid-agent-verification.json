@@ -1,37 +1,36 @@
 {
-  "status": "passed",
-  "summary": "Merged origin/main into the dependabot minor-updates branch; resolved the add/add conflict in tmp/paid-agent-verification.json and kept both sides' CI workflow changes. Lint passes and the RSpec suite shows only the 6 failures already present on origin/main with the old gem versions (deferred per PR instructions).",
+  "status": "not_run",
+  "summary": "Blocked: the assigned checkout (viamin/aidp at 85e1b0d624cd99f0f89829d289e8865b4a34ba74) contains no Knowledge::ContainerizedRunner or app/services/knowledge/containerized_runner.rb, so the incident cannot be implemented or regression-tested here.",
   "acceptance_criteria": [
     {
       "id": "AC-1",
-      "status": "passed",
+      "status": "not_run",
       "verification": {
         "kind": "human_or_external_evidence",
-        "references": [
+        "rationale": "The reported failure originates in a Rails service absent from this repository; no executable acceptance criterion can be mapped to AIDP code without inventing a separate implementation.",
+        "limitations": [
+          "The source Rails application and its test suite are not present in this checkout.",
+          "Passing AIDP checks cannot establish behavior of Knowledge::ContainerizedRunner."
+        ],
+        "inputs": [
           {
-            "locator": "git merge origin/main",
-            "result": "Only conflict was tmp/paid-agent-verification.json (add/add); workflow files auto-merged keeping main's ubuntu-24.04 pins and setup-ruby SHA plus this branch's ruby-version pins 3.3.13/3.4.12."
-          },
-          {
-            "locator": "Gemfile.lock",
-            "result": "Merge preserves agent-harness 0.44.28, csv 3.3.7, sqlite3 2.10.2, temporalio 1.10.1."
+            "type": "human_or_external",
+            "url": "https://github.com/viamin/aidp/issues/643",
+            "reason": "The issue identifies /workspaces/paid/app/services/knowledge/containerized_runner.rb, which does not exist in the assigned repository revision."
           }
-        ]
-      }
-    },
-    {
-      "id": "AC-2",
-      "status": "passed",
-      "verification": {
-        "kind": "unit_or_service_test",
+        ],
         "references": [
+          {
+            "locator": "git ls-tree -r --name-only HEAD",
+            "result": "No app/services/knowledge/containerized_runner.rb, run_collectors_job.rb, or run_collector_batch_job.rb is tracked at 85e1b0d624cd99f0f89829d289e8865b4a34ba74."
+          },
           {
             "locator": "bundle exec standardrb",
-            "result": "0 offenses"
+            "result": "passed (repository baseline lint)."
           },
           {
-            "locator": "bundle exec rspec (full suite)",
-            "result": "8441 examples, 6 failures; all 6 reproduce identically on origin/main with pre-bump gem versions (logger_spec.rb:564,820; build_processor_spec.rb:618; workstream_workflow_spec.rb:169,183,195), so they are pre-existing and out of scope."
+            "locator": "bundle exec rspec",
+            "result": "passed (repository baseline suite; not evidence for the absent service)."
           }
         ]
       }
