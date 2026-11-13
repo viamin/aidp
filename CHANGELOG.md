@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.1](https://github.com/viamin/aidp/compare/aidp/v0.50.0...aidp/v0.50.1) (2026-11-13)
+
+
+### Dependencies
+
+* **deps-dev:** bump addressable from 2.9.0 to 2.9.1 in the security-updates group across 1 directory ([#646](https://github.com/viamin/aidp/issues/646)) ([d11c20e](https://github.com/viamin/aidp/commit/d11c20ea0ec9216c5bb6df236d3456262fccf0d4))
+
 ## [0.50.0](https://github.com/viamin/aidp/compare/aidp/v0.49.35...aidp/v0.50.0) (2026-11-13)
 
 
