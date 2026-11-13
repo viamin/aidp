@@ -26,6 +26,7 @@ code_maat_analysis_report.md
 *.tmp
 *.log
 tmp/aruba/*
+tmp/paid-agent-verification.json
 coverage/*
 .cache
 .local
