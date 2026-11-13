@@ -27,7 +27,7 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    addressable (2.9.0)
+    addressable (2.9.1)
       public_suffix (>= 2.0.2, < 8.0)
     agent-harness (0.44.32)
       json_schemer (~> 2.4)
