@@ -29,7 +29,7 @@ GEM
   specs:
     addressable (2.9.1)
       public_suffix (>= 2.0.2, < 8.0)
-    agent-harness (0.44.32)
+    agent-harness (0.44.35)
       json_schemer (~> 2.4)
       logger (>= 1.6, < 2.0)
       ruby_llm (~> 2.0)
@@ -160,13 +160,14 @@ GEM
     ruby-lsp-rspec (0.1.29)
       ruby-lsp (~> 0.26.0)
     ruby-progressbar (1.13.0)
-    ruby_llm (2.1.1)
+    ruby_llm (2.2.2)
       base64
       faraday (>= 1.10.0, != 2.0.0)
       faraday-multipart (>= 1)
       faraday-net_http (>= 1)
       faraday-retry (>= 1)
       json (< 4)
+      logger
       marcel (>= 1.0, < 3)
       schematist (~> 1.1)
       zeitwerk (~> 2)
@@ -210,15 +211,15 @@ GEM
       unicode_utils (~> 1.4)
     strings-ansi (0.2.0)
     tempfile (0.3.2)
-    temporalio (1.10.1-aarch64-linux)
+    temporalio (1.11.0-aarch64-linux)
       google-protobuf (>= 3.25.0)
       json (< 3)
       logger
-    temporalio (1.10.1-arm64-darwin)
+    temporalio (1.11.0-arm64-darwin)
       google-protobuf (>= 3.25.0)
       json (< 3)
       logger
-    temporalio (1.10.1-x86_64-linux)
+    temporalio (1.11.0-x86_64-linux)
       google-protobuf (>= 3.25.0)
       json (< 3)
       logger
